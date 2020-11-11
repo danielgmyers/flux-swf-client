@@ -13,10 +13,20 @@
     <url>TODO</url>
 
     <dependencies>
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+            <version>4.2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.classgraph</groupId>
+            <artifactId>classgraph</artifactId>
+            <version>4.8.90</version>
+        </dependency>
 
         <!-- flux internal dependencies -->
         <dependency>
-            <artifactId>flux-common</artifactId>
+            <artifactId>flux</artifactId>
             <groupId>software.amazon.aws.clients.swf.flux</groupId>
             <version>${flux.version}</version>
             <optional>false</optional>
@@ -24,9 +34,9 @@
 
         <!-- test dependencies -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.7.0</version> <!-- this was written against newer junit than the rest of the code -->
             <scope>test</scope>
         </dependency>
         <dependency>
