@@ -31,6 +31,7 @@
         <module>flux</module>
         <module>flux-common</module>
         <module>flux-guice</module>
+        <module>flux-integration-tests</module>
         <module>flux-spring</module>
         <module>flux-testutils</module>
     </modules>
@@ -71,8 +72,11 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>2.22.2</version>
                     <configuration>
+                        <parallel>classes</parallel>
+                        <threadCount>3</threadCount>
                         <includes>
                             <include>**/*Test.java</include>
+                            <include>**/*Tests.java</include>
                         </includes>
                     </configuration>
                 </plugin>
