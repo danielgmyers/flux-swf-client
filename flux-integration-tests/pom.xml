@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>software.amazon.aws.clients.swf.flux</groupId>
+        <artifactId>flux-swf-client-pom</artifactId>
+        <version>2.0.0</version>
+    </parent>
+    <artifactId>flux-integration-tests</artifactId>
+    <name>Flux SWF Client integration tests</name>
+    <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
+    <url>TODO</url>
+
+    <dependencies>
+
+        <dependency>
+            <artifactId>flux</artifactId>
+            <groupId>software.amazon.aws.clients.swf.flux</groupId>
+            <version>${flux.version}</version>
+            <optional>false</optional>
+        </dependency>
+
+        <!-- test dependencies -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <artifactId>slf4j-nop</artifactId>
+            <groupId>org.slf4j</groupId>
+            <version>${slf4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
