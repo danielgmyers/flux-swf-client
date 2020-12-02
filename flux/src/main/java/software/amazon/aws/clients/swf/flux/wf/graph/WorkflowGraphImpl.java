@@ -29,15 +29,15 @@ import software.amazon.aws.clients.swf.flux.step.WorkflowStepHook;
  * A graph representation of how Flux should proceed through the workflow.
  * Construct one using WorkflowGraphBuilder.
  */
-public final class WorkflowGraph {
+public final class WorkflowGraphImpl implements WorkflowGraph {
 
     private final WorkflowStep firstStep;
     private final Map<Class<? extends WorkflowStep>, WorkflowGraphNode> steps;
     private final Map<Class<? extends WorkflowStep>, List<WorkflowStepHook>> stepHooks;
 
     // package-private so only WorkflowGraphBuilder can create one
-    WorkflowGraph(WorkflowStep firstStep, Map<Class<? extends WorkflowStep>, WorkflowGraphNode> steps,
-                  Map<Class<? extends WorkflowStep>, List<WorkflowStepHook>> stepHooks) {
+    WorkflowGraphImpl(WorkflowStep firstStep, Map<Class<? extends WorkflowStep>, WorkflowGraphNode> steps,
+                      Map<Class<? extends WorkflowStep>, List<WorkflowStepHook>> stepHooks) {
         this.firstStep = firstStep;
         this.steps = Collections.unmodifiableMap(new HashMap<>(steps));
 
@@ -48,14 +48,17 @@ public final class WorkflowGraph {
         this.stepHooks = Collections.unmodifiableMap(stepHooksCopy);
     }
 
+    @Override
     public WorkflowStep getFirstStep() {
         return firstStep;
     }
 
+    @Override
     public Map<Class<? extends WorkflowStep>, WorkflowGraphNode> getNodes() {
         return steps;
     }
 
+    @Override
     public List<WorkflowStepHook> getHooksForStep(Class<? extends WorkflowStep> step) {
         return stepHooks.get(step);
     }

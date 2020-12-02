@@ -13,14 +13,20 @@
     <url>TODO</url>
 
     <dependencies>
+        <dependency>
+            <artifactId>swf</artifactId>
+            <groupId>software.amazon.awssdk</groupId>
+            <version>${awssdk.version}</version>
+            <optional>false</optional>
+        </dependency>
 
-        <!-- flux internal dependencies
+        <!-- flux internal dependencies -->
         <dependency>
             <artifactId>flux-common</artifactId>
             <groupId>software.amazon.aws.clients.swf.flux</groupId>
             <version>${flux.version}</version>
             <optional>false</optional>
-        </dependency> -->
+        </dependency>
 
         <!-- test dependencies -->
         <dependency>

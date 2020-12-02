@@ -20,13 +20,13 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 
-import software.amazon.aws.clients.swf.flux.FluxCapacitorImpl;
-
 /**
  * An interface marking a class to be a workflow step.
  * The class must also define exactly one public method with the @StepApply annotation.
  */
 public interface WorkflowStep {
+
+    Duration ACTIVITY_TASK_HEARTBEAT_DEFAULT_TIMEOUT = Duration.ofSeconds(60);
 
     /**
      * Attributes returned by this method are used by the WorkflowGraphBuilder to validate that all steps' input attributes
@@ -55,6 +55,6 @@ public interface WorkflowStep {
      * Defaults to 60 seconds.
      */
     default Duration activityTaskHeartbeatTimeout() {
-        return FluxCapacitorImpl.ACTIVITY_TASK_HEARTBEAT_DEFAULT_TIMEOUT;
+        return ACTIVITY_TASK_HEARTBEAT_DEFAULT_TIMEOUT;
     }
 }

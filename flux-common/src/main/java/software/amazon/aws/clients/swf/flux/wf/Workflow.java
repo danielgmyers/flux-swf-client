@@ -18,13 +18,15 @@ package software.amazon.aws.clients.swf.flux.wf;
 
 import java.time.Duration;
 
-import software.amazon.aws.clients.swf.flux.FluxCapacitorImpl;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraph;
 
 /**
  * An interface defining the operations a workflow object must implement.
  */
 public interface Workflow {
+
+    String DEFAULT_TASK_LIST_NAME = "default";
+    Duration WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT = Duration.ofDays(21);
 
     /**
      * @return A graph representing the various paths the workflow may take through its steps.
@@ -41,7 +43,7 @@ public interface Workflow {
      * It is dangerous to change this for an existing workflow -- make sure you have no active executions.
      */
     default String taskList() {
-        return FluxCapacitorImpl.DEFAULT_TASK_LIST_NAME;
+        return DEFAULT_TASK_LIST_NAME;
     }
 
     /**
@@ -57,6 +59,6 @@ public interface Workflow {
      * Defaults to 21 days.
      */
     default Duration maxStartToCloseDuration() {
-        return FluxCapacitorImpl.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT;
+        return WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT;
     }
 }

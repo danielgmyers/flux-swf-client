@@ -17,7 +17,6 @@
 package software.amazon.aws.clients.swf.flux;
 
 import software.amazon.aws.clients.swf.flux.metrics.MetricRecorderFactory;
-import software.amazon.aws.clients.swf.flux.testutil.StubFluxCapacitor;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
 /**
@@ -55,12 +54,5 @@ public final class FluxCapacitorFactory {
     public static FluxCapacitor create(MetricRecorderFactory metricsFactory, AwsCredentialsProvider credentials,
                                        FluxCapacitorConfig config) {
         return FluxCapacitorImpl.create(metricsFactory, credentials, config);
-    }
-
-    /**
-     * Creates a StubFluxCapacitor object for use in unit tests.
-     */
-    public static StubFluxCapacitor createMock() {
-        return new StubFluxCapacitor();
     }
 }

@@ -25,7 +25,7 @@ import java.util.UUID;
 import software.amazon.aws.clients.swf.flux.metrics.MetricRecorder;
 import software.amazon.aws.clients.swf.flux.metrics.MetricRecorderFactory;
 import software.amazon.aws.clients.swf.flux.metrics.NoopMetricRecorderFactory;
-import software.amazon.aws.clients.swf.flux.poller.ActivityExecutor;
+import software.amazon.aws.clients.swf.flux.poller.ActivityExecutionUtil;
 import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.step.StepResult;
 import software.amazon.aws.clients.swf.flux.step.StepResult.ResultAction;
@@ -83,9 +83,9 @@ public final class StepValidator {
         augmentedInput.putIfAbsent(StepAttributes.WORKFLOW_EXECUTION_ID, UUID.randomUUID().toString());
         augmentedInput.putIfAbsent(StepAttributes.WORKFLOW_START_TIME, Date.from(Instant.now()));
 
-        StepResult actual = ActivityExecutor.executeActivity(step, step.getClass().getSimpleName(),
-                                                             METRICS_FACTORY.newMetricRecorder(""), stepMetrics,
-                                                             StepAttributes.serializeMapValues(augmentedInput));
+        StepResult actual = ActivityExecutionUtil.executeActivity(step, step.getClass().getSimpleName(),
+                                                                  METRICS_FACTORY.newMetricRecorder(""), stepMetrics,
+                                                                  StepAttributes.serializeMapValues(augmentedInput));
         if (actual.getAction() != expectedResult) {
             throw new RuntimeException(String.format("Expected result action %s but was %s: %s",
                                                      expectedResult, actual.getAction(), actual.getMessage()),

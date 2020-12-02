@@ -93,7 +93,7 @@ public class ActivityExecutorTest {
         Assert.assertEquals(task.workflowExecution().workflowId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(task.workflowExecution().runId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_RUN_ID_METRIC_NAME));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
                                 result.getResultCode())).intValue());
     }
 
@@ -126,7 +126,7 @@ public class ActivityExecutorTest {
         Assert.assertEquals(task.workflowExecution().workflowId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(task.workflowExecution().runId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_RUN_ID_METRIC_NAME));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
                                 result.getResultCode())).intValue());
     }
 
@@ -159,7 +159,7 @@ public class ActivityExecutorTest {
         Assert.assertEquals(task.workflowExecution().workflowId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(task.workflowExecution().runId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_RUN_ID_METRIC_NAME));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
                                 result.getResultCode())).intValue());
     }
 
@@ -184,7 +184,7 @@ public class ActivityExecutorTest {
         Assert.assertEquals(task.workflowExecution().workflowId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(task.workflowExecution().runId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_RUN_ID_METRIC_NAME));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatRetryResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(),
                                 null)).intValue());
     }
 
@@ -214,7 +214,7 @@ public class ActivityExecutorTest {
         Assert.assertEquals(task.workflowExecution().workflowId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(task.workflowExecution().runId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_RUN_ID_METRIC_NAME));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatRetryResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(),
                                 e.getClass().getSimpleName())).intValue());
     }
 
@@ -242,9 +242,9 @@ public class ActivityExecutorTest {
         String activityName = "stepName";
 
         // The stub step has a return type of void, so it should always just be a plain success result.
-        Assert.assertEquals(StepResult.success(), ActivityExecutor.executeActivity(stub, activityName, fluxMetrics, stepMetrics, input));
+        Assert.assertEquals(StepResult.success(), ActivityExecutionUtil.executeActivity(stub, activityName, fluxMetrics, stepMetrics, input));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(activityName,
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(activityName,
                                 StepResult.SUCCEED_RESULT_CODE)).intValue());
     }
 
@@ -264,12 +264,12 @@ public class ActivityExecutorTest {
         String activityName = "stepName";
 
         // The stub step has a return type of void, so it should always just be a plain success result.
-        Assert.assertEquals(StepResult.success(), ActivityExecutor.executeActivity(stepWithMetrics, activityName, fluxMetrics, stepMetrics, Collections.emptyMap()));
+        Assert.assertEquals(StepResult.success(), ActivityExecutionUtil.executeActivity(stepWithMetrics, activityName, fluxMetrics, stepMetrics, Collections.emptyMap()));
 
         Assert.assertTrue(stepMetrics.getCounts().containsKey(stepMetric));
         Assert.assertEquals(1, stepMetrics.getCounts().get(stepMetric).longValue());
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(activityName,
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(activityName,
                                 StepResult.SUCCEED_RESULT_CODE)).intValue());
     }
 
@@ -333,7 +333,7 @@ public class ActivityExecutorTest {
         Assert.assertTrue(fluxMetrics.getDurations().containsKey(WorkflowStepUtil.formatHookExecutionTimeName(TestPreAndPostStepHook.class.getSimpleName(),
                 "postStepHook", task.activityType().name())));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
                                 result.getResultCode())).intValue());
     }
 
@@ -392,7 +392,7 @@ public class ActivityExecutorTest {
         Assert.assertTrue(fluxMetrics.getDurations().containsKey(WorkflowStepUtil.formatHookExecutionTimeName(TestHookWithMetrics.class.getSimpleName(),
                 "postStepHook", task.activityType().name())));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
                                 result.getResultCode())).intValue());
     }
 
@@ -450,7 +450,7 @@ public class ActivityExecutorTest {
         Assert.assertTrue(fluxMetrics.getDurations().containsKey(WorkflowStepUtil.formatHookExecutionTimeName(TestPreAndPostStepHook.class.getSimpleName(),
                 "preStepHook", task.activityType().name())));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
                                 StepResult.SUCCEED_RESULT_CODE)).intValue());
     }
 
@@ -509,7 +509,7 @@ public class ActivityExecutorTest {
         Assert.assertTrue(fluxMetrics.getDurations().containsKey(WorkflowStepUtil.formatHookExecutionTimeName(TestPreAndPostStepHook.class.getSimpleName(),
                 "postStepHook", task.activityType().name())));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
                                 StepResult.SUCCEED_RESULT_CODE)).intValue());
     }
 
@@ -613,7 +613,7 @@ public class ActivityExecutorTest {
         Assert.assertTrue(fluxMetrics.getDurations().containsKey(WorkflowStepUtil.formatHookExecutionTimeName(TestPreHookThrowsExceptionNoRetryOnFailure.class.getSimpleName(),
                 "preStepHook", task.activityType().name())));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
                                 result.getResultCode())).intValue());
     }
 
@@ -707,7 +707,7 @@ public class ActivityExecutorTest {
         Assert.assertTrue(fluxMetrics.getDurations().containsKey(WorkflowStepUtil.formatHookExecutionTimeName(TestPostHookThrowsExceptionNoRetryOnFailure.class.getSimpleName(),
                 "postStepHook", task.activityType().name())));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
                                 result.getResultCode())).intValue());
     }
 
@@ -752,7 +752,7 @@ public class ActivityExecutorTest {
         Assert.assertTrue(fluxMetrics.getDurations().containsKey(WorkflowStepUtil.formatHookExecutionTimeName(TestPostHookThrowsExceptionRetryOnFailure.class.getSimpleName(),
                 "postStepHook", task.activityType().name())));
 
-        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutor.formatCompletionResultMetricName(task.activityType().name(),
+        Assert.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
                                 result.getResultCode())).intValue());
     }
 
