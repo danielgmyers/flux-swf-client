@@ -20,7 +20,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import software.amazon.aws.clients.swf.flux.metrics.NoopMetricRecorderFactory;
-import software.amazon.aws.clients.swf.flux.testutil.StubFluxCapacitor;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
@@ -33,11 +32,5 @@ public class FluxCapacitorFactoryTest {
         FluxCapacitor fc = FluxCapacitorFactory.create(new NoopMetricRecorderFactory(), creds,
                                                        "us-east-1", "https://fake.example.com", "test");
         Assert.assertEquals(fc.getClass(), FluxCapacitorImpl.class);
-    }
-
-    @Test
-    public void testMock() {
-        FluxCapacitor fc = FluxCapacitorFactory.createMock();
-        Assert.assertEquals(fc.getClass(), StubFluxCapacitor.class);
     }
 }

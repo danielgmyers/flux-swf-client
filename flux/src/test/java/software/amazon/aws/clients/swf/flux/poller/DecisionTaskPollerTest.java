@@ -181,7 +181,7 @@ public class DecisionTaskPollerTest {
         };
 
         executor = new BlockOnSubmissionThreadPoolExecutor(1);
-        poller = new DecisionTaskPoller(metricsFactory, swf, DOMAIN, FluxCapacitorImpl.DEFAULT_TASK_LIST_NAME, IDENTITY,
+        poller = new DecisionTaskPoller(metricsFactory, swf, DOMAIN, Workflow.DEFAULT_TASK_LIST_NAME, IDENTITY,
                                         FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, workflows, activities, executor);
     }
 
@@ -243,7 +243,7 @@ public class DecisionTaskPollerTest {
 
         // throttle twice, then succeed
         PollForDecisionTaskRequest request = PollForDecisionTaskRequest.builder().domain(DOMAIN)
-                .taskList(TaskList.builder().name(FluxCapacitorImpl.DEFAULT_TASK_LIST_NAME).build())
+                .taskList(TaskList.builder().name(Workflow.DEFAULT_TASK_LIST_NAME).build())
                 .identity(IDENTITY).reverseOrder(true).build();
         EasyMock.expect(swf.pollForDecisionTask(request))
                 .andThrow(SdkServiceException.builder().statusCode(HttpStatusCode.THROTTLING).message("throttled").build())
@@ -271,7 +271,7 @@ public class DecisionTaskPollerTest {
 
         // throttle twice, then succeed
         PollForDecisionTaskRequest request = PollForDecisionTaskRequest.builder().domain(DOMAIN)
-                .taskList(TaskList.builder().name(FluxCapacitorImpl.DEFAULT_TASK_LIST_NAME).build())
+                .taskList(TaskList.builder().name(Workflow.DEFAULT_TASK_LIST_NAME).build())
                 .identity(IDENTITY).reverseOrder(true).build();
         EasyMock.expect(swf.pollForDecisionTask(request))
                 .andThrow(SdkServiceException.builder().statusCode(HttpStatusCode.BAD_REQUEST).message("Rate exceeded").build())
@@ -299,7 +299,7 @@ public class DecisionTaskPollerTest {
 
         // socket exception twice, then succeed
         PollForDecisionTaskRequest request = PollForDecisionTaskRequest.builder().domain(DOMAIN)
-            .taskList(TaskList.builder().name(FluxCapacitorImpl.DEFAULT_TASK_LIST_NAME).build())
+            .taskList(TaskList.builder().name(Workflow.DEFAULT_TASK_LIST_NAME).build())
             .identity(IDENTITY).reverseOrder(true).build();
         EasyMock.expect(swf.pollForDecisionTask(request))
             .andThrow(SdkClientException.builder().cause(new SSLException(new SocketException("Connection Closed")))
@@ -338,7 +338,7 @@ public class DecisionTaskPollerTest {
         executor.awaitTermination(60, TimeUnit.SECONDS);
         Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
         Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + FluxCapacitorImpl.DEFAULT_TASK_LIST_NAME));
+        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
         Assert.assertTrue(pollMetrics.isClosed());
         Assert.assertTrue(deciderMetricsRequested);
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatDecisionTaskEventHistoryPageCountMetricName(workflowName)).longValue());
@@ -2753,7 +2753,7 @@ public class DecisionTaskPollerTest {
     }
 
     private void expectPoll(PollForDecisionTaskResponse taskToReturn) {
-        expectPoll(taskToReturn, FluxCapacitorImpl.DEFAULT_TASK_LIST_NAME);
+        expectPoll(taskToReturn, Workflow.DEFAULT_TASK_LIST_NAME);
     }
 
     private void expectPoll(PollForDecisionTaskResponse taskToReturn, String taskList) {

@@ -1,5 +1,7 @@
 package software.amazon.aws.clients.swf.flux;
 
+import software.amazon.aws.clients.swf.flux.wf.Workflow;
+
 /**
  * Utility class to store/access configuration data provided to the tests.
  *
@@ -74,7 +76,7 @@ public final class TestConfig {
         tasklistConfig.setDecisionTaskThreadCount(poolSize);
         tasklistConfig.setPeriodicSubmitterThreadCount(1);
 
-        config.putTaskListConfig(FluxCapacitorImpl.DEFAULT_TASK_LIST_NAME, tasklistConfig);
+        config.putTaskListConfig(Workflow.DEFAULT_TASK_LIST_NAME, tasklistConfig);
         return config;
     }
 }

@@ -25,26 +25,29 @@ import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
 /**
  * Represents a single workflow step and its possible step transitions in the graph.
  */
-public class WorkflowGraphNode {
+public class WorkflowGraphNodeImpl implements WorkflowGraphNode {
 
     private final WorkflowStep step;
     private final Map<String, WorkflowGraphNode> nextStepsByResultCode;
 
     // package-private so only WorkflowGraphBuilder can create one
-    WorkflowGraphNode(WorkflowStep step) {
+    WorkflowGraphNodeImpl(WorkflowStep step) {
         this.step = step;
         this.nextStepsByResultCode = new HashMap<>();
     }
 
-    // package-private so only WorkflowGraphBuilder can add next steps. If node is null, the workflow will end.
-    void addTransition(String resultCode, WorkflowGraphNode node) {
+    // only for WorkflowGraphBuilder internal use. If node is null, the workflow will end.
+    @Override
+    public void addTransition(String resultCode, WorkflowGraphNode node) {
         nextStepsByResultCode.put(resultCode, node);
     }
 
+    @Override
     public WorkflowStep getStep() {
         return step;
     }
 
+    @Override
     public Map<String, WorkflowGraphNode> getNextStepsByResultCode() {
         return Collections.unmodifiableMap(nextStepsByResultCode);
     }

@@ -82,10 +82,7 @@ import software.amazon.awssdk.services.swf.model.WorkflowType;
 public final class FluxCapacitorImpl implements FluxCapacitor {
 
     public static final String WORKFLOW_VERSION = "1";
-    public static final String DEFAULT_TASK_LIST_NAME = "default";
     public static final String WORKFLOW_EXECUTION_RETENTION_PERIOD_IN_DAYS = "90";
-    public static final Duration WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT = Duration.ofDays(21);
-    public static final Duration ACTIVITY_TASK_HEARTBEAT_DEFAULT_TIMEOUT = Duration.ofSeconds(60);
     public static final String DEFAULT_DECISION_TASK_TIMEOUT = "30";
 
     private static final Logger log = LoggerFactory.getLogger(FluxCapacitorImpl.class);
@@ -409,11 +406,11 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
     // package-private for unit test use
     static RegisterWorkflowTypeRequest buildRegisterWorkflowRequest(String workflowDomain, String workflowName) {
-        long timeout = WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT.getSeconds();
+        long timeout = Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT.getSeconds();
         return RegisterWorkflowTypeRequest.builder().domain(workflowDomain)
                 .name(workflowName)
                 .version(WORKFLOW_VERSION)
-                .defaultTaskList(TaskList.builder().name(DEFAULT_TASK_LIST_NAME).build())
+                .defaultTaskList(TaskList.builder().name(Workflow.DEFAULT_TASK_LIST_NAME).build())
                 .defaultExecutionStartToCloseTimeout(Long.toString(timeout))
                 .defaultTaskStartToCloseTimeout(DEFAULT_DECISION_TASK_TIMEOUT)
                 .defaultChildPolicy(ChildPolicy.TERMINATE)
@@ -459,7 +456,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
         return RegisterActivityTypeRequest.builder().domain(workflowDomain)
                 .name(activityName)
                 .version(WORKFLOW_VERSION)
-                .defaultTaskList(TaskList.builder().name(DEFAULT_TASK_LIST_NAME).build())
+                .defaultTaskList(TaskList.builder().name(Workflow.DEFAULT_TASK_LIST_NAME).build())
                 .defaultTaskScheduleToStartTimeout("NONE")
                 .defaultTaskStartToCloseTimeout("NONE")
                 .defaultTaskScheduleToCloseTimeout("NONE")

@@ -479,7 +479,7 @@ public class WorkflowGraphBuilder {
 
         Map<Class<? extends WorkflowStep>, WorkflowGraphNode> nodes = new HashMap<>();
         for (Entry<Class<? extends WorkflowStep>, WorkflowStep> entry : stepImpls.entrySet()) {
-            nodes.put(entry.getKey(), new WorkflowGraphNode(entry.getValue()));
+            nodes.put(entry.getKey(), new WorkflowGraphNodeImpl(entry.getValue()));
         }
 
         Set<Class<? extends WorkflowStep>> reachable = new HashSet<>();
@@ -528,7 +528,7 @@ public class WorkflowGraphBuilder {
             validateAttributeAvailability(actualFirstStep, nodes, initialAttributes, stepHooks);
         }
 
-        return new WorkflowGraph(actualFirstStep, nodes, stepHooks);
+        return new WorkflowGraphImpl(actualFirstStep, nodes, stepHooks);
     }
 
     private void verifyNoLoops(Class<? extends WorkflowStep> step,
