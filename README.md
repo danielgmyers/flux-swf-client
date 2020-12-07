@@ -140,7 +140,119 @@ Because the workflow graph is constructed at startup (including in your unit tes
 
 `WorkflowGraphBuilder` can do additional validation on your workflow definition; see the wiki for more information.
 
-Manual library initialization
+Workflow branches
+---------------------------------------
+It is often useful to be able to take different paths through a workflow depending on the outcome of a step. For example, a workflow step may determine that a required action will be impossible, and the workflow should proceed to a series of rollback steps.
+
+To support this kind of use case, Flux offers the capability to define the path a workflow will take through its steps based on the "result code" returned by each step. Flux offers two default result codes (`StepResult.SUCCEED_RESULT_CODE` and `StepResult.FAIL_RESULT_CODE`) that meet most needs, and supports arbitrary custom result codes to support more complex use cases.
+
+In this example, we create a workflow with three main steps, and rollback steps which are the inverse of the main three steps. We will assume those step classes are already defined.
+
+```java
+public class ExampleBranchingWorkflow implements Workflow {
+
+    private WorkflowGraph graph;
+
+    public ExampleBranchingWorkflow() {
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(new StepOne());
+        builder.successTransition(StepOne.class, StepTwo.class);
+        builder.failureTransition(StepOne.class, RollbackStepOne.class);
+
+        // The commonTransitions() helper is equivalent to the separate successTransition() and failureTransition() calls above.
+        builder.addStep(new StepTwo());
+        builder.commonTransitions(StepTwo.class, StepThree.class, RollbackStepTwo.class);
+
+        builder.addStep(new StepThree());
+        builder.closeOnSuccess(StepThree.class);
+        builder.failureTransition(StepThree.class, RollbackStepThree.class);
+
+        // Now we define the rollback branch
+        // Since this is just like any branch, it's best to define them in the order they execute in.
+        builder.addStep(new RollbackStepThree());
+        // In this case, we always want to go to the next rollback step even if RollbackStepThree returns a failure result.
+        builder.commonTransitions(RollbackStepThree.class, RollbackStepTwo.class, RollbackStepTwo.class);
+
+        // alwaysTransition() can be used instead of commonTransitions() when the success and failure transitions are to the same step.
+        builder.addStep(new RollbackStepTwo());
+        builder.alwaysTransition(RollbackStepTwo.class, RollbackStepOne.class);
+
+        builder.addStep(new RollbackStepOne());
+        builder.alwaysClose(RollbackStepOne.class);
+
+        graph = builder.build();
+    }
+
+    @Override
+    public WorkflowGraph getGraph() {
+        return graph;
+    }
+}
+```
+
+
+Here we used the default success and failure result codes to define a simple branching workflow. `WorkflowGraphBuilder` offers helper methods like `commonTransitions` and `alwaysTransition` to make the most common configurations easier.
+
+If instead we wanted to use custom result codes for all of these transitions, it could be done like this:
+
+```java
+public class ExampleBranchingWorkflow implements Workflow {
+
+    private WorkflowGraph graph;
+
+    public ExampleBranchingWorkflow() {
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(new StepOne());
+        builder.customTransition(StepOne.class, "won", StepTwo.class);
+        builder.customTransition(StepOne.class, "lost", RollbackStepOne.class);
+
+        // The commonTransitions() helper is equivalent to the separate successTransition() and failureTransition() calls above.
+        builder.addStep(new StepTwo());
+        builder.customTransition(StepTwo.class, "retained", StepThree.class);
+        builder.customTransition(StepTwo.class, "revoked", RollbackStepTwo.class);
+
+        builder.addStep(new StepThree());
+        builder.closeOnCustom(StepThree.class, "lived");
+        builder.customTransition(StepThree.class, "died", RollbackStepThree.class);
+
+        // Now we define the rollback branch.
+        builder.addStep(new RollbackStepThree());
+        builder.customTransition(RollbackStepThree.class, "resurrected", RollbackStepTwo.class);
+
+        // alwaysTransition() works for custom result codes too; Flux ignores the actual result code returned by the step if you define an "always" transition.
+        builder.addStep(new RollbackStepTwo());
+        builder.alwaysTransition(RollbackStepTwo.class, RollbackStepOne.class);
+
+        builder.addStep(new RollbackStepOne());
+        builder.alwaysClose(RollbackStepOne.class);
+
+        graph = builder.build();
+    }
+
+    @Override
+    public WorkflowGraph getGraph() {
+        return graph;
+    }
+}
+```
+
+For clarity, this is how a workflow step would actually return a result with a custom code:
+
+```java
+public class StepTwo implements WorkflowStep {
+    @StepApply
+    public StepResult decideSomething(@Attribute("someInput") String value) {
+        if ("diamond".equals(value)) {
+            return StepResult.success("retained", "We decided to keep the value since it's a diamond.");
+        } else {
+            return StepResult.failure("revoked", "We decided not to keep the value.");
+        }
+    }
+}
+```
+
+When custom result codes are used, it does not matter whether `StepResult.success` or `StepResult.failure` is called; they behave the same way. You should use whichever helps you best convey what is happening in your workflow.
+
+
+Library initialization
 ---------------------------------------
 
 ```java
@@ -189,45 +301,10 @@ public class MyApp {
 }
 ```
 
-In your unit tests, you should use the stub FluxCapacitor provided by the factory, which provides helper methods for validating code that initiates workflows:
-
-```java
-package example.flux;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import software.amazon.aws.clients.swf.flux.FluxCapacitorFactory;
-import software.amazon.aws.clients.swf.flux.testutil.StubFluxCapacitor;
-
-import org.junit.Assert;
-import org.junit.Test;
-
-public class MyAppTest {
-    
-    @Test
-    public void testSomething() {
-        StubFluxCapacitor stubFluxCapacitor = FluxCapacitorFactory.createMock();
-
-        // call some code that initiates a workflow
-
-        stubFluxCapacitor.verifyWorkflowWasNotStarted(WorkflowThatShouldNotRun.class, "some-id");
-        
-        Map<String, String> expectedInput = new HashMap<>();
-        stubFluxCapacitor.verifyWorkflowWasStarted(WorkflowThatShouldRun.class, "some-id", expectedInput);
-        
-        Assert.assertEquals(1, stubFluxCapacitor.countExecutedWorkflows());
-        
-        // you can use this method if you're sharing your stubFluxCapacitor object across tests:
-        stubFluxCapacitor.resetExecutionCache();
-    }
-}
-```
-
 Unit testing workflow steps
 ---------------------------
 
-Flux provides a utility class `StepValidator` that should be used to validate input to your workflows. It is strongly recommended that you use `StepValidator` to test your steps, instead of calling your step's `@StepApply` method directly, because `StepValidator` uses the same `@StepApply` execution logic that Flux uses at runtime (including converting thrown exceptions into "retry" results).
+In the `flux-testutils` package, Flux provides a utility class `StepValidator` that should be used to validate input to your workflows. It is strongly recommended that you use `StepValidator` to test your steps, instead of calling your step's `@StepApply` method directly, because `StepValidator` uses the same `@StepApply` execution logic that Flux uses at runtime (including converting thrown exceptions into "retry" results).
 
 ```java
 package example.flux;
@@ -266,3 +343,39 @@ public class HelloTest {
 - `retries` - Asserts that the step would be scheduled for a retry, either because it threw an exception or because it returned `StepResult.retry()`.
 - `completes` - Asserts that the step completed (i.e. will not retry) with a specific result code.
 
+Additionally, `flux-testutils` provides `InMemoryMetricRecorder` that stores metrics in memory so that you can validate that your step logic emits the right metrics.
+
+There are also `StubFluxCapacitor` and `StubRemoteWorkflowExecutor` implementations for unit testing code that takes a `FluxCapacitor` or `RemoteWorkflowExecutor` as input, for example:
+
+```java
+package example.flux;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import software.amazon.aws.clients.swf.flux.FluxCapacitorFactory;
+import software.amazon.aws.clients.swf.flux.testutil.StubFluxCapacitor;
+
+import org.junit.Assert;
+import org.junit.Test;
+
+public class MyAppTest {
+    
+    @Test
+    public void testSomething() {
+        StubFluxCapacitor stubFluxCapacitor = FluxCapacitorFactory.createMock();
+
+        // call some code that initiates a workflow
+
+        stubFluxCapacitor.verifyWorkflowWasNotStarted(WorkflowThatShouldNotRun.class, "some-id");
+        
+        Map<String, String> expectedInput = new HashMap<>();
+        stubFluxCapacitor.verifyWorkflowWasStarted(WorkflowThatShouldRun.class, "some-id", expectedInput);
+        
+        Assert.assertEquals(1, stubFluxCapacitor.countExecutedWorkflows());
+        
+        // you can use this method if you're sharing your stubFluxCapacitor object across tests:
+        stubFluxCapacitor.resetExecutionCache();
+    }
+}
+```

@@ -22,11 +22,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Tells FluxCapacitor which method should be called to generate the partition IDs used for a particular partitioned workflow step.
+ * Tells Flux which method should be called to generate the partition IDs used for a particular partitioned workflow step.
  * Exactly one method should have this annotation for any class implementing the PartitionedWorkflowStep interface.
- * Every parameter of the method should also have the @Attribute annotation.
+ * Parameters to this method have the same annotation requirements as parameters to @StepApply methods.
  *
- * The return type of the method *must* be List&lt;String&gt;. The values in the list are used as the partition ids.
+ * The return type of the method must be either List&lt;String&gt; or PartitionIdGeneratorResult.
+ * The partition IDs are taken from the provided response object.
+ *
+ * A maximum of 1000 partition IDs may be returned. This is due to SWF's hard limit on the number of decisions that
+ * can be returned as part of a decision task response.
+ *
+ * If the annotated method throws an exception, Flux will fail the entire decision task and try again.
  */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

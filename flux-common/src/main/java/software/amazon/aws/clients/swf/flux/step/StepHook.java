@@ -26,15 +26,15 @@ import java.lang.annotation.Target;
  *
  * The parameters of the method should have the @Attribute annotation.
  *
- * A small number of attributes are available to hooks in addition to the attributes from the running workflow:
- * - StepAttributes.WORKFLOW_ID - The unique identifier of this workflow execution,
- *                                i.e. what was passed to FluxCapacitor.executeWorkflow. This must be a String.
- * - StepAttributes.ACTIVITY_NAME - The name of this activity (in the format {workflow-name}.{step-name}). This must be a String.
- *
- * POST hooks may also request the StepAttributes.RESULT_CODE and StepAttributes.ACTIVITY_COMPLETION_MESSAGE attributes;
- * they will both be null if the step is going to retry. Both are Strings.
+ * See WorkflowStepHook for more information on when methods with the @StepHook annotation are called.
  *
  * The hook is run every time the hooked step is run and should therefore be idempotent.
+ *
+ * If the hook throws an exception, Flux checks the retryOnFailure field, which defaults to false.
+ * If it is false, then Flux logs the exception and proceeds to execute the step as normal
+ * (or mark the execution as finished, if it's a POST hook).
+ * Otherwise, Flux handles the exception the same way it would handle it if it had been thrown by the @StepApply method;
+ * specifically, it causes the entire step to retry. The subsequent attempt will execute all hooks again, as normal.
  *
  * The return value of the method is logged but otherwise ignored, so the return type does not matter.
  */

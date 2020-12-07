@@ -26,12 +26,27 @@ import java.util.concurrent.TimeUnit;
 /**
  * This annotation may be attached to an object that implements the Workflow interface.
  * If present, it indicates that the associated Workflow should be automatically run
- * by Flux (at most) at a specified frequency. If the workflow ends earlier than that,
+ * by Flux no more often than the specified frequency. If the workflow ends earlier than that,
  * Flux will automatically insert a step at the end of the workflow which delays the exit
  * of that workflow until the specified interval has elapsed, at which point the workflow
- * will succeed and the next execution of the same workflow will be initiated.
+ * will succeed and the next execution of the same workflow will be initiated. If the workflow takes longer than that
+ * interval to complete, Flux will start the next execution one second later.
  *
  * Note that any combination of interval+unit that evaluates to less than 1 second will be treated as 1 second.
+ *
+ * The minimum timer granularity in SWF is 1 second; run intervals of 5 seconds or less should be avoided.
+ * Instead, use a periodic workflow that specifies a relatively short run interval (e.g. 10 seconds),
+ * and then implement a workflow step that sleep-loops more frequently. The main downside to this approach
+ * is that it permanently locks a worker thread to just that task, so capacity planning should take that into account.
+ *
+ * When the next execution of the workflow is scheduled, Flux uses the ContinueAsNewWorkflowExecution operation,
+ * which avoids impacting the StartWorkflowExecution rate limit.
+ *
+ * In order to ensure that new workflows are started after their first deployment, and to handle the case where
+ * a workflow has been manually terminated, Flux will also call StartWorkflowExecution on each worker host at a
+ * rate equal to half of each workflow's configured run interval. If a workflow's run interval is 10 minutes,
+ * each of your worker hosts will make one StartWorkflowExecution call every 5 minutes for that workflow.
+ * (This execution interval is clamped to a maximum rate of once per 5 seconds and a minimum rate of once per hour.)
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
