@@ -31,9 +31,19 @@ import java.lang.annotation.Target;
  * and an Operation (containing the workflow and step name), and when the step ends, Flux will record an end time
  * and close the metrics context.
  *
+ * If the annotated method throws an exception or returns StepResult.retry(), Flux will schedule another attempt
+ * of the workflow step.
+ *
+ * By default, the initial retry delay is ten seconds, and Flux retries steps six times before starting exponential backoff.
+ * Jitter is applied to the retry times (ten percent by default) to avoid large numbers of steps retrying concurrently.
+ * Flux eventually stops increasing retry time once it exceeds a threshold (ten minutes by default).
+ * All of these parameters can be configured on a per-workflow-step basis using the values on the @StepApply annotation.
+ *
  * If the method has a return type of StepResult, the StepResult returned by the method will be respected.
- * Otherwise, FluxCapacitor will use StepResult.success() if the method returns successfully,
- * or StepResult.retry() if the method throws an exception.
+ *
+ * If the method successfully returns an object of some other type (or void), Flux will use StepResult.success().
+ *
+ * If the method throws an exception e, Flux will use StepResult.retry(e.getMessage()).
  */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
@@ -73,7 +83,7 @@ public @interface StepApply {
     long retriesBeforeBackoff() default 6;
 
     /**
-     * Controls the multipler applied to the exponential backoff calculation.
+     * Controls the multiplier applied to the exponential backoff calculation.
      *
      * If this is set to a value greater than 0.0, it overrides the global exponential backoff base (whether or not the global
      * exponential backoff base has been overridden via FluxCapacitorConfig).

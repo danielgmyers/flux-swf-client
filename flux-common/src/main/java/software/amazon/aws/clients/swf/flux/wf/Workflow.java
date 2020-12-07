@@ -57,6 +57,10 @@ public interface Workflow {
      * FluxCapacitor.executeWorkflow when it asks SWF to start the workflow execution.
      *
      * Defaults to 21 days.
+     *
+     * For best results, if a workflow can legitimately run for more than 21 days, the workflow should instead
+     * be split into multiple distinct workflows that each take less than 21 days. Only extend this duration
+     * if splitting the workflow in this manner is not possible.
      */
     default Duration maxStartToCloseDuration() {
         return WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT;

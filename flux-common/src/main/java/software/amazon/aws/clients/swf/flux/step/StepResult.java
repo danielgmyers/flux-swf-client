@@ -27,6 +27,30 @@ import java.util.Set;
 /**
  * A container object for passing around the results of a workflow step,
  * including whether it succeeded and any attributes that should be passed along to the next step.
+ *
+ * Output attributes may be of any type allowed by Flux as input attributes;
+ * see software.amazon.aws.clients.swf.flux.step.Attribute for more information.
+ *
+ * Output attributes provided by partitioned steps are ignored.
+ *
+ * Output attributes overwrite existing attributes if there is a name conflict.
+ * This should be done sparingly if at all, since it complicates debugging.
+ *
+ * The SWF API field used by Flux to store attributes has a maximum size enforced by SWF. Step attributes should
+ * be used only to store small pieces of metadata that are not needed beyond the lifetime of the workflow.
+ * If the attributes output by a step make the attribute map too large, the step will retry indefinitely
+ * until the code is updated to return smaller or fewer attributes in the step result.
+ *
+ * For convenience, Flux provides two additional attributes in the metadata for the SWF ActivityTaskCompleted event:
+ * - "_result_code": String
+ *   The result code returned by the step.
+ * - "_activity_completion_message": String
+ *   The message included in the StepResult, i.e. the string in StepResult.success("Completion message here");
+ *
+ * The two-parameter overloads of StepResult.success() and StepResult.failure() allow the definition of custom
+ * result codes for the step. These result codes can be used with WorkflowGraphBuilder to define branching paths
+ * through a workflow's steps. For example, a series of rollback steps may be define which can unwind
+ * a partially-applied operation.
  */
 public final class StepResult {
 
