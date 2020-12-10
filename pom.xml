@@ -8,7 +8,7 @@
     <packaging>pom</packaging>
     <name>Flux SWF Client POM</name>
     <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
-    <url>TODO</url>
+    <url>https://github.com/awslabs/flux-swf-client</url>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -39,7 +39,7 @@
     <scm>
         <connection>scm:git:https://github.com/awslabs/flux-swf-client.git</connection>
         <developerConnection>scm:git:git@github.com:awslabs/flux-swf-client.git</developerConnection>
-        <url>TODO</url>
+        <url>https://github.com/awslabs/flux-swf-client</url>
     </scm>
     <properties>
         <flux.version>${project.version}</flux.version>
