@@ -10,7 +10,7 @@
     <artifactId>flux-integration-tests</artifactId>
     <name>Flux SWF Client integration tests</name>
     <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
-    <url>TODO</url>
+    <url>https://github.com/awslabs/flux-swf-client</url>
 
     <dependencies>
 

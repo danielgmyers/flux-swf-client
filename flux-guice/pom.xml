@@ -10,7 +10,7 @@
     <artifactId>flux-guice</artifactId>
     <name>Flux SWF Client Guice Helper</name>
     <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
-    <url>TODO</url>
+    <url>https://github.com/awslabs/flux-swf-client</url>
 
     <dependencies>
         <dependency>
