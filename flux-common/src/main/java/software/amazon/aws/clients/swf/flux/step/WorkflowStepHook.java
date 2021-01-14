@@ -34,8 +34,8 @@ package software.amazon.aws.clients.swf.flux.step;
  * - PRE hooks run before a workflow step's @StepApply method.
  * - POST hooks run after the workflow step's @StepApply method, even if it threw an exception.
  *
- * When executing a workflow step, Flux first executes any PRE hooks, then executes the workflow step's
- * @StepApply method, and finally executes any POST hooks.
+ * When executing a workflow step, Flux first executes any PRE hooks, then executes the workflow
+ * step's @StepApply method, and finally executes any POST hooks.
  *
  * A step hook has access to the same set of input attributes as the workflow step it is attached to.
  * PRE and POST hooks both have access to these attributes:

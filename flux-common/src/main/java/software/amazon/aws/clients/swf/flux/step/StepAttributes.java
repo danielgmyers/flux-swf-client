@@ -131,7 +131,7 @@ public final class StepAttributes {
     }
 
     /**
-     * Given a Map&lt;String, ?&gt;, produces a Map&lt;String, String&gt;> with the same keys
+     * Given a Map&lt;String, ?&gt;, produces a Map&lt;String, String&gt; with the same keys
      * and a json-serialized version of each value.
      * @param rawInput The map whose values need serializing
      * @return A new Map with the serialized values
