@@ -29,7 +29,9 @@ public interface Workflow {
     Duration WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT = Duration.ofDays(21);
 
     /**
-     * @return A graph representing the various paths the workflow may take through its steps.
+     * Should return the WorkflowGraph representing the various paths the workflow may take through its steps.
+     *
+     * Implementations should build the WorkflowGraph object using WorkflowGraphBuilder.
      */
     WorkflowGraph getGraph();
 

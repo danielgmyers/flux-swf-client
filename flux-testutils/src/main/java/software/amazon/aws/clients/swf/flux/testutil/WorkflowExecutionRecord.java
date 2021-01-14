@@ -26,7 +26,7 @@ class WorkflowExecutionRecord {
     private final Class<? extends Workflow> workflowType;
     private final String workflowId;
 
-    public WorkflowExecutionRecord(Class<? extends Workflow> workflowType, String workflowId) {
+    WorkflowExecutionRecord(Class<? extends Workflow> workflowType, String workflowId) {
         this.workflowType = workflowType;
         this.workflowId = workflowId;
     }
