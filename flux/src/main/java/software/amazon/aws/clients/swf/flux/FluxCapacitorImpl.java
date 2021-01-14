@@ -500,9 +500,9 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
             poolSize = config.getTaskListConfig(taskList).getDecisionTaskPollerThreadCount();
             ScheduledExecutorService service = createExecutorService(taskList, hostname, "decisionPoller", poolSize,
-                    deciderName -> new DecisionTaskPoller(metricsFactory, swf, workflowDomain, taskList, deciderName,
-                                                          exponentialBackoffCoefficient, workflowsByName,
-                                                          activitiesByName, deciderThreadsPerTaskList.get(taskList)));
+                deciderName -> new DecisionTaskPoller(metricsFactory, swf, workflowDomain, taskList, deciderName,
+                                                      exponentialBackoffCoefficient, workflowsByName,
+                                                      activitiesByName, deciderThreadsPerTaskList.get(taskList)));
             decisionTaskPollerThreadsPerTaskList.put(taskList, service);
 
             poolSize = config.getTaskListConfig(taskList).getActivityTaskThreadCount();
@@ -510,9 +510,9 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
             poolSize = config.getTaskListConfig(taskList).getActivityTaskPollerThreadCount();
             service = createExecutorService(taskList, hostname, "activityPoller", poolSize,
-                    workerName -> new ActivityTaskPoller(metricsFactory, swf, workflowDomain, taskList, workerName,
-                                                         workflowsByName, activitiesByName,
-                                                         workerThreadsPerTaskList.get(taskList)));
+                workerName -> new ActivityTaskPoller(metricsFactory, swf, workflowDomain, taskList, workerName,
+                                                     workflowsByName, activitiesByName,
+                                                     workerThreadsPerTaskList.get(taskList)));
             activityTaskPollerThreadsPerTaskList.put(taskList, service);
         }
     }

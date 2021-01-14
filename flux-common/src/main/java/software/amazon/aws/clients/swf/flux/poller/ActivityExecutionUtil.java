@@ -13,7 +13,9 @@ import software.amazon.aws.clients.swf.flux.step.StepResult;
 import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
 import software.amazon.aws.clients.swf.flux.step.WorkflowStepUtil;
 
-public class ActivityExecutionUtil {
+public final class ActivityExecutionUtil {
+
+    private ActivityExecutionUtil() {}
 
     private static final Logger log = LoggerFactory.getLogger(ActivityExecutionUtil.class);
 

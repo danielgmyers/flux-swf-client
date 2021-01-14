@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import software.amazon.aws.clients.swf.flux.FluxCapacitor;
 import software.amazon.aws.clients.swf.flux.FluxCapacitorConfig;
 import software.amazon.aws.clients.swf.flux.FluxCapacitorFactory;
-
 import software.amazon.aws.clients.swf.flux.metrics.MetricRecorderFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 

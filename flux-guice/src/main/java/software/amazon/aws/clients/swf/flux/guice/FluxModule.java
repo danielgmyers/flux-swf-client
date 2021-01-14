@@ -10,10 +10,10 @@ import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
-
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ScanResult;
+
 import software.amazon.aws.clients.swf.flux.FluxCapacitor;
 import software.amazon.aws.clients.swf.flux.FluxCapacitorConfig;
 import software.amazon.aws.clients.swf.flux.FluxCapacitorFactory;

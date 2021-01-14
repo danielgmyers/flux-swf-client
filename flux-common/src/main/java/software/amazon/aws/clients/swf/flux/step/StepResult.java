@@ -107,24 +107,35 @@ public final class StepResult {
     }
 
     /**
-     * @return A success result object with no message.
+     * Produces a result object with a specific result code and message.
+     */
+    public static StepResult complete(String resultCode, String message) {
+        if (resultCode == null || resultCode.isEmpty()) {
+            throw new IllegalArgumentException("Result codes cannot be blank.");
+        }
+        return new StepResult(ResultAction.COMPLETE, resultCode, message);
+    }
+
+    /**
+     * Produces a success result object with no message.
      */
     public static StepResult success() {
         return success(null);
     }
 
     /**
-     * Creates
-     * @return A success result object with a specific message.
+     * Produces a success result object with a specific message.
      */
     public static StepResult success(String message) {
         return success(SUCCEED_RESULT_CODE, message);
     }
 
     /**
-     * Creates
-     * @return A success result object with a specific result code and message.
+     * Produces a success result object with a specific result code and message.
+     *
+     * Use StepResult.complete() instead.
      */
+    @Deprecated
     public static StepResult success(String resultCode, String message) {
         if (resultCode == null || resultCode.isEmpty()) {
             throw new IllegalArgumentException("Result codes cannot be blank.");
@@ -133,45 +144,46 @@ public final class StepResult {
     }
 
     /**
-     * @return A retry result object with no message.
+     * Produces a retry result object with no message.
      */
     public static StepResult retry() {
         return new StepResult(ResultAction.RETRY, null, null);
     }
 
     /**
-     * @return A retry result object with a specific message.
+     * Produces a retry result object with a specific message.
      */
     public static StepResult retry(String message) {
         return new StepResult(ResultAction.RETRY, null, message);
     }
 
     /**
-     * @return A retry result object caused by a particular exception.
+     * Produces a retry result object caused by a particular exception.
      */
     public static StepResult retry(Throwable cause) {
         return new StepResult(cause);
     }
 
     /**
-     * @return A failure result object with no message.
+     * Produces a failure result object with no message.
      */
     public static StepResult failure() {
         return failure(null);
     }
 
     /**
-     * @return A failure result object with a specific message.
+     * Produces a failure result object with a specific message.
      */
     public static StepResult failure(String message) {
         return failure(FAIL_RESULT_CODE, message);
     }
 
     /**
-     * @param resultCode The custom resultCode to include in the result
-     * @param message The message to include in the result
-     * @return A failure result object with a specific message.
+     * Produces a failure result object with a specific result code and message.
+     *
+     * Use StepResult.complete() instead.
      */
+    @Deprecated
     public static StepResult failure(String resultCode, String message) {
         if (resultCode == null || resultCode.isEmpty()) {
             throw new IllegalArgumentException("Result codes cannot be blank.");
