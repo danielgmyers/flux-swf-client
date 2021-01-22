@@ -20,6 +20,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import software.amazon.aws.clients.swf.flux.util.ThreadUtils;
 
@@ -44,6 +45,26 @@ public class BlockOnSubmissionThreadPoolExecutor extends ThreadPoolExecutor {
     public void execute(Runnable runnable) {
         submissionSemaphore.acquireUninterruptibly();
         super.execute(runnable);
+    }
+
+    /**
+     * Blocks until a thread is free, then executes the Supplier on the current thread and schedules the Runnable
+     * to execute in the thread pool.
+     */
+    public void execute(Supplier<Runnable> supplier) {
+        submissionSemaphore.acquireUninterruptibly();
+        Runnable runnable = null;
+        try {
+            runnable = supplier.get();
+        } finally {
+            // If there was nothing to run then release the semaphore.
+            // Otherwise execute it on the thread pool.
+            if (runnable == null) {
+                submissionSemaphore.release();
+            } else {
+                super.execute(runnable);
+            }
+        }
     }
 
     @Override

@@ -20,7 +20,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A generic interface for emitting metrics to an arbitrary recording mechanism.
@@ -50,8 +52,9 @@ public abstract class MetricRecorder implements AutoCloseable {
     public final void close() {
         verifyNotClosed();
 
-        for (String openTimers : timers.keySet()) {
-            endDuration(openTimers);
+        Set<String> openTimers = new HashSet<>(timers.keySet());
+        for (String openTimer : openTimers) {
+            endDuration(openTimer);
         }
 
         addProperty(StandardMetricNames.OPERATION.toString(), operation);

@@ -121,7 +121,7 @@ public class DecisionTaskPollerTest {
 
     private DecisionTaskPoller poller;
 
-    private ThreadPoolExecutor executor;
+    private BlockOnSubmissionThreadPoolExecutor executor;
 
     @Before
     public void setup() {
