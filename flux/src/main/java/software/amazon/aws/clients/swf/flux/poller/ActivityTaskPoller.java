@@ -39,6 +39,7 @@ import software.amazon.awssdk.services.swf.model.RespondActivityTaskCanceledRequ
 import software.amazon.awssdk.services.swf.model.RespondActivityTaskCompletedRequest;
 import software.amazon.awssdk.services.swf.model.RespondActivityTaskFailedRequest;
 import software.amazon.awssdk.services.swf.model.TaskList;
+import software.amazon.awssdk.services.swf.model.UnknownResourceException;
 
 /**
  * Poller that requests and handles activity tasks.
@@ -68,7 +69,7 @@ public class ActivityTaskPoller implements Runnable {
     private final Map<String, Workflow> workflows;
     private final Map<String, WorkflowStep> workflowSteps;
 
-    private final ThreadPoolExecutor workerThreadPool;
+    private final BlockOnSubmissionThreadPoolExecutor workerThreadPool;
 
     /**
      * Constructs an activity poller.
@@ -84,7 +85,7 @@ public class ActivityTaskPoller implements Runnable {
      */
     public ActivityTaskPoller(MetricRecorderFactory metricsFactory, SwfClient swfClient, String workflowDomain,
                               String taskListName, String identity, Map<String, Workflow> workflows,
-                              Map<String, WorkflowStep> workflowSteps, ThreadPoolExecutor workerThreadPool) {
+                              Map<String, WorkflowStep> workflowSteps, BlockOnSubmissionThreadPoolExecutor workerThreadPool) {
         this.metricsFactory = metricsFactory;
         this.swf = swfClient;
         this.domain = workflowDomain;
@@ -104,41 +105,10 @@ public class ActivityTaskPoller implements Runnable {
     @Override
     public void run() {
         try (MetricRecorder metrics = metricsFactory.newMetricRecorder(this.getClass().getSimpleName())) {
-            PollForActivityTaskRequest request = PollForActivityTaskRequest.builder()
-                    .domain(domain).taskList(TaskList.builder().name(taskListName).build()).identity(identity).build();
-
-            PollForActivityTaskResponse task
-                    = RetryUtils.executeWithInlineBackoff(() -> swf.pollForActivityTask(request),
-                                                          20, Duration.ofSeconds(2), metrics,
-                                                          ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX);
-
-            if (task == null || task.taskToken() == null || task.taskToken().equals("")) {
-                // this means there was no work to do
-                metrics.addCount(NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME, 1.0);
-                return;
-            }
-
-            WorkflowStep step = workflowSteps.get(task.activityType().name());
-            if (step == null) {
-                metrics.addCount(formatUnrecognizedActivityTaskMetricName(task.activityType().name()), 1.0);
-                String message = "Activity task received for unrecognized activity: " + task.activityType().name();
-                log.warn(message);
-                throw new UnrecognizedTaskException(message);
-            }
-
-            Workflow workflow = workflows.get(TaskNaming.workflowNameFromActivityName(task.activityType().name()));
-            if (workflow == null) {
-                String message = "Activity " + task.activityType().name()
-                                 + " was a valid activity but somehow not a valid workflow, this should not be possible!";
-                log.error(message);
-                throw new IllegalStateException(message);
-            }
-
             metrics.startDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
-            workerThreadPool.execute(() -> executeWithHeartbeat(task, workflow, step));
-            Duration waitTime = metrics.endDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
-            // emit the wait time metric again, under this poller's task list name.
-            metrics.addDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName, waitTime);
+            // record the wait time metric again, under this poller's task list name.
+            metrics.startDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName);
+            workerThreadPool.execute(() -> pollForActivityTask(metrics));
         } catch (RejectedExecutionException e) {
             // the activity task will time out in this case, so another host will get assigned to it.
             log.warn("The activity thread pool rejected the task. This is usually because it is shutting down.", e);
@@ -146,6 +116,41 @@ public class ActivityTaskPoller implements Runnable {
             log.debug("Got exception while polling for or executing activity task", t);
             throw t;
         }
+    }
+
+    private Runnable pollForActivityTask(MetricRecorder metrics) {
+        PollForActivityTaskRequest request = PollForActivityTaskRequest.builder()
+                .domain(domain).taskList(TaskList.builder().name(taskListName).build()).identity(identity).build();
+
+        PollForActivityTaskResponse task
+                = RetryUtils.executeWithInlineBackoff(() -> swf.pollForActivityTask(request),
+                                                      20, Duration.ofSeconds(2), metrics,
+                                                      ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX);
+
+        if (task == null || task.taskToken() == null || task.taskToken().equals("")) {
+            // this means there was no work to do
+            metrics.addCount(NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME, 1.0);
+            return null;
+        }
+
+        WorkflowStep step = workflowSteps.get(task.activityType().name());
+        if (step == null) {
+            metrics.addCount(formatUnrecognizedActivityTaskMetricName(task.activityType().name()), 1.0);
+            String message = "Activity task received for unrecognized activity: " + task.activityType().name();
+            log.warn(message);
+            throw new UnrecognizedTaskException(message);
+        }
+
+        Workflow workflow = workflows.get(TaskNaming.workflowNameFromActivityName(task.activityType().name()));
+        if (workflow == null) {
+            String message = "Activity " + task.activityType().name()
+                             + " was a valid activity but somehow not a valid workflow, this should not be possible!";
+            log.error(message);
+            throw new IllegalStateException(message);
+        }
+
+        log.debug("Polled for activity task and there was work to do.");
+        return () -> executeWithHeartbeat(task, workflow, step);
     }
 
     private void executeWithHeartbeat(PollForActivityTaskResponse task, Workflow workflow, WorkflowStep step) {
@@ -179,17 +184,27 @@ public class ActivityTaskPoller implements Runnable {
                                   task.workflowExecution().workflowId(), TaskNaming.activityName(workflow, step),
                                   task.activityId());
                         if (status.cancelRequested()) {
-                            // If a cancel was requested for the activity, we kill the task and bail out.
                             log.warn("The heartbeat told us that we received a cancellation request for this task.");
-                            activityThread.interrupt();
-                            activityThread.join(); // we interrupted it, so we'll wait for it to end
                             canceled = true;
                         }
+                    } catch (UnknownResourceException e) {
+                        // If the resource (e.g. the activity task) no longer exists,
+                        // then there's no reason to continue it, since we can't report success or failure.
+                        // If this happens, usually it means the task timed out in SWF
+                        // before we managed to send a heartbeat.
+                        log.warn("The heartbeat told us that the resource no longer exists, so we'll cancel this task."
+                                 + " {}", e.getMessage());
+                        canceled = true;
                     } catch (Exception e) {
                         log.warn("Got an error while trying to record a heartbeat.", e);
                         // If we weren't able to heartbeat, we don't want to fail.
                         // It may have been transient and we'll make another attempt after HEARTBEAT_INTERVAL has passed.
                         // If it fails enough for the activity to time out, oh well...
+                    }
+                    if (canceled) {
+                        // If a cancel was requested for the activity, we kill the task and bail out.
+                        activityThread.interrupt();
+                        activityThread.join(); // we interrupted it, so we'll wait for it to end
                     }
                 }
             } catch (InterruptedException e) {

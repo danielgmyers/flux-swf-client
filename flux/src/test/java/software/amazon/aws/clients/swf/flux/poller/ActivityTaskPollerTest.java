@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLException;
@@ -58,6 +57,7 @@ import software.amazon.awssdk.services.swf.model.RespondActivityTaskCompletedRes
 import software.amazon.awssdk.services.swf.model.RespondActivityTaskFailedRequest;
 import software.amazon.awssdk.services.swf.model.RespondActivityTaskFailedResponse;
 import software.amazon.awssdk.services.swf.model.TaskList;
+import software.amazon.awssdk.services.swf.model.UnknownResourceException;
 import software.amazon.awssdk.services.swf.model.WorkflowExecution;
 
 public class ActivityTaskPollerTest {
@@ -140,7 +140,7 @@ public class ActivityTaskPollerTest {
     private Workflow workflow;
     private String workflowName;
 
-    private ThreadPoolExecutor executor;
+    private BlockOnSubmissionThreadPoolExecutor executor;
 
     @Before
     public void setup() {
@@ -513,6 +513,35 @@ public class ActivityTaskPollerTest {
     }
 
     @Test
+    public void runsActivityExecutor_ActivityTimedOutBeforeFirstHeartbeat() throws InterruptedException {
+        Map<String, String> input = new HashMap<>();
+
+        PollForActivityTaskResponse task = makeTask(input);
+        expectPoll(task);
+        step.setSleepDurationMillis(ActivityTaskPoller.HEARTBEAT_INTERVAL.plus(Duration.ofSeconds(1)).toMillis());
+        expectSubmitActivityCancelled();
+        expectActivityTimedOut(task);
+
+        mockery.replay();
+        poller.run();
+        executor.shutdown();
+        executor.awaitTermination(60, TimeUnit.SECONDS);
+        Assert.assertFalse(step.didThing());
+        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
+        Assert.assertTrue(pollThreadMetrics.isClosed());
+        Assert.assertTrue(workerMetricsRequested);
+        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), InterruptedException.class.getSimpleName())).longValue());
+        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityTaskPoller.formatActivityTaskCancelledMetricName(task.activityType().name())).longValue());
+        Assert.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
+        Assert.assertTrue(workerThreadMetrics.isClosed());
+        Assert.assertTrue(stepMetricsRequested);
+        Assert.assertTrue(stepMetrics.isClosed());
+        mockery.verify();
+    }
+
+    @Test
     public void runsActivityExecutor_ActivityCancelledOnSecondHeartbeat() throws InterruptedException {
         Map<String, String> input = new HashMap<>();
 
@@ -641,6 +670,13 @@ public class ActivityTaskPollerTest {
         RecordActivityTaskHeartbeatRequest request = RecordActivityTaskHeartbeatRequest.builder().taskToken(task.taskToken()).build();
         RecordActivityTaskHeartbeatResponse response = RecordActivityTaskHeartbeatResponse.builder().cancelRequested(cancelRequested).build();
         EasyMock.expect(swf.recordActivityTaskHeartbeat(request)).andReturn(response);
+    }
+
+    private void expectActivityTimedOut(PollForActivityTaskResponse task) {
+        RecordActivityTaskHeartbeatRequest request = RecordActivityTaskHeartbeatRequest.builder().taskToken(task.taskToken()).build();
+        // SWF throws UnknownResourceException when recordActivityTaskHeartbeat is called for a task that has timed out.
+        EasyMock.expect(swf.recordActivityTaskHeartbeat(request))
+                .andThrow(UnknownResourceException.builder().build());
     }
 
 }

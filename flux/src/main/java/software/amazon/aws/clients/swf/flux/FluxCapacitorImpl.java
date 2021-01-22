@@ -97,9 +97,9 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     public static final double DEFAULT_EXPONENTIAL_BACKOFF_BASE = 1.25;
 
     private Map<String, ScheduledExecutorService> decisionTaskPollerThreadsPerTaskList;
-    private Map<String, ThreadPoolExecutor> deciderThreadsPerTaskList;
+    private Map<String, BlockOnSubmissionThreadPoolExecutor> deciderThreadsPerTaskList;
     private Map<String, ScheduledExecutorService> activityTaskPollerThreadsPerTaskList;
-    private Map<String, ThreadPoolExecutor> workerThreadsPerTaskList;
+    private Map<String, BlockOnSubmissionThreadPoolExecutor> workerThreadsPerTaskList;
     private Map<String, ScheduledExecutorService> periodicThreadsPerTaskList;
 
     private final MetricRecorderFactory metricsFactory;
