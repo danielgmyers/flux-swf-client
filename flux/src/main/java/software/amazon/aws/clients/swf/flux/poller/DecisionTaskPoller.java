@@ -153,9 +153,12 @@ public class DecisionTaskPoller implements Runnable {
     public void run() {
         try (MetricRecorder metrics = metricsFactory.newMetricRecorder(this.getClass().getSimpleName())) {
             metrics.startDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
-            // record the wait time metric again, under this poller's task list name.
-            metrics.startDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName);
-            deciderThreadPool.execute(() -> pollForDecisionTask(metrics));
+            deciderThreadPool.execute(() -> {
+                Duration waitTime = metrics.endDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
+                // emit the wait time metric again, under this poller's task list name.
+                metrics.addDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName, waitTime);
+                pollForDecisionTask(metrics);
+            });
         } catch (RejectedExecutionException e) {
             // the decision task will time out in this case, so another host will get assigned to it.
             log.warn("The decider thread pool rejected the task. This is usually because it is shutting down.", e);
