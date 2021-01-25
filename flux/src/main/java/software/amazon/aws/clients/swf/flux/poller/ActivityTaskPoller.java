@@ -106,9 +106,12 @@ public class ActivityTaskPoller implements Runnable {
     public void run() {
         try (MetricRecorder metrics = metricsFactory.newMetricRecorder(this.getClass().getSimpleName())) {
             metrics.startDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
-            // record the wait time metric again, under this poller's task list name.
-            metrics.startDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName);
-            workerThreadPool.execute(() -> pollForActivityTask(metrics));
+            workerThreadPool.execute(() -> {
+                Duration waitTime = metrics.endDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
+                // emit the wait time metric again, under this poller's task list name.
+                metrics.addDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName, waitTime);
+                pollForActivityTask(metrics);
+            });
         } catch (RejectedExecutionException e) {
             // the activity task will time out in this case, so another host will get assigned to it.
             log.warn("The activity thread pool rejected the task. This is usually because it is shutting down.", e);
