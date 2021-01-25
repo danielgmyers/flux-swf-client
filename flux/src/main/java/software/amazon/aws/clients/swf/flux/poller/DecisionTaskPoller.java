@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.slf4j.Logger;
@@ -151,14 +150,12 @@ public class DecisionTaskPoller implements Runnable {
 
     @Override
     public void run() {
-        try (MetricRecorder metrics = metricsFactory.newMetricRecorder(this.getClass().getSimpleName())) {
+        // not using try-with-resources because the metrics context needs to get closed after the poller thread
+        // gets executed, rather than when this method returns.
+        MetricRecorder metrics = metricsFactory.newMetricRecorder(this.getClass().getSimpleName());
+        try {
             metrics.startDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
-            deciderThreadPool.execute(() -> {
-                Duration waitTime = metrics.endDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
-                // emit the wait time metric again, under this poller's task list name.
-                metrics.addDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName, waitTime);
-                pollForDecisionTask(metrics);
-            });
+            deciderThreadPool.executeWhenCapacityAvailable(() -> pollForDecisionTask(metrics));
         } catch (RejectedExecutionException e) {
             // the decision task will time out in this case, so another host will get assigned to it.
             log.warn("The decider thread pool rejected the task. This is usually because it is shutting down.", e);
@@ -169,30 +166,40 @@ public class DecisionTaskPoller implements Runnable {
     }
 
     private Runnable pollForDecisionTask(MetricRecorder metrics) {
-        PollForDecisionTaskRequest request = PollForDecisionTaskRequest.builder()
-                .domain(domain)
-                .taskList(TaskList.builder().name(taskListName).build())
-                .identity(identity)
-                .reverseOrder(true)
-                .build();
+        try {
+            Duration waitTime = metrics.endDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
+            // emit the wait time metric again, under this poller's task list name.
+            metrics.addDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName, waitTime);
 
-        log.debug("Polling for decision task");
-        PollForDecisionTaskResponse task
-                = RetryUtils.executeWithInlineBackoff(() -> swf.pollForDecisionTask(request),
-                                                      20, Duration.ofSeconds(2), metrics,
-                                                      DECISION_TASK_POLL_TIME_METRIC_PREFIX
-        );
+            PollForDecisionTaskRequest request = PollForDecisionTaskRequest.builder()
+                    .domain(domain)
+                    .taskList(TaskList.builder().name(taskListName).build())
+                    .identity(identity)
+                    .reverseOrder(true)
+                    .build();
 
-        if (task == null || task.taskToken() == null || task.taskToken().equals("")) {
-            log.debug("Polled for decision tasks and there was no work to do.");
-            metrics.addCount(NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME, 1.0);
-            return null;
+            log.debug("Polling for decision task");
+            PollForDecisionTaskResponse task
+                    = RetryUtils.executeWithInlineBackoff(() -> swf.pollForDecisionTask(request),
+                                                          20, Duration.ofSeconds(2), metrics,
+                                                          DECISION_TASK_POLL_TIME_METRIC_PREFIX
+            );
+
+            if (task == null || task.taskToken() == null || task.taskToken().equals("")) {
+                log.debug("Polled for decision tasks and there was no work to do.");
+                metrics.addCount(NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME, 1.0);
+                return null;
+            }
+
+            log.debug("Polled for decision task and there was work to do.");
+            return ThreadUtils.wrapInExceptionSwallower(() -> executeDecisionTask(task));
+        } catch (Throwable e) {
+            log.warn("Got an unexpected exception when polling for an decision task.", e);
+            throw e;
+        } finally {
+            metrics.close();
         }
-
-        log.debug("Polled for decision task and there was work to do.");
-        return ThreadUtils.wrapInExceptionSwallower(() -> executeDecisionTask(task));
     }
-
 
     private void executeDecisionTask(PollForDecisionTaskResponse task) {
         log.debug("Started work on decision task.");

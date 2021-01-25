@@ -19,7 +19,6 @@ package software.amazon.aws.clients.swf.flux.poller;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,14 +103,12 @@ public class ActivityTaskPoller implements Runnable {
 
     @Override
     public void run() {
-        try (MetricRecorder metrics = metricsFactory.newMetricRecorder(this.getClass().getSimpleName())) {
+        // not using try-with-resources because the metrics context needs to get closed after the poller thread
+        // gets executed, rather than when this method returns.
+        MetricRecorder metrics = metricsFactory.newMetricRecorder(this.getClass().getSimpleName());
+        try {
             metrics.startDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
-            workerThreadPool.execute(() -> {
-                Duration waitTime = metrics.endDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
-                // emit the wait time metric again, under this poller's task list name.
-                metrics.addDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName, waitTime);
-                pollForActivityTask(metrics);
-            });
+            workerThreadPool.executeWhenCapacityAvailable(() -> pollForActivityTask(metrics));
         } catch (RejectedExecutionException e) {
             // the activity task will time out in this case, so another host will get assigned to it.
             log.warn("The activity thread pool rejected the task. This is usually because it is shutting down.", e);
@@ -122,38 +119,51 @@ public class ActivityTaskPoller implements Runnable {
     }
 
     private Runnable pollForActivityTask(MetricRecorder metrics) {
-        PollForActivityTaskRequest request = PollForActivityTaskRequest.builder()
-                .domain(domain).taskList(TaskList.builder().name(taskListName).build()).identity(identity).build();
+        try {
+            Duration waitTime = metrics.endDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
+            // emit the wait time metric again, under this poller's task list name.
+            metrics.addDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName, waitTime);
 
-        PollForActivityTaskResponse task
-                = RetryUtils.executeWithInlineBackoff(() -> swf.pollForActivityTask(request),
-                                                      20, Duration.ofSeconds(2), metrics,
-                                                      ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX);
+            PollForActivityTaskRequest request = PollForActivityTaskRequest.builder()
+                    .domain(domain).taskList(TaskList.builder().name(taskListName).build()).identity(identity).build();
 
-        if (task == null || task.taskToken() == null || task.taskToken().equals("")) {
-            // this means there was no work to do
-            metrics.addCount(NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME, 1.0);
-            return null;
+            PollForActivityTaskResponse task
+                    = RetryUtils.executeWithInlineBackoff(() -> swf.pollForActivityTask(request),
+                                                          20, Duration.ofSeconds(2), metrics,
+                                                          ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX);
+
+            if (task == null || task.taskToken() == null || task.taskToken().equals("")) {
+                // this means there was no work to do
+                metrics.addCount(NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME, 1.0);
+                return null;
+            }
+
+            WorkflowStep step = workflowSteps.get(task.activityType().name());
+            if (step == null) {
+                metrics.addCount(formatUnrecognizedActivityTaskMetricName(task.activityType().name()), 1.0);
+                String message = "Activity task received for unrecognized activity: " + task.activityType().name();
+                log.warn(message);
+                throw new UnrecognizedTaskException(message);
+            }
+
+            Workflow workflow = workflows.get(TaskNaming.workflowNameFromActivityName(task.activityType().name()));
+            if (workflow == null) {
+                String message = "Activity " + task.activityType().name()
+                                 + " was a valid activity but somehow not a valid workflow, this should not be possible!";
+                log.error(message);
+                throw new IllegalStateException(message);
+            }
+
+            log.debug("Polled for activity task and there was work to do.");
+            return () -> executeWithHeartbeat(task, workflow, step);
+        } catch (UnrecognizedTaskException | IllegalStateException e) {
+            throw e;
+        } catch (Throwable e) {
+            log.warn("Got an unexpected exception when polling for an activity task.", e);
+            throw e;
+        } finally {
+            metrics.close();
         }
-
-        WorkflowStep step = workflowSteps.get(task.activityType().name());
-        if (step == null) {
-            metrics.addCount(formatUnrecognizedActivityTaskMetricName(task.activityType().name()), 1.0);
-            String message = "Activity task received for unrecognized activity: " + task.activityType().name();
-            log.warn(message);
-            throw new UnrecognizedTaskException(message);
-        }
-
-        Workflow workflow = workflows.get(TaskNaming.workflowNameFromActivityName(task.activityType().name()));
-        if (workflow == null) {
-            String message = "Activity " + task.activityType().name()
-                             + " was a valid activity but somehow not a valid workflow, this should not be possible!";
-            log.error(message);
-            throw new IllegalStateException(message);
-        }
-
-        log.debug("Polled for activity task and there was work to do.");
-        return () -> executeWithHeartbeat(task, workflow, step);
     }
 
     private void executeWithHeartbeat(PollForActivityTaskResponse task, Workflow workflow, WorkflowStep step) {
@@ -252,6 +262,8 @@ public class ActivityTaskPoller implements Runnable {
                         throw new RuntimeException("Unknown result action: " + result.getAction());
                 }
             }
+        } catch (Exception e) {
+            log.warn("Got an exception executing the activity", e);
         }
     }
 

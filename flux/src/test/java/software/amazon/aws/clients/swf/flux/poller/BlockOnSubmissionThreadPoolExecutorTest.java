@@ -54,7 +54,7 @@ public class BlockOnSubmissionThreadPoolExecutorTest {
         });
         Assert.assertTrue("The first call to execute should not block.", System.nanoTime() - startNanoTime < delay.toNanos());
 
-        executor.execute(supplier);
+        executor.executeWhenCapacityAvailable(supplier);
         Assert.assertTrue("The supplier should not be executed until a thread pool thread is free.",
                           // which means the supplier should only be invoked after the expected delay.
                           invokedAtNanoTime.get() - startNanoTime > delay.toNanos());
@@ -64,7 +64,7 @@ public class BlockOnSubmissionThreadPoolExecutorTest {
     public void semaphoreIsReleasedWhenSupplierReturnsNull() {
         Supplier<Runnable> supplier = () -> null;
 
-        executor.execute(supplier);
+        executor.executeWhenCapacityAvailable(supplier);
         // If the call above did not release the semaphore then the call below will block indefinitely
         // (well, until the timeout configured on this junit test method).
         executor.execute(() -> {});
@@ -82,7 +82,7 @@ public class BlockOnSubmissionThreadPoolExecutorTest {
             runnableInvoked.complete(true);
         };
 
-        executor.execute(supplier);
+        executor.executeWhenCapacityAvailable(supplier);
         // The call above should return before execution of the Runnable that was returned by the Supplier.
         // The assertion below verifies that the Runnable is executed asynchronously without blocking the execute() call.
         Assert.assertFalse("The Runnable should not have finished executing yet.", runnableInvoked.isDone());
