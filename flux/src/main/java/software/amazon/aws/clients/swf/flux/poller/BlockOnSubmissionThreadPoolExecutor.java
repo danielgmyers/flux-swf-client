@@ -22,6 +22,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import software.amazon.aws.clients.swf.flux.util.ThreadUtils;
 
 /**
@@ -29,6 +32,8 @@ import software.amazon.aws.clients.swf.flux.util.ThreadUtils;
  * It does this using a semaphore, rather than trying to figure out how many active threads the pool reports.
  */
 public class BlockOnSubmissionThreadPoolExecutor extends ThreadPoolExecutor {
+
+    private final Logger log = LoggerFactory.getLogger(BlockOnSubmissionThreadPoolExecutor.class);
 
     private final Semaphore submissionSemaphore;
 
@@ -51,7 +56,7 @@ public class BlockOnSubmissionThreadPoolExecutor extends ThreadPoolExecutor {
      * Blocks until a thread is free, then executes the Supplier on the current thread and schedules the Runnable
      * to execute in the thread pool.
      */
-    public void execute(Supplier<Runnable> supplier) {
+    public void executeWhenCapacityAvailable(Supplier<Runnable> supplier) {
         submissionSemaphore.acquireUninterruptibly();
         Runnable runnable = null;
         try {
