@@ -37,6 +37,8 @@ import software.amazon.aws.clients.swf.flux.poller.testwf.TestPartitionedStepWit
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepAlsoDeclaresOutputAttribute;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepDeclaresOutputAttribute;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepExpectsLongInputAttribute;
+import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepExpectsStartTimeAttributesAsDate;
+import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepExpectsStartTimeAttributesAsInstant;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepHasInputAttribute;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepHasOptionalInputAttribute;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepOne;
@@ -1437,6 +1439,26 @@ public class WorkflowGraphBuilderTest {
 
         builder.addStep(end);
         builder.alwaysClose(end);
+
+        Assert.assertNotNull(builder.build());
+    }
+
+    @Test
+    public void build_DoesValidateAttributeInputsIfInitialInputAttributesSpecified_AllowsStartTimeAttributesAsDate() {
+        WorkflowStep start = new TestStepExpectsStartTimeAttributesAsDate();
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(start, Collections.emptyMap());
+        builder.alwaysClose(start);
+
+        Assert.assertNotNull(builder.build());
+    }
+
+    @Test
+    public void build_DoesValidateAttributeInputsIfInitialInputAttributesSpecified_AllowsStartTimeAttributesAsInstant() {
+        WorkflowStep start = new TestStepExpectsStartTimeAttributesAsInstant();
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(start, Collections.emptyMap());
+        builder.alwaysClose(start);
 
         Assert.assertNotNull(builder.build());
     }

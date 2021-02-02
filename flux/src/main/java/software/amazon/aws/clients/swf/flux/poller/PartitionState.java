@@ -16,8 +16,7 @@
 
 package software.amazon.aws.clients.swf.flux.poller;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,8 +34,8 @@ import software.amazon.awssdk.services.swf.model.HistoryEvent;
 public final class PartitionState {
 
     private String activityId;
-    private OffsetDateTime attemptScheduledTime;
-    private OffsetDateTime attemptCompletedTime;
+    private Instant attemptScheduledTime;
+    private Instant attemptCompletedTime;
     private Map<String, String> attemptInput;
     private Map<String, String> attemptOutput;
     private StepResult.ResultAction attemptResult;
@@ -64,14 +63,14 @@ public final class PartitionState {
 
         PartitionState state = new PartitionState();
         state.activityId = scheduledEvent.activityTaskScheduledEventAttributes().activityId();
-        state.attemptScheduledTime = OffsetDateTime.ofInstant(scheduledEvent.eventTimestamp(), ZoneOffset.UTC);
+        state.attemptScheduledTime = scheduledEvent.eventTimestamp();
         state.attemptScheduledEventId = scheduledEvent.eventId();
         state.attemptInput = WorkflowState.getStepData(scheduledEvent);
 
         if (closedEvent != null) {
             state.attemptResult = WorkflowState.getStepResultAction(closedEvent);
             state.attemptOutput = WorkflowState.getStepData(closedEvent);
-            state.attemptCompletedTime = OffsetDateTime.ofInstant(closedEvent.eventTimestamp(), ZoneOffset.UTC);
+            state.attemptCompletedTime = closedEvent.eventTimestamp();
         } else {
             state.attemptResult = null;
             state.attemptOutput = Collections.emptyMap();
@@ -96,11 +95,11 @@ public final class PartitionState {
         return (count == null) ? 0L : count;
     }
 
-    public OffsetDateTime getAttemptScheduledTime() {
+    public Instant getAttemptScheduledTime() {
         return attemptScheduledTime;
     }
 
-    public OffsetDateTime getAttemptCompletedTime() {
+    public Instant getAttemptCompletedTime() {
         return attemptCompletedTime;
     }
 

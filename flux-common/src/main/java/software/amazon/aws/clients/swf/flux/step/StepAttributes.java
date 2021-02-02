@@ -17,6 +17,7 @@
 package software.amazon.aws.clients.swf.flux.step;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -25,6 +26,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,7 +59,7 @@ public final class StepAttributes {
             case StepAttributes.ACTIVITY_COMPLETION_MESSAGE:
                 return String.class;
             case StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME:
-                return Date.class;
+                return Instant.class;
             case StepAttributes.RESULT_CODE:
                 return String.class;
             case StepAttributes.RETRY_ATTEMPT:
@@ -70,7 +73,7 @@ public final class StepAttributes {
             case StepAttributes.WORKFLOW_EXECUTION_ID:
                 return String.class;
             case StepAttributes.WORKFLOW_START_TIME:
-                return Date.class;
+                return Instant.class;
             // Hook-specific attributes below
             case StepAttributes.ACTIVITY_NAME:
                 return String.class;
@@ -82,8 +85,10 @@ public final class StepAttributes {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     // Map is allowed but it's not included here because we want to allow any implementation of Map, not just the interface.
-    private static final Set<Class<?>> ALLOWED_TYPES = Collections.unmodifiableSet(
-                            new HashSet<>(Arrays.asList(Boolean.class, String.class, Long.class, Date.class)));
+    // Visible for testing.
+    static final Set<Class<?>> ALLOWED_TYPES
+            = Stream.of(Boolean.class, String.class, Long.class, Date.class, Instant.class)
+                    .collect(Collectors.toSet());
 
     private StepAttributes() {}
 
@@ -106,6 +111,13 @@ public final class StepAttributes {
                 }
                 return null;
             } else {
+                if (type == Instant.class) {
+                    Long value = MAPPER.readValue(encoded, Long.class);
+                    return (T)(Instant.ofEpochMilli(value));
+                } else if (type == Date.class) {
+                    Long value = MAPPER.readValue(encoded, Long.class);
+                    return (T)(new Date(value));
+                }
                 return MAPPER.readValue(encoded, type);
             }
         } catch (IOException e) {
@@ -124,7 +136,16 @@ public final class StepAttributes {
                 return null;
             }
             validateAttributeClass(decoded.getClass());
-            return MAPPER.writeValueAsString(decoded);
+            Object objectToWrite = decoded;
+            if (decoded.getClass() == Instant.class) {
+                // translate instant to millis, so we can decode it as either instant or time.
+                // we lose micro/nano precision, but that's probably ok.
+                objectToWrite = ((Instant)decoded).toEpochMilli();
+            } else if (decoded.getClass() == Date.class) {
+                // translate date to millis, so we can decode it as either instant or time.
+                objectToWrite = ((Date)decoded).getTime();
+            }
+            return MAPPER.writeValueAsString(objectToWrite);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Unable to encode data.", e);
         }
@@ -149,11 +170,15 @@ public final class StepAttributes {
      * Throws an IllegalArgumentException if the specified class is not a supported input parameter type for a @StepApply method.
      */
     public static void validateAttributeClass(Class<?> clazz) {
-        if (!ALLOWED_TYPES.contains(clazz) && !Map.class.isAssignableFrom(clazz)) {
+        if (!isValidAttributeClass(clazz)) {
             String message = String.format("Step attributes can be Boolean, Long, String, Date, or Map<String, String>. Was: %s",
                                            clazz.getSimpleName());
             throw new IllegalArgumentException(message);
         }
     }
 
+    // Visible for testing
+    static boolean isValidAttributeClass(Class<?> clazz) {
+        return ALLOWED_TYPES.contains(clazz) || Map.class.isAssignableFrom(clazz);
+    }
 }

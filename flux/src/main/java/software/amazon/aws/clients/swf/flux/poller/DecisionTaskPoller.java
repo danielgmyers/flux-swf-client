@@ -18,10 +18,8 @@ package software.amazon.aws.clients.swf.flux.poller;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -336,7 +334,7 @@ public class DecisionTaskPoller implements Runnable {
             nextStepInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
             nextStepInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             nextStepInput.put(StepAttributes.WORKFLOW_START_TIME,
-                              StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+                              StepAttributes.encode(state.getWorkflowStartDate()));
         } else {
             // build the next step's input based on the previous step's input and output
             Map<String, List<PartitionState>> currentStepPartitions = state.getStepPartitions().get(activityName);
@@ -617,9 +615,9 @@ public class DecisionTaskPoller implements Runnable {
                     actualInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
                     actualInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
                 }
-                Date firstAttemptDate = new Date(Instant.now().toEpochMilli());
+                Instant firstAttemptDate = Instant.now();
                 if (firstAttempt != null) {
-                    firstAttemptDate = new Date(firstAttempt.getAttemptScheduledTime().toInstant().toEpochMilli());
+                    firstAttemptDate = firstAttempt.getAttemptScheduledTime();
                 }
                 actualInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(firstAttemptDate));
 
@@ -731,7 +729,7 @@ public class DecisionTaskPoller implements Runnable {
             Periodic periodicConfig = workflow.getClass().getAnnotation(Periodic.class);
 
             long runIntervalSeconds = periodicConfig.intervalUnits().toSeconds(periodicConfig.runInterval());
-            OffsetDateTime expectedWorkflowEnd = state.getWorkflowStartDate().plusSeconds(runIntervalSeconds);
+            Instant expectedWorkflowEnd = state.getWorkflowStartDate().plusSeconds(runIntervalSeconds);
 
             // we are probably going to delay exit, but for the purposes of completion time we want to exclude the delay.
             Duration executionDuration = Duration.between(state.getWorkflowStartDate(), state.getCurrentStepCompletionTime());
@@ -751,7 +749,7 @@ public class DecisionTaskPoller implements Runnable {
             }
 
             // Figure out how much time is left between now and the expected workflow end date
-            Duration duration = Duration.between(Instant.now(), expectedWorkflowEnd.toInstant());
+            Duration duration = Duration.between(Instant.now(), expectedWorkflowEnd);
 
             // always delay at least one second just so there's always a timer when we handle these workflows
             long delayInSeconds = Math.max(1, duration.getSeconds());
@@ -816,7 +814,7 @@ public class DecisionTaskPoller implements Runnable {
 
         // Periodic workflows have these metrics emitted *before* the delayExit fires, don't do it again in that case.
         if (!isPeriodicWorkflow) {
-            OffsetDateTime completionDate = state.getCurrentStepCompletionTime();
+            Instant completionDate = state.getCurrentStepCompletionTime();
             if (state.isWorkflowCancelRequested()) {
                 completionDate = state.getWorkflowCancelRequestDate();
             }
