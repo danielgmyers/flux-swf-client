@@ -16,8 +16,7 @@
 
 package software.amazon.aws.clients.swf.flux.poller;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -86,19 +85,19 @@ final class WorkflowState {
 
     private String workflowId;
     private String workflowRunId;
-    private OffsetDateTime workflowStartDate;
+    private Instant workflowStartDate;
     private Map<String, String> workflowInput;
     private String currentActivityName;
     private String currentStepResultCode;
-    private OffsetDateTime currentStepFirstScheduledTime;
-    private OffsetDateTime currentStepCompletionTime;
+    private Instant currentStepFirstScheduledTime;
+    private Instant currentStepCompletionTime;
     private String currentStepLastActivityCompletionMessage;
     private Long currentStepMaxRetryCount;
     private Map<String, Map<String, List<PartitionState>>> stepPartitions;
     private Map<String, TimerData> openTimers;
     private Map<String, Long> closedTimers;
     private Map<String, BaseSignalData> signalsByActivityId;
-    private OffsetDateTime workflowCancelRequestDate;
+    private Instant workflowCancelRequestDate;
     private boolean workflowExecutionClosed;
 
     public String getWorkflowId() {
@@ -109,7 +108,7 @@ final class WorkflowState {
         return workflowRunId;
     }
 
-    public OffsetDateTime getWorkflowStartDate() {
+    public Instant getWorkflowStartDate() {
         return workflowStartDate;
     }
 
@@ -125,11 +124,11 @@ final class WorkflowState {
         return currentStepResultCode;
     }
 
-    public OffsetDateTime getCurrentStepFirstScheduledTime() {
+    public Instant getCurrentStepFirstScheduledTime() {
         return currentStepFirstScheduledTime;
     }
 
-    public OffsetDateTime getCurrentStepCompletionTime() {
+    public Instant getCurrentStepCompletionTime() {
         return currentStepCompletionTime;
     }
 
@@ -164,7 +163,7 @@ final class WorkflowState {
         return workflowCancelRequestDate != null;
     }
 
-    public OffsetDateTime getWorkflowCancelRequestDate() {
+    public Instant getWorkflowCancelRequestDate() {
         return workflowCancelRequestDate;
     }
 
@@ -256,7 +255,7 @@ final class WorkflowState {
                 }
 
                 if (EventType.WORKFLOW_EXECUTION_STARTED.equals(event.eventType())) {
-                    ws.workflowStartDate = OffsetDateTime.ofInstant(event.eventTimestamp(), ZoneOffset.UTC);
+                    ws.workflowStartDate = event.eventTimestamp();
                     ws.workflowInput = getStepData(event);
                 } else if (EventType.ACTIVITY_TASK_SCHEDULED.equals(event.eventType())) {
                     String activityName = getActivityName(event);
@@ -300,8 +299,7 @@ final class WorkflowState {
                         // event of each type by only saving this signal if we don't already have one.
                         if (!ws.signalsByActivityId.containsKey(signalData.getActivityId())) {
                             signalData.setSignalEventId(event.eventId());
-                            signalData.setSignalEventTime(OffsetDateTime.ofInstant(event.eventTimestamp(),
-                                                                                   ZoneOffset.UTC));
+                            signalData.setSignalEventTime(event.eventTimestamp());
                             ws.signalsByActivityId.put(signalData.getActivityId(), signalData);
                         }
                     }
@@ -309,7 +307,7 @@ final class WorkflowState {
             } else if (WORKFLOW_CANCEL_REQUESTED_EVENTS.contains(event.eventType())) {
                 // if more than one cancellation request was sent, we'll just use the most recent one
                 if (ws.workflowCancelRequestDate == null) {
-                    ws.workflowCancelRequestDate = OffsetDateTime.ofInstant(event.eventTimestamp(), ZoneOffset.UTC);
+                    ws.workflowCancelRequestDate = event.eventTimestamp();
                 }
             } else if (WORKFLOW_END_EVENTS.contains(event.eventType())) {
                 ws.workflowExecutionClosed = true;

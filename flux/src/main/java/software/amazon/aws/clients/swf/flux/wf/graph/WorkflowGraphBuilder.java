@@ -18,8 +18,10 @@ package software.amazon.aws.clients.swf.flux.wf.graph;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -575,8 +577,17 @@ public class WorkflowGraphBuilder {
                                                step.getClass().getSimpleName(), partitionIdGenerator.getName());
                     throw new WorkflowGraphBuildException(msg);
                 }
+
+                Class<?> paramType = param.getType();
+                if (paramType == Date.class) {
+                    // The step attribute encoding/decoding logic allows Date and Instant to be used
+                    // interchangeably, so for the purposes of attribute availability,
+                    // we'll coerce all Dates to Instants, to simplify the validation logic.
+                    paramType = Instant.class;
+                }
+
                 validateAttributeIdAndType(step.getClass().getSimpleName(), partitionIdGenerator.getName(), attr.value(),
-                                           param.getType(), attr.optional(), availableAttributes);
+                                           paramType, attr.optional(), availableAttributes);
             }
 
             addDeclaredOutputAttributes(availableAttributes, step);
@@ -596,12 +607,20 @@ public class WorkflowGraphBuilder {
 
         Method applyMethod = WorkflowStepUtil.getUniqueAnnotatedMethod(step.getClass(), StepApply.class);
         for (Parameter param : applyMethod.getParameters()) {
-            if (param.getType().isAssignableFrom(MetricRecorder.class)) {
+            Class<?> paramType = param.getType();
+            if (paramType.isAssignableFrom(MetricRecorder.class)) {
                 continue;
             }
 
+            if (paramType == Date.class) {
+                // The step attribute encoding/decoding logic allows Date and Instant to be used
+                // interchangeably, so for the purposes of attribute availability,
+                // we'll coerce all Dates to Instants, to simplify the validation logic.
+                paramType = Instant.class;
+            }
+
             Attribute attr = param.getAnnotation(Attribute.class);
-            validateAttributeIdAndType(step.getClass().getSimpleName(), applyMethod.getName(), attr.value(), param.getType(),
+            validateAttributeIdAndType(step.getClass().getSimpleName(), applyMethod.getName(), attr.value(), paramType,
                                        attr.optional(), withSpecialAttributes);
         }
 
@@ -668,8 +687,16 @@ public class WorkflowGraphBuilder {
 
             Method method = entry.getKey();
             for (Parameter param : method.getParameters()) {
-                if (param.getType().isAssignableFrom(MetricRecorder.class)) {
+                Class<?> paramType = param.getType();
+                if (paramType.isAssignableFrom(MetricRecorder.class)) {
                     continue;
+                }
+
+                if (paramType == Date.class) {
+                    // The step attribute encoding/decoding logic allows Date and Instant to be used
+                    // interchangeably, so for the purposes of attribute availability,
+                    // we'll coerce all Dates to Instants, to simplify the validation logic.
+                    paramType = Instant.class;
                 }
 
                 Attribute attr = param.getAnnotation(Attribute.class);
@@ -682,7 +709,7 @@ public class WorkflowGraphBuilder {
                 }
 
                 validateAttributeIdAndType(hook.getClass().getSimpleName(), method.getName(), attr.value(),
-                                           param.getType(), attr.optional(), hookAttributes);
+                                           paramType, attr.optional(), hookAttributes);
             }
         }
     }

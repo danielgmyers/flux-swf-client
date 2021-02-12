@@ -18,12 +18,9 @@ package software.amazon.aws.clients.swf.flux.poller;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +99,7 @@ public class WorkflowStateTest {
         WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -138,7 +135,7 @@ public class WorkflowStateTest {
         HistoryEvent endEvent = history.recordActivityResult(StepResult.success().withAttributes(output));
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -148,8 +145,8 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startEvent.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(endEvent.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(endEvent.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
 
@@ -182,7 +179,7 @@ public class WorkflowStateTest {
         HistoryEvent endEvent = history.recordActivityResult(StepResult.failure().withAttributes(output));
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -192,8 +189,8 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startEvent.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(endEvent.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(endEvent.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertEquals(StepResult.FAIL_RESULT_CODE, ws.getCurrentStepResultCode());
 
@@ -227,7 +224,7 @@ public class WorkflowStateTest {
         HistoryEvent endEvent = history.recordActivityResult(StepResult.success(TestBranchingWorkflow.CUSTOM_RESULT, completionMessage).withAttributes(output));
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -237,8 +234,8 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startEvent.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(endEvent.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(endEvent.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertEquals(TestBranchingWorkflow.CUSTOM_RESULT, ws.getCurrentStepResultCode());
 
@@ -276,7 +273,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -287,7 +284,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startP1Event.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -328,7 +325,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -339,7 +336,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startP1Event.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -380,7 +377,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -391,7 +388,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startP1Event.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -431,7 +428,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -442,7 +439,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startP1Event.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -485,7 +482,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -496,7 +493,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startP2Event.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(startP2Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -538,7 +535,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -548,8 +545,8 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstStepName, ws.getCurrentActivityName());
-        Assert.assertEquals(OffsetDateTime.ofInstant(step1Start.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(step1End.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(step1Start.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(step1End.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
 
@@ -589,7 +586,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -600,8 +597,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startP1Event.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(closeP2Event.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(closeP2Event.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -640,7 +637,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -651,8 +648,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.FAIL_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startP1Event.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(closeP2Event.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(closeP2Event.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -710,7 +707,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertEquals(4, ws.getClosedTimers().size()); // two retries each for two partitions
@@ -725,8 +722,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(p1Start1.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(p2End3.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(p1Start1.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(p2End3.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(2L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -785,7 +782,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertEquals(4, ws.getClosedTimers().size()); // two retries each for two partitions
@@ -801,8 +798,8 @@ public class WorkflowStateTest {
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         // the effectiveResultCode should be _fail as one of the partitions has failed
         Assert.assertEquals(StepResult.FAIL_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(p1Start1.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(p2End3.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(p1Start1.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(p2End3.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(2L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -833,7 +830,7 @@ public class WorkflowStateTest {
         history.recordActivityTimedOut();
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -844,7 +841,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startEvent.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -873,7 +870,7 @@ public class WorkflowStateTest {
         history.recordActivityCanceled();
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -884,7 +881,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(startEvent.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -920,7 +917,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertEquals(1, ws.getClosedTimers().size());
@@ -932,8 +929,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(firstStart.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(secondClose.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(secondClose.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(1L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -966,7 +963,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -977,8 +974,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(secondActivityName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(secondStart.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(secondClose.eventTimestamp(), ZoneOffset.UTC), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(secondStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(secondClose.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1014,7 +1011,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertEquals(1, ws.getOpenTimers().size());
@@ -1030,7 +1027,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime().toInstant());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, ws.getCurrentStepMaxRetryCount().longValue());
 
@@ -1059,7 +1056,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
 
@@ -1073,7 +1070,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime().toInstant());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, ws.getCurrentStepMaxRetryCount().longValue());
 
@@ -1103,7 +1100,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
 
@@ -1117,7 +1114,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime().toInstant());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, ws.getCurrentStepMaxRetryCount().longValue());
 
@@ -1149,7 +1146,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getOpenTimers().containsKey(timerRestart.timerStartedEventAttributes().timerId()));
@@ -1162,7 +1159,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime().toInstant());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, ws.getCurrentStepMaxRetryCount().longValue());
 
@@ -1194,7 +1191,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
@@ -1208,7 +1205,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime().toInstant());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, ws.getCurrentStepMaxRetryCount().longValue());
 
@@ -1237,7 +1234,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1255,8 +1252,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(OffsetDateTime.ofInstant(firstStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1288,7 +1284,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1306,8 +1302,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(OffsetDateTime.ofInstant(firstStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1338,7 +1333,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().isEmpty());
@@ -1354,8 +1349,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(OffsetDateTime.ofInstant(firstStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1383,7 +1377,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1402,8 +1396,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(OffsetDateTime.ofInstant(firstStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1432,7 +1425,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1451,8 +1444,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(OffsetDateTime.ofInstant(firstStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1480,7 +1472,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1499,10 +1491,8 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.FAIL_RESULT_CODE, ws.getCurrentStepResultCode());
         Assert.assertEquals(WorkflowState.FORCED_RESULT_MESSAGE, ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(OffsetDateTime.ofInstant(firstStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(signal.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(signal.eventTimestamp(), ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getStepPartitions());
         Assert.assertEquals(1, ws.getStepPartitions().size());
@@ -1530,7 +1520,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1549,8 +1539,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(OffsetDateTime.ofInstant(firstStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1581,7 +1570,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().isEmpty());
@@ -1597,8 +1586,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(OffsetDateTime.ofInstant(firstStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1627,7 +1615,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().isEmpty());
@@ -1643,8 +1631,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(OffsetDateTime.ofInstant(firstStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1667,14 +1654,13 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
 
         Assert.assertTrue(ws.isWorkflowCancelRequested());
-        Assert.assertEquals(OffsetDateTime.ofInstant(cancelEvent.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getWorkflowCancelRequestDate());
+        Assert.assertEquals(cancelEvent.eventTimestamp(), ws.getWorkflowCancelRequestDate());
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertNull(ws.getCurrentActivityName());
@@ -1703,19 +1689,17 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
 
         Assert.assertTrue(ws.isWorkflowCancelRequested());
-        Assert.assertEquals(OffsetDateTime.ofInstant(cancelEvent.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getWorkflowCancelRequestDate());
+        Assert.assertEquals(cancelEvent.eventTimestamp(), ws.getWorkflowCancelRequestDate());
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
-        Assert.assertEquals(OffsetDateTime.ofInstant(stepStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
         Assert.assertEquals(0, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertNull(ws.getCurrentStepResultCode());
 
@@ -1740,14 +1724,13 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
 
         Assert.assertTrue(ws.isWorkflowCancelRequested());
-        Assert.assertEquals(OffsetDateTime.ofInstant(cancelRequestEvent.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getWorkflowCancelRequestDate());
+        Assert.assertEquals(cancelRequestEvent.eventTimestamp(), ws.getWorkflowCancelRequestDate());
         Assert.assertTrue(ws.isWorkflowExecutionClosed());
 
         Assert.assertNull(ws.getCurrentActivityName());
@@ -1781,7 +1764,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -1792,10 +1775,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(secondActivityName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(stepTwoStart.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(stepTwoEnd.eventTimestamp(), ZoneOffset.UTC),
-                            ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepTwoStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoEnd.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1836,7 +1817,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -1847,10 +1828,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(secondActivityName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.FAIL_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(OffsetDateTime.ofInstant(stepTwoStart.eventTimestamp(), ZoneOffset.UTC),
-                ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(OffsetDateTime.ofInstant(stepTwoEnd.eventTimestamp(), ZoneOffset.UTC),
-                ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepTwoStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoEnd.eventTimestamp(), ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getStepPartitions());
@@ -1883,7 +1862,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -1915,7 +1894,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(OffsetDateTime.ofInstant(now, ZoneOffset.UTC), ws.getWorkflowStartDate());
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -2098,11 +2077,11 @@ public class WorkflowStateTest {
         for (int i = 0; i < attemptStartTimes.size(); i++) {
             PartitionState attempt = ws.getStepPartitions().get(stepName).get(partitionId).get(i);
 
-            Assert.assertEquals(OffsetDateTime.ofInstant(attemptStartTimes.get(i), ZoneOffset.UTC), attempt.getAttemptScheduledTime());
+            Assert.assertEquals(attemptStartTimes.get(i), attempt.getAttemptScheduledTime());
             Map<String, String> attemptInput = new HashMap<>(initialInput);
             attemptInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(ws.getWorkflowId()));
             attemptInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(ws.getWorkflowRunId()));
-            attemptInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(ws.getWorkflowStartDate().toInstant())));
+            attemptInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(ws.getWorkflowStartDate()));
             if (i > 0) {
                 attemptInput.put(StepAttributes.RETRY_ATTEMPT, Long.toString(i));
             }

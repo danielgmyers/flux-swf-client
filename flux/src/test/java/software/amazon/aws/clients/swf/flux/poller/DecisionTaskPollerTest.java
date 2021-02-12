@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLException;
@@ -428,7 +427,7 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -484,7 +483,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -554,7 +553,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -622,7 +621,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -702,7 +701,7 @@ public class DecisionTaskPollerTest {
 
             expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
             // because this is the first attempt of the step and we don't control 'now' from the unit test,
             // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
@@ -796,7 +795,7 @@ public class DecisionTaskPollerTest {
 
             expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
             // the partition id generator should have added an extra attribute
             expectedInput.put(TestPartitionedStepUsesPartitionIdGeneratorResult.PARTITION_ID_GENERATOR_RESULT_ATTRIBUTE,
@@ -1008,7 +1007,7 @@ public class DecisionTaskPollerTest {
 
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         String activityId = TaskNaming.createActivityId(partitionedStep, 0, partitionId);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -1144,7 +1143,7 @@ public class DecisionTaskPollerTest {
 
             expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
             expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(Date.from(partitionFirstAttemptTimes.get(partitionId))));
 
             String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
@@ -1213,7 +1212,7 @@ public class DecisionTaskPollerTest {
         expectedInput.putAll(output);
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         // because this is the first attempt of the step and we don't control 'now' from the unit test,
         // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
@@ -1293,7 +1292,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -1408,12 +1407,12 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         // Start time of the workflow should match what was in the workflow state
-        Date workflowStartTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.WORKFLOW_START_TIME));
+        Instant workflowStartTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.WORKFLOW_START_TIME));
         Assert.assertNotNull(workflowStartTime);
-        Assert.assertEquals(state.getWorkflowStartDate().toInstant(), workflowStartTime.toInstant());
+        Assert.assertEquals(state.getWorkflowStartDate(), workflowStartTime);
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(workflowStartTime));
 
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 0, null);
@@ -1455,7 +1454,7 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         String activityId = TaskNaming.createActivityId(currentStep, 1, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -1804,7 +1803,7 @@ public class DecisionTaskPollerTest {
 
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(Date.from(startEvent1.eventTimestamp())));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
 
@@ -1933,7 +1932,7 @@ public class DecisionTaskPollerTest {
         expectedInput.putAll(output);
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         // because this is the first attempt of the step and we don't control 'now' from the unit test,
         // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
@@ -2020,7 +2019,7 @@ public class DecisionTaskPollerTest {
         expectedInput.putAll(output);
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(state.getWorkflowStartDate().toInstant())));
+        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         // because this is the first attempt of the step and we don't control 'now' from the unit test,
         // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
@@ -2264,7 +2263,7 @@ public class DecisionTaskPollerTest {
         String stepOneActivityName = TaskNaming.activityName(workflowName, stepOne);
         Assert.assertEquals(close1Event.eventTimestamp().toEpochMilli() - start1Event.eventTimestamp().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)).toMillis());
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - Date.from(state.getWorkflowStartDate().toInstant()).getTime(),
+        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)).toMillis());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -2307,7 +2306,7 @@ public class DecisionTaskPollerTest {
         String stepOneActivityName = TaskNaming.activityName(workflowName, stepOne);
         Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - start1Event.eventTimestamp().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)).toMillis());
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - Date.from(state.getWorkflowStartDate().toInstant()).getTime(),
+        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)).toMillis());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -2355,7 +2354,7 @@ public class DecisionTaskPollerTest {
         String stepOneActivityName = TaskNaming.activityName(workflowName, stepOne);
         Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - start1Event.eventTimestamp().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)).toMillis());
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - Date.from(state.getWorkflowStartDate().toInstant()).getTime(),
+        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)).toMillis());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -2405,7 +2404,7 @@ public class DecisionTaskPollerTest {
         String activityName = TaskNaming.activityName(workflowName, currentStep);
         Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - start1Event.eventTimestamp().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - Date.from(state.getWorkflowStartDate().toInstant()).getTime(),
+        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)).toMillis());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -2440,7 +2439,7 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(attrs, decision.completeWorkflowExecutionDecisionAttributes());
 
         String stepTwoActivityName = TaskNaming.activityName(workflowName, stepTwo);
-        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - Date.from(state.getWorkflowStartDate().toInstant()).getTime(),
+        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)).toMillis());
         Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - start2Event.eventTimestamp().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)).toMillis());
@@ -2480,7 +2479,7 @@ public class DecisionTaskPollerTest {
         Assert.assertTrue(decision.failWorkflowExecutionDecisionAttributes().reason().startsWith(activityName + " failed after"));
         Assert.assertNotNull("FailWorkflowExecutionDecision detail should not be null!", decision.failWorkflowExecutionDecisionAttributes().details());
 
-        Assert.assertEquals(close1Event.eventTimestamp().toEpochMilli() - Date.from(state.getWorkflowStartDate().toInstant()).getTime(),
+        Assert.assertEquals(close1Event.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowWithFailureTransitionName)).toMillis());
         Assert.assertEquals(close1Event.eventTimestamp().toEpochMilli() - start1Event.eventTimestamp().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
@@ -2520,7 +2519,7 @@ public class DecisionTaskPollerTest {
 
         // we want to see a workflow execution time metric emitted when the periodic workflow ends, before the delayed exit
         String stepTwoActivityName = TaskNaming.activityName(periodicWorkflowName, stepTwo);
-        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - Date.from(state.getWorkflowStartDate().toInstant()).getTime(),
+        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)).toMillis());
         Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - start2Event.eventTimestamp().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)).toMillis());
@@ -2532,7 +2531,7 @@ public class DecisionTaskPollerTest {
 
         // the timer should be set to end such that the workflow will be run once per period;
         // so the actual delay scheduled should be within a few seconds of the remaining time.
-        long timeSinceWorkflowStart = now.toEpochMilli() - Date.from(state.getWorkflowStartDate().toInstant()).getTime();
+        long timeSinceWorkflowStart = now.toEpochMilli() - state.getWorkflowStartDate().toEpochMilli();
         long expectedDelay = p.intervalUnits().toSeconds(p.runInterval()) - (timeSinceWorkflowStart/1000);
         long allowedDelta = 2;
         // start-to-fire timeout is in seconds
@@ -2573,7 +2572,7 @@ public class DecisionTaskPollerTest {
 
         // we want to see a workflow execution time metric emitted when the periodic workflow ends, before the delayed exit
         String stepTwoActivityName = TaskNaming.activityName(periodicWorkflowName, stepTwo);
-        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - Date.from(state.getWorkflowStartDate().toInstant()).getTime(),
+        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)).toMillis());
         Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - start2Event.eventTimestamp().toEpochMilli(),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)).toMillis());

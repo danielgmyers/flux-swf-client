@@ -72,6 +72,7 @@ Flux supports `@Attribute` parameters of any of the following types:
 - `String`
 - `Long`
 - `Date`
+- `Instant`
 - `Boolean`
 - `Map<String, String>`
 - `software.amazon.aws.clients.swf.flux.metrics.MetricRecorder`

@@ -16,7 +16,7 @@
 
 package software.amazon.aws.clients.swf.flux.poller.signals;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -34,7 +34,7 @@ public abstract class BaseSignalData {
     private Long signalEventId;
 
     @JsonIgnore
-    private OffsetDateTime signalEventTime;
+    private Instant signalEventTime;
 
     private String activityId;
 
@@ -49,14 +49,14 @@ public abstract class BaseSignalData {
         this.signalEventId = signalEventId;
     }
 
-    public OffsetDateTime getSignalEventTime() {
+    public Instant getSignalEventTime() {
         return signalEventTime;
     }
 
     /**
      * This is only for internal use by the WorkflowState code, you don't need to set it in tests if you're just building events.
      */
-    public void setSignalEventTime(OffsetDateTime signalEventTime) {
+    public void setSignalEventTime(Instant signalEventTime) {
         this.signalEventTime = signalEventTime;
     }
 
