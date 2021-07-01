@@ -126,10 +126,16 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
                 .throttlingBackoffStrategy(BackoffStrategy.none())
                 .build();
 
-        // this is where we'd add an execution interceptor for e.g. SDK metrics
-        ClientOverrideConfiguration overrideConfig = ClientOverrideConfiguration.builder()
-                .retryPolicy(retryPolicy)
-                .build();
+        // If an override config was provided, use it, and only use the above RetryPolicy
+        // if the provided overrideConfig did not include its own RetryPolicy.
+        ClientOverrideConfiguration overrideConfig = config.getClientOverrideConfiguration();
+        if (overrideConfig == null) {
+            overrideConfig = ClientOverrideConfiguration.builder()
+                                                        .retryPolicy(retryPolicy)
+                                                        .build();
+        } else if (!overrideConfig.retryPolicy().isPresent()) {
+            overrideConfig = overrideConfig.toBuilder().retryPolicy(retryPolicy).build();
+        }
 
         SwfClientBuilder builder = SwfClient.builder()
                 .credentialsProvider(credentials)
@@ -608,5 +614,4 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     static boolean isPeriodicWorkflow(Workflow workflow) {
         return workflow.getClass().isAnnotationPresent(Periodic.class);
     }
-
 }

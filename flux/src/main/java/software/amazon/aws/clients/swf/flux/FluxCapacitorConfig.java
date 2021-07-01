@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+
 /**
  * Container for configuration data used by Flux at runtime.
  */
@@ -31,6 +33,7 @@ public class FluxCapacitorConfig {
     private Function<String, String> hostnameTransformerForPollerIdentity = (hostname) -> hostname;
     private String swfEndpoint;
     private String swfDomain;
+    private ClientOverrideConfiguration clientOverrideConfiguration;
     private final Map<String, TaskListConfig> taskListConfigs = new HashMap<>();
 
     public String getAwsRegion() {
@@ -116,6 +119,22 @@ public class FluxCapacitorConfig {
             throw new IllegalArgumentException("swfDomain may not be null.");
         }
         this.swfDomain = swfDomain;
+    }
+
+    public ClientOverrideConfiguration getClientOverrideConfiguration() {
+        return clientOverrideConfiguration;
+    }
+
+    /**
+     * Overrides the default configuration used by the SwfClient created by Flux.
+     *
+     * Note that by default, Flux already overrides the client's default retry policy by disabling it
+     * entirely, and implements its own retry and backoff logic, in order to generate clean metrics.
+     * However, if this override configuration specifies a retry policy, then Flux will not disable
+     * retries, but Flux's SWF API metrics will no longer reflect only durations for single API calls.
+     */
+    public void setClientOverrideConfiguration(ClientOverrideConfiguration clientOverrideConfiguration) {
+        this.clientOverrideConfiguration = clientOverrideConfiguration;
     }
 
     /**
