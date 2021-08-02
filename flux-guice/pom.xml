@@ -5,7 +5,7 @@
     <parent>
         <groupId>software.amazon.aws.clients.swf.flux</groupId>
         <artifactId>flux-swf-client-pom</artifactId>
-        <version>2.0.3</version>
+        <version>2.0.4</version>
     </parent>
     <artifactId>flux-guice</artifactId>
     <name>Flux SWF Client Guice Helper</name>
@@ -43,7 +43,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>5.7.0</version> <!-- this was written against newer junit than the rest of the code -->
+            <version>${junit5.version}</version> <!-- this was written against newer junit than the rest of the code -->
             <scope>test</scope>
         </dependency>
         <dependency>

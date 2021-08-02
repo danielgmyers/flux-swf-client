@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>software.amazon.aws.clients.swf.flux</groupId>
     <artifactId>flux-swf-client-pom</artifactId>
-    <version>2.0.3</version>
+    <version>2.0.4</version>
     <packaging>pom</packaging>
     <name>Flux SWF Client POM</name>
     <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
@@ -43,12 +43,23 @@
     </scm>
     <properties>
         <flux.version>${project.version}</flux.version>
-        <awssdk.version>2.15.19</awssdk.version>
-        <jackson.version>2.11.3</jackson.version>
-        <slf4j.version>1.7.30</slf4j.version>
+        <awssdk.version>2.17.9</awssdk.version>
+        <jackson.version>2.12.4</jackson.version>
+        <slf4j.version>1.7.32</slf4j.version>
 
-        <junit.version>4.13.1</junit.version>
-        <easymock.version>4.2</easymock.version>
+        <junit.version>4.13.2</junit.version>
+        <junit5.version>5.7.2</junit5.version>
+        <easymock.version>4.3</easymock.version>
+
+        <mavenplugin.compiler.version>3.8.1</mavenplugin.compiler.version>
+        <mavenplugin.checkstyle.version>3.1.2</mavenplugin.checkstyle.version>
+        <mavenplugin.surefire.version>2.22.2</mavenplugin.surefire.version>
+        <mavenplugin.source.version>3.2.1</mavenplugin.source.version>
+        <mavenplugin.javadoc.version>3.3.0</mavenplugin.javadoc.version>
+        <mavenplugin.gpg.version>3.0.1</mavenplugin.gpg.version>
+        <mavenplugin.nexusstaging.version>1.6.8</mavenplugin.nexusstaging.version>
+
+        <checkstyle.version>8.45</checkstyle.version>
 
         <jre.version>1.8</jre.version>
     </properties>
@@ -57,7 +68,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>${mavenplugin.compiler.version}</version>
                 <configuration>
                     <source>${jre.version}</source>
                     <target>${jre.version}</target>
@@ -68,7 +79,14 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>${mavenplugin.checkstyle.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
                 <executions>
                     <execution>
                         <phase>validate</phase>
@@ -88,7 +106,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
+                <version>${mavenplugin.surefire.version}</version>
                 <configuration>
                     <parallel>classes</parallel>
                     <threadCount>3</threadCount>
@@ -105,7 +123,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>${mavenplugin.checkstyle.version}</version>
                 <configuration>
                     <configLocation>checkstyle-rules.xml</configLocation>
                     <encoding>UTF-8</encoding>
@@ -135,7 +153,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <version>3.2.1</version>
+                        <version>${mavenplugin.source.version}</version>
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
@@ -148,7 +166,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.2.0</version>
+                        <version>${mavenplugin.javadoc.version}</version>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -161,7 +179,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.6</version>
+                        <version>${mavenplugin.gpg.version}</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -183,7 +201,7 @@
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.8</version>
+                        <version>${mavenplugin.nexusstaging.version}</version>
                         <extensions>true</extensions>
                         <configuration>
                             <serverId>sonatype-nexus-staging</serverId>
