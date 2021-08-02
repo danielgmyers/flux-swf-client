@@ -244,16 +244,13 @@ public class StepTwo implements WorkflowStep {
     @StepApply
     public StepResult decideSomething(@Attribute("someInput") String value) {
         if ("diamond".equals(value)) {
-            return StepResult.success("retained", "We decided to keep the value since it's a diamond.");
+            return StepResult.complete("retained", "We decided to keep the value since it's a diamond.");
         } else {
-            return StepResult.failure("revoked", "We decided not to keep the value.");
+            return StepResult.complete("revoked", "We decided not to keep the value.");
         }
     }
 }
 ```
-
-When custom result codes are used, it does not matter whether `StepResult.success` or `StepResult.failure` is called; they behave the same way. You should use whichever helps you best convey what is happening in your workflow.
-
 
 Library initialization
 ---------------------------------------
