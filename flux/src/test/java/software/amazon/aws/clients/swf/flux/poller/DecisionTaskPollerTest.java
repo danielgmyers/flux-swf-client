@@ -53,9 +53,11 @@ import software.amazon.aws.clients.swf.flux.poller.testwf.TestPeriodicWorkflow;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestPeriodicWorkflowCustomTaskList;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepHasOptionalInputAttribute;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepOne;
+import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepReturnsCustomResultCode;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepTwo;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestWorkflow;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestWorkflowCustomTaskList;
+import software.amazon.aws.clients.swf.flux.poller.testwf.TestWorkflowDoesntHandleCustomResultCode;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestWorkflowWithAlwaysTransition;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestWorkflowWithFailureTransition;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestWorkflowWithPartitionedStep;
@@ -498,6 +500,91 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+
+        mockery.verify();
+    }
+
+    @Test
+    public void decide_recordMarkerAndRetryTimerIfUnknownResultCode() throws JsonProcessingException {
+        Assert.assertTrue(workflow.getGraph().getNodes().size() > 1);
+
+        Map<String, String> input = new TreeMap<>();
+        input.put("SomeInput", "Value");
+
+        Map<String, String> output = new TreeMap<>();
+        output.put("ExtraOutput", "AnotherValue");
+
+        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), input);
+
+        WorkflowStep currentStep = workflow.getGraph().getFirstStep();
+        HistoryEvent startEvent = history.scheduleStepAttempt();
+        HistoryEvent closeEvent = history.recordActivityResult(StepResult.complete("custom-result-code", "Graph doesn't handle this result code").withAttributes(output));
+
+        WorkflowState state = history.buildCurrentState();
+
+        mockery.replay();
+
+        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+
+        Assert.assertEquals(2, response.decisions().size());
+        Decision markerDecision = response.decisions().get(0);
+        Decision timerDecision = response.decisions().get(1);
+
+        Assert.assertEquals(DecisionType.RECORD_MARKER, markerDecision.decisionType());
+        Assert.assertEquals(DecisionType.START_TIMER, timerDecision.decisionType());
+
+        StartTimerDecisionAttributes timerAttrs = timerDecision.startTimerDecisionAttributes();
+        Assert.assertEquals(DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_ID, timerAttrs.timerId());
+        Assert.assertEquals(Long.toString(DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_DELAY.getSeconds()),
+                            timerAttrs.startToFireTimeout());
+
+        String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.UNKNOWN_RESULT_CODE_METRIC_BASE).longValue());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowMetricName(workflowName)).longValue());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowStepMetricName(activityName)).longValue());
+
+        mockery.verify();
+    }
+
+    @Test
+    public void decide_recordMarkerAndRetryTimerIfUnknownResultCode_DoNotCreateDuplicateTimer() throws JsonProcessingException {
+        Assert.assertTrue(workflow.getGraph().getNodes().size() > 1);
+
+        Map<String, String> input = new TreeMap<>();
+        input.put("SomeInput", "Value");
+
+        Map<String, String> output = new TreeMap<>();
+        output.put("ExtraOutput", "AnotherValue");
+
+        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), input);
+
+        WorkflowStep currentStep = workflow.getGraph().getFirstStep();
+        HistoryEvent startEvent = history.scheduleStepAttempt();
+        HistoryEvent closeEvent = history.recordActivityResult(StepResult.complete("custom-result-code", "Graph doesn't handle this result code").withAttributes(output));
+        HistoryEvent timerEvent = history.startTimer(DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_ID,
+                                                     DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_DELAY);
+
+        WorkflowState state = history.buildCurrentState();
+
+        mockery.replay();
+
+        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+
+        Assert.assertEquals(1, response.decisions().size());
+        Decision markerDecision = response.decisions().get(0);
+
+        Assert.assertEquals(DecisionType.RECORD_MARKER, markerDecision.decisionType());
+
+        String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.UNKNOWN_RESULT_CODE_METRIC_BASE).longValue());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowMetricName(workflowName)).longValue());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowStepMetricName(activityName)).longValue());
 
         mockery.verify();
     }
@@ -2672,14 +2759,20 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void findNextStep_FindsFirstStepWhenNoCurrentStep() {
-        Assert.assertEquals(workflow.getGraph().getFirstStep(), DecisionTaskPoller.findNextStep(workflow, null, null));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(workflow, null, null);
+        Assert.assertFalse(selection.workflowShouldClose());
+        Assert.assertEquals(workflow.getGraph().getFirstStep(), selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
     public void findNextStep_FindsSecondStepWhenCurrentIsFirstStep() {
         WorkflowStep stepOne = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
-        Assert.assertEquals(stepTwo, DecisionTaskPoller.findNextStep(workflow, stepOne, StepResult.SUCCEED_RESULT_CODE));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(workflow, stepOne, StepResult.SUCCEED_RESULT_CODE);
+        Assert.assertFalse(selection.workflowShouldClose());
+        Assert.assertEquals(stepTwo, selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -2688,7 +2781,10 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep stepOne = branchingWorkflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep stepTwo = branchingWorkflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
-        Assert.assertEquals(stepTwo, DecisionTaskPoller.findNextStep(branchingWorkflow, stepOne, StepResult.SUCCEED_RESULT_CODE));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(branchingWorkflow, stepOne, StepResult.SUCCEED_RESULT_CODE);
+        Assert.assertFalse(selection.workflowShouldClose());
+        Assert.assertEquals(stepTwo, selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -2697,13 +2793,19 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep stepOne = branchingWorkflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep branchStep = branchingWorkflow.getGraph().getNodes().get(TestBranchStep.class).getStep();
-        Assert.assertEquals(branchStep, DecisionTaskPoller.findNextStep(branchingWorkflow, stepOne, TestBranchingWorkflow.CUSTOM_RESULT));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(branchingWorkflow, stepOne, TestBranchingWorkflow.CUSTOM_RESULT);
+        Assert.assertFalse(selection.workflowShouldClose());
+        Assert.assertEquals(branchStep, selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
     public void findNextStep_NoNextStepWhenCurrentStepIsLast() {
         WorkflowStep secondStep = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
-        Assert.assertNull(DecisionTaskPoller.findNextStep(workflow, secondStep, StepResult.SUCCEED_RESULT_CODE));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(workflow, secondStep, StepResult.SUCCEED_RESULT_CODE);
+        Assert.assertTrue(selection.workflowShouldClose());
+        Assert.assertNull(selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -2711,7 +2813,10 @@ public class DecisionTaskPollerTest {
         TestWorkflowWithAlwaysTransition always = new TestWorkflowWithAlwaysTransition();
         WorkflowStep stepOne = always.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
-        Assert.assertEquals(stepTwo, DecisionTaskPoller.findNextStep(always, stepOne, StepResult.SUCCEED_RESULT_CODE));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepOne, StepResult.SUCCEED_RESULT_CODE);
+        Assert.assertFalse(selection.workflowShouldClose());
+        Assert.assertEquals(stepTwo, selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -2719,7 +2824,10 @@ public class DecisionTaskPollerTest {
         TestWorkflowWithAlwaysTransition always = new TestWorkflowWithAlwaysTransition();
         WorkflowStep stepOne = always.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
-        Assert.assertEquals(stepTwo, DecisionTaskPoller.findNextStep(always, stepOne, StepResult.FAIL_RESULT_CODE));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepOne, StepResult.FAIL_RESULT_CODE);
+        Assert.assertFalse(selection.workflowShouldClose());
+        Assert.assertEquals(stepTwo, selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -2727,28 +2835,50 @@ public class DecisionTaskPollerTest {
         TestWorkflowWithAlwaysTransition always = new TestWorkflowWithAlwaysTransition();
         WorkflowStep stepOne = always.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
-        Assert.assertEquals(stepTwo, DecisionTaskPoller.findNextStep(always, stepOne, "some-random-custom-code"));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepOne, "some-random-custom-code");
+        Assert.assertFalse(selection.workflowShouldClose());
+        Assert.assertEquals(stepTwo, selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
     public void findNextStep_CloseWorkflowAfterSecondStep_AlwaysTransition_ResultCodeSucceed() {
         TestWorkflowWithAlwaysTransition always = new TestWorkflowWithAlwaysTransition();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
-        Assert.assertNull(DecisionTaskPoller.findNextStep(always, stepTwo, StepResult.SUCCEED_RESULT_CODE));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepTwo, StepResult.SUCCEED_RESULT_CODE);
+        Assert.assertTrue(selection.workflowShouldClose());
+        Assert.assertNull(selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
     public void findNextStep_CloseWorkflowAfterSecondStep_AlwaysTransition_ResultCodeFail() {
         TestWorkflowWithAlwaysTransition always = new TestWorkflowWithAlwaysTransition();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
-        Assert.assertNull(DecisionTaskPoller.findNextStep(always, stepTwo, StepResult.FAIL_RESULT_CODE));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepTwo, StepResult.FAIL_RESULT_CODE);
+        Assert.assertTrue(selection.workflowShouldClose());
+        Assert.assertNull(selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
     public void findNextStep_CloseWorkflowAfterSecondStep_AlwaysTransition_ResultCodeCustom() {
         TestWorkflowWithAlwaysTransition always = new TestWorkflowWithAlwaysTransition();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
-        Assert.assertNull(DecisionTaskPoller.findNextStep(always, stepTwo, "some-random-custom-code"));
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepTwo, "some-random-custom-code");
+        Assert.assertTrue(selection.workflowShouldClose());
+        Assert.assertNull(selection.getNextStep());
+        Assert.assertFalse(selection.isNextStepUnknown());
+    }
+
+    @Test
+    public void findNextStep_UnknownResultCode() {
+        TestWorkflowDoesntHandleCustomResultCode wf = new TestWorkflowDoesntHandleCustomResultCode();
+        WorkflowStep stepOne = wf.getGraph().getNodes().get(TestStepReturnsCustomResultCode.class).getStep();
+        NextStepSelection selection = DecisionTaskPoller.findNextStep(wf, stepOne, TestStepReturnsCustomResultCode.RESULT_CODE);
+        Assert.assertFalse(selection.workflowShouldClose());
+        Assert.assertNull(selection.getNextStep());
+        Assert.assertTrue(selection.isNextStepUnknown());
     }
 
     private void expectPoll(PollForDecisionTaskResponse taskToReturn) {

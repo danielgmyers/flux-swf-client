@@ -67,6 +67,7 @@ import software.amazon.awssdk.services.swf.model.FailWorkflowExecutionDecisionAt
 import software.amazon.awssdk.services.swf.model.HistoryEvent;
 import software.amazon.awssdk.services.swf.model.PollForDecisionTaskRequest;
 import software.amazon.awssdk.services.swf.model.PollForDecisionTaskResponse;
+import software.amazon.awssdk.services.swf.model.RecordMarkerDecisionAttributes;
 import software.amazon.awssdk.services.swf.model.RequestCancelActivityTaskDecisionAttributes;
 import software.amazon.awssdk.services.swf.model.RespondDecisionTaskCompletedRequest;
 import software.amazon.awssdk.services.swf.model.ScheduleActivityTaskDecisionAttributes;
@@ -90,12 +91,17 @@ public class DecisionTaskPoller implements Runnable {
     static final String WORKFLOW_ID_METRIC_NAME = "WorkflowId";
     static final String WORKFLOW_RUN_ID_METRIC_NAME = "RunId";
 
+    static final String UNKNOWN_RESULT_CODE_METRIC_BASE = "Flux.UnknownResultCode";
+
     static final String EXECUTION_CONTEXT_NEXT_STEP_NAME = "_nextStepName";
     static final String EXECUTION_CONTEXT_NEXT_STEP_RESULT_CODES = "_nextStepSupportedResultCodes";
     static final String EXECUTION_CONTEXT_NEXT_STEP_RESULT_WORKFLOW_ENDS = "_closeWorkflow";
 
     // package-private for use by unit tests
     static final String DELAY_EXIT_TIMER_ID = "_delayExit";
+    static final String UNKNOWN_RESULT_RETRY_TIMER_ID = "_unknownResultCode";
+
+    static final Duration UNKNOWN_RESULT_RETRY_TIMER_DELAY = Duration.ofMinutes(1);
 
     private static final Logger log = LoggerFactory.getLogger(DecisionTaskPoller.class);
 
@@ -363,10 +369,10 @@ public class DecisionTaskPoller implements Runnable {
             }
         }
 
-        WorkflowStep nextStep = findNextStep(workflow, currentStep, currentStepResultCode);
+        NextStepSelection selection = findNextStep(workflow, currentStep, currentStepResultCode);
         String nextStepNameForContext = null;
         Map<String, String> contextAttributes = new HashMap<>();
-        if (nextStep == null) {
+        if (selection.workflowShouldClose()) {
             Decision decision = handleWorkflowCompletion(workflow, workflowId, state, metrics);
             if (decision != null) {
                 decisions.add(decision);
@@ -377,8 +383,18 @@ public class DecisionTaskPoller implements Runnable {
             if (workflow.getClass().isAnnotationPresent(Periodic.class)) {
                 nextStepNameForContext = DELAY_EXIT_TIMER_ID;
             }
+        } else if (selection.isNextStepUnknown()) {
+            // currentStep can't be null if the next step is unknown, since if the current step is null,
+            // we _always_ schedule the first step of the workflow.
+            nextStepNameForContext = currentStep.getClass().getSimpleName();
+            WorkflowGraphNode nextNode = workflow.getGraph().getNodes().get(currentStep.getClass());
+            Map<String, String> resultCodeMap = getResultCodeMapForContext(nextNode);
+            contextAttributes.put(EXECUTION_CONTEXT_NEXT_STEP_RESULT_CODES, StepAttributes.encode(resultCodeMap));
+
+            decisions.addAll(handleUnknownResultCode(workflow, currentStep, currentStepResultCode, state,
+                                                     resultCodeMap.keySet(), metrics));
         } else {
-            if (currentStep != null && currentStep != nextStep) {
+            if (currentStep != null && currentStep != selection.getNextStep()) {
                 Duration stepDuration = Duration.between(state.getCurrentStepFirstScheduledTime(),
                                                          state.getCurrentStepCompletionTime());
                 metrics.addDuration(formatStepCompletionTimeMetricName(activityName), stepDuration);
@@ -392,7 +408,7 @@ public class DecisionTaskPoller implements Runnable {
             if (state.isWorkflowExecutionClosed()) {
                 log.warn("Workflow {} is already closed, so no new tasks can be scheduled.", workflowId);
             } else {
-                decisions.addAll(handleStepScheduling(workflow, workflowId, nextStep, state, nextStepInput,
+                decisions.addAll(handleStepScheduling(workflow, workflowId, selection.getNextStep(), state, nextStepInput,
                                                       exponentialBackoffBase, metrics, metricsFactory));
 
                 // if a workflow cancellation request was received, but we haven't actually cancelled the workflow,
@@ -400,17 +416,10 @@ public class DecisionTaskPoller implements Runnable {
                 if (state.isWorkflowCancelRequested()) {
                     decisions.add(handleWorkflowCompletion(workflow, workflowId, state, metrics));
                 } else {
-                    nextStepNameForContext = nextStep.getClass().getSimpleName();
+                    nextStepNameForContext = selection.getNextStep().getClass().getSimpleName();
 
-                    Map<String, String> resultCodeMap = new HashMap<>();
-                    WorkflowGraphNode nextNode = workflow.getGraph().getNodes().get(nextStep.getClass());
-                    for (Map.Entry<String, WorkflowGraphNode> entry : nextNode.getNextStepsByResultCode().entrySet()) {
-                        if (entry.getValue() == null) {
-                            resultCodeMap.put(entry.getKey(), EXECUTION_CONTEXT_NEXT_STEP_RESULT_WORKFLOW_ENDS);
-                        } else {
-                            resultCodeMap.put(entry.getKey(), entry.getValue().getStep().getClass().getSimpleName());
-                        }
-                    }
+                    WorkflowGraphNode nextNode = workflow.getGraph().getNodes().get(selection.getNextStep().getClass());
+                    Map<String, String> resultCodeMap = getResultCodeMapForContext(nextNode);
                     contextAttributes.put(EXECUTION_CONTEXT_NEXT_STEP_RESULT_CODES, StepAttributes.encode(resultCodeMap));
                 }
             }
@@ -426,6 +435,18 @@ public class DecisionTaskPoller implements Runnable {
         }
 
         return RespondDecisionTaskCompletedRequest.builder().decisions(decisions).executionContext(executionContext).build();
+    }
+
+    private static Map<String, String> getResultCodeMapForContext(WorkflowGraphNode node) {
+        Map<String, String> resultCodeMap = new HashMap<>();
+        for (Map.Entry<String, WorkflowGraphNode> entry : node.getNextStepsByResultCode().entrySet()) {
+            if (entry.getValue() == null) {
+                resultCodeMap.put(entry.getKey(), EXECUTION_CONTEXT_NEXT_STEP_RESULT_WORKFLOW_ENDS);
+            } else {
+                resultCodeMap.put(entry.getKey(), entry.getValue().getStep().getClass().getSimpleName());
+            }
+        }
+        return resultCodeMap;
     }
 
     private static List<Decision> handleStepScheduling(Workflow workflow, String workflowId, WorkflowStep nextStep,
@@ -839,34 +860,68 @@ public class DecisionTaskPoller implements Runnable {
         return decision;
     }
 
+    private static List<Decision> handleUnknownResultCode(Workflow workflow, WorkflowStep currentStep, String actualResultCode,
+                                                          WorkflowState state, Set<String> validResultCodes,
+                                                          MetricRecorder metrics) {
+        List<Decision> decisions = new ArrayList<>();
+
+        RecordMarkerDecisionAttributes markerAttrs = RecordMarkerDecisionAttributes.builder()
+                .markerName("UnknownResultCode")
+                .details("Unrecognized result code '" + actualResultCode + "' for workflow step "
+                         + currentStep.getClass().getSimpleName() + ". Valid result codes: "
+                         + String.join(", ", validResultCodes))
+                .build();
+        decisions.add(Decision.builder().decisionType(DecisionType.RECORD_MARKER)
+                              .recordMarkerDecisionAttributes(markerAttrs).build());
+
+        // We'll emit three metrics. First, a top-level metric, useful for alarming across all workflows.
+        // Then, a workflow-level and step-level metric, useful for deep-diving.
+        metrics.addCount(UNKNOWN_RESULT_CODE_METRIC_BASE, 1);
+        metrics.addCount(formatUnknownResultCodeWorkflowMetricName(TaskNaming.workflowName(workflow)), 1);
+        metrics.addCount(formatUnknownResultCodeWorkflowStepMetricName(TaskNaming.activityName(workflow, currentStep)), 1);
+
+        // the timer might already be open from a previous attempt to make this decision
+        if (!state.getOpenTimers().containsKey(UNKNOWN_RESULT_RETRY_TIMER_ID)) {
+            StartTimerDecisionAttributes timerAttrs
+                    = buildStartTimerDecisionAttrs(UNKNOWN_RESULT_RETRY_TIMER_ID,
+                                                   UNKNOWN_RESULT_RETRY_TIMER_DELAY.getSeconds(), null);
+            decisions.add(Decision.builder().decisionType(DecisionType.START_TIMER)
+                                  .startTimerDecisionAttributes(timerAttrs).build());
+        }
+
+        return decisions;
+    }
+
     // package-private for testing
     // returns the next step of the workflow that should be executed.
     // if the result code is null or blank, assumes the next step should be to retry the current step.
-    static WorkflowStep findNextStep(Workflow workflow, WorkflowStep currentStep, String resultCode) {
+    static NextStepSelection findNextStep(Workflow workflow, WorkflowStep currentStep, String resultCode) {
         WorkflowGraph graph = workflow.getGraph();
 
         // If there isn't a current step, then the workflow has just started, and we pick the first step.
         if (currentStep == null) {
-            return graph.getFirstStep();
+            return NextStepSelection.scheduleNextStep(graph.getFirstStep());
         } else if (resultCode == null || resultCode.isEmpty()) {
-            return currentStep;
+            return NextStepSelection.scheduleNextStep(currentStep);
         }
 
         WorkflowGraphNode currentNode = graph.getNodes().get(currentStep.getClass());
-        WorkflowGraphNode selectedStep = currentNode.getNextStepsByResultCode().get(resultCode);
+        String effectiveResultCode = resultCode;
         if (currentNode.getNextStepsByResultCode().containsKey(StepResult.ALWAYS_RESULT_CODE)) {
-            selectedStep = currentNode.getNextStepsByResultCode().get(StepResult.ALWAYS_RESULT_CODE);
-        } else if (!currentNode.getNextStepsByResultCode().containsKey(resultCode)) {
+            effectiveResultCode = StepResult.ALWAYS_RESULT_CODE;
+        } else if (!currentNode.getNextStepsByResultCode().containsKey(effectiveResultCode)) {
             // this can happen during deployments that add new result codes, on the workers with the old code
-            throw new UnrecognizedTaskException("Unable to proceed after step that had unrecognized result code: " + resultCode);
+            return NextStepSelection.unknownResultCode();
         }
+
+        WorkflowGraphNode selectedStep = currentNode.getNextStepsByResultCode().get(effectiveResultCode);
 
         // if the transition for this result code is null, we should close the workflow.
         if (selectedStep == null) {
-            return null;
+            return NextStepSelection.closeWorkflow();
         }
 
-        return selectedStep.getStep();
+        return NextStepSelection.scheduleNextStep(selectedStep.getStep());
     }
 
     // package-private for use in tests
@@ -956,5 +1011,15 @@ public class DecisionTaskPoller implements Runnable {
     // package-private for test visibility
     static String formatWorkflowCompletionTimeMetricName(String workflowName) {
         return String.format("Flux.WorkflowCompletionTime.%s", workflowName);
+    }
+
+    // package-private for test visibility
+    static String formatUnknownResultCodeWorkflowMetricName(String workflowName) {
+        return String.format("%s.%s", UNKNOWN_RESULT_CODE_METRIC_BASE, workflowName);
+    }
+
+    // package-private for test visibility
+    static String formatUnknownResultCodeWorkflowStepMetricName(String activityName) {
+        return String.format("%s.%s", UNKNOWN_RESULT_CODE_METRIC_BASE, activityName);
     }
 }

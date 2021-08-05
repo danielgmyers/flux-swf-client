@@ -232,12 +232,6 @@ public class WorkflowHistoryBuilder {
         }
 
         WorkflowGraphNode currentStepNode = workflow.getGraph().getNodes().get(currentStep.getClass());
-        if (result.getAction() != StepResult.ResultAction.RETRY
-                && !currentStepNode.getNextStepsByResultCode().containsKey(StepResult.ALWAYS_RESULT_CODE)
-                && !currentStepNode.getNextStepsByResultCode().containsKey(result.getResultCode())) {
-            throw new IllegalStateException();
-        }
-
         currentStepResults.put(partitionId, result);
 
         HistoryEvent scheduledEvent = currentStepPartitionLastScheduledEvent.get(partitionId);
@@ -286,11 +280,14 @@ public class WorkflowHistoryBuilder {
                 stepResultToFollow = result.getResultCode();
             }
 
-            currentStepNode = currentStepNode.getNextStepsByResultCode().get(stepResultToFollow);
-            if (currentStepNode == null) {
-                prepareStep(null);
-            } else {
-                prepareStep(currentStepNode.getStep());
+
+            if (currentStepNode.getNextStepsByResultCode().containsKey(stepResultToFollow)) {
+                currentStepNode = currentStepNode.getNextStepsByResultCode().get(stepResultToFollow);
+                if (currentStepNode == null) {
+                    prepareStep(null);
+                } else {
+                    prepareStep(currentStepNode.getStep());
+                }
             }
         }
 
@@ -426,6 +423,13 @@ public class WorkflowHistoryBuilder {
         String timerId = TaskNaming.createActivityId(TaskNaming.stepNameFromActivityName(activityName),
                                                      currentStepPartitionRetryAttempt.get(partitionId), partitionId);
 
+        return startTimer(timerId, retryDelay);
+    }
+
+    public HistoryEvent startTimer(String timerId, Duration retryDelay) {
+        if (currentStep == null) {
+            throw new IllegalStateException("Workflow is over!");
+        }
         HistoryEvent event = buildTimerStartedEvent(timerId, retryDelay);
         currentStepOpenTimers.put(timerId, event);
         events.add(event);
