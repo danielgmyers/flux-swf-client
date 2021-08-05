@@ -33,7 +33,8 @@ public class SignalTests extends WorkflowTestBase {
 
     @Override
     List<Workflow> getWorkflowsForTest() {
-        return Arrays.asList(new RequiresForcedResult(), new RetriesAFewTimes(), new RetriesOnceWithLongRetryTime());
+        return Arrays.asList(new RequiresForcedResult(), new DoesNotHandleCustomResultCode(),
+                             new RetriesAFewTimes(), new RetriesOnceWithLongRetryTime());
     }
 
     @Test
@@ -57,6 +58,30 @@ public class SignalTests extends WorkflowTestBase {
 
         // since we forced the workflow to close, it should have closed without running the step again.
         Assert.assertEquals(2, AlwaysRetries.getAttemptCount());
+    }
+
+    @Test
+    public void testWorkflowWithUnknownResultCodeSucceedsAfterForceResult() throws InterruptedException {
+        String uuid = UUID.randomUUID().toString();
+        executeWorkflow(DoesNotHandleCustomResultCode.class, uuid, Collections.emptyMap());
+        log.info("Sleeping for 6 seconds to give the step time to run...");
+        Thread.sleep(6000);
+        Assert.assertEquals(1, SucceedWithCustomResultCode.getAttemptCount());
+
+        // At this point, the workflow would have succeeded if it handled the custom result code.
+        // Since it didn't, we need to override the result of the first step attempt, i.e. attempt 0.
+
+        // We need to know the activity name and the next attempt number (which is zero-based).
+        // Note we use attempt 1 in the signal name even though there won't be a second attempt,
+        // because Flux only looks at (last attempt + 1) for applicable signals.
+        signalWorkflowExecution(uuid, SignalType.FORCE_RESULT.getFriendlyName(),
+                                String.format("{\"activityId\": \"%s\", \"resultCode\": \"%s\" }",
+                                              String.format("%s_%s", SucceedWithCustomResultCode.class.getSimpleName(), 1),
+                                              StepResult.SUCCEED_RESULT_CODE));
+        waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+
+        // since we forced the workflow to close, it should have closed without running the step again.
+        Assert.assertEquals(1, SucceedWithCustomResultCode.getAttemptCount());
     }
 
     @Test
@@ -252,6 +277,43 @@ public class SignalTests extends WorkflowTestBase {
         public StepResult doThing() {
             attemptCount.incrementAndGet();
             return StepResult.retry("Always retrying!");
+        }
+
+        static int getAttemptCount() {
+            return attemptCount.get();
+        }
+    }
+
+    /**
+     * Workflow with one step that returns a result code that has no transition.
+     * It can only succeed via ForceResultSignal.
+     */
+    public static final class DoesNotHandleCustomResultCode implements Workflow {
+        private final WorkflowGraph graph;
+
+        DoesNotHandleCustomResultCode() {
+            WorkflowStep stepOne = new SucceedWithCustomResultCode();
+            WorkflowGraphBuilder builder = new WorkflowGraphBuilder(stepOne, Collections.emptyMap());
+            builder.closeOnSuccess(stepOne);
+            graph = builder.build();
+        }
+
+        @Override
+        public WorkflowGraph getGraph() {
+            return graph;
+        }
+    }
+
+    /**
+     * Simple step that always succeeds, but uses a custom result code.
+     */
+    public static final class SucceedWithCustomResultCode implements WorkflowStep {
+        private static final AtomicInteger attemptCount = new AtomicInteger(0);
+
+        @StepApply
+        public StepResult doThing() {
+            attemptCount.incrementAndGet();
+            return StepResult.complete("unknown-result-code", "The graph shouldn't know what to do with this code");
         }
 
         static int getAttemptCount() {

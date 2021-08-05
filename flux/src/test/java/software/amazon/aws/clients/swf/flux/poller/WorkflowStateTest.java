@@ -251,6 +251,66 @@ public class WorkflowStateTest {
     }
 
     @Test
+    public void testBuild_ActivityCompleted_SignalOverridesCustomResultCode() throws JsonProcessingException {
+        // This test simulates the decider not knowing what to do with a custom result code, so the user has sent
+        // a ForceResult signal to override the result code.
+
+        Map<String, String> input = new HashMap<>();
+        input.put("foo", "bar");
+
+        Map<String, String> output = new HashMap<>();
+        output.put("foo", "bar");
+        output.put("baz", "zap");
+
+        Workflow workflow = new TestBranchingWorkflow();
+        String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
+
+        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        HistoryEvent startEvent = history.scheduleStepAttempt();
+        String completionMessage = "Custom result!";
+        HistoryEvent endEvent = history.recordActivityResult(StepResult.complete(TestBranchingWorkflow.CUSTOM_RESULT, completionMessage).withAttributes(output));
+
+        // we don't use history.recordForcedResultSignal since it helpfully signals the second step of the workflow,
+        // because the first step completed successfully.
+        // note we use retry attempt 1 even though there isn't an open timer, because WorkflowState only respects signals with
+        // retry number = (last attempt + 1)
+        ForceResultSignalData signal = new ForceResultSignalData();
+        signal.setActivityId(TaskNaming.createActivityId(TestStepOne.class.getSimpleName(), 1, null));
+        signal.setResultCode(StepResult.SUCCEED_RESULT_CODE);
+        HistoryEvent signalEvent = history.recordSignalEvent(signal);
+
+        WorkflowState ws = history.buildCurrentState();
+
+        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(input, ws.getWorkflowInput());
+        Assert.assertTrue(ws.getOpenTimers().isEmpty());
+        Assert.assertTrue(ws.getClosedTimers().isEmpty());
+
+        Assert.assertFalse(ws.isWorkflowCancelRequested());
+        Assert.assertNull(ws.getWorkflowCancelRequestDate());
+        Assert.assertFalse(ws.isWorkflowExecutionClosed());
+
+        Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
+        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(signalEvent.eventTimestamp(), ws.getCurrentStepCompletionTime()); // the signal event's timestamp counts here
+        Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
+        Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
+
+        Assert.assertNotNull(ws.getStepPartitions());
+        Assert.assertFalse(ws.getStepPartitions().isEmpty());
+        Assert.assertEquals(1, ws.getStepPartitions().size());
+
+        Assert.assertNotNull(ws.getStepPartitions().get(firstActivityName));
+        Assert.assertEquals(1, ws.getStepPartitions().get(firstActivityName).size());
+
+        // we evaluate the step result with the custom result code because the signal doesn't retroactively change the output
+        // contents from the activity completion event.
+        verifyStepResult(ws, firstActivityName, null, 1, Collections.singletonList(startEvent.eventTimestamp()),
+                         input, output, StepResult.ResultAction.COMPLETE, TestBranchingWorkflow.CUSTOM_RESULT, completionMessage);
+    }
+
+    @Test
     public void testBuild_PartitionedStep_BothPartitionActivitiesRetried() {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
