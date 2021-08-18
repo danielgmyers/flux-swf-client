@@ -24,11 +24,11 @@ import java.lang.annotation.Target;
 import com.google.inject.BindingAnnotation;
 
 /**
- * Should be attached to a Guice object containing a map of task list names to decider thread counts.
+ * Should be attached to a Guice object containing a map of task list names to bucket counts for those task lists.
  * To be used with FluxModule.
  */
 @Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @BindingAnnotation
-public @interface TaskListDeciderThreadCounts {
+public @interface TaskListBucketCounts {
 }
