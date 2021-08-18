@@ -1,8 +1,26 @@
+/*
+ *   Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License").
+ *   You may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ */
+
 package software.amazon.aws.clients.swf.flux.guice;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.AbstractModule;
@@ -17,6 +35,7 @@ import io.github.classgraph.ScanResult;
 import software.amazon.aws.clients.swf.flux.FluxCapacitor;
 import software.amazon.aws.clients.swf.flux.FluxCapacitorConfig;
 import software.amazon.aws.clients.swf.flux.FluxCapacitorFactory;
+import software.amazon.aws.clients.swf.flux.TaskListConfig;
 import software.amazon.aws.clients.swf.flux.metrics.MetricRecorderFactory;
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -41,7 +60,7 @@ public class FluxModule extends AbstractModule {
     @VisibleForTesting
     List<Class<? extends Workflow>> findWorkflowClassesFromClasspath() {
         List<Class<? extends Workflow>> classes = new ArrayList<>();
-        try (ScanResult scanResult = new ClassGraph().enableClassInfo().whitelistPackages(workflowClasspath).scan()) {
+        try (ScanResult scanResult = new ClassGraph().enableClassInfo().acceptPackages(workflowClasspath).scan()) {
             for (ClassInfo workflow : scanResult.getClassesImplementing(Workflow.class.getCanonicalName())) {
                 classes.add(workflow.loadClass(Workflow.class));
             }
@@ -64,7 +83,7 @@ public class FluxModule extends AbstractModule {
      * Initializes the FluxCapacitor once it and the Workflow objects have been created.
      */
     @Inject
-    public void intializeFlux(FluxCapacitor fluxCapacitor, Set<Workflow> workflows) {
+    public void initializeFlux(FluxCapacitor fluxCapacitor, Set<Workflow> workflows) {
         fluxCapacitor.initialize(new ArrayList<>(workflows));
     }
 
@@ -75,22 +94,38 @@ public class FluxModule extends AbstractModule {
     @Singleton
     public FluxCapacitorConfig getFluxCapacitorConfig(@SwfRegion String swfRegion,
                                                       @WorkflowDomain String workflowDomain,
-                                                      FluxOptionalConfigHolder optionalConfigHolder) {
+                                                      FluxOptionalConfigHolder configHolder) {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
         config.setAwsRegion(swfRegion);
         config.setSwfDomain(workflowDomain);
-        if (optionalConfigHolder.getSwfEndpoint() != null) {
-            config.setSwfEndpoint(optionalConfigHolder.getSwfEndpoint());
+        if (configHolder.getSwfEndpoint() != null) {
+            config.setSwfEndpoint(configHolder.getSwfEndpoint());
         }
-        if (optionalConfigHolder.getExponentialBackoffBase() != null) {
-            config.setExponentialBackoffBase(optionalConfigHolder.getExponentialBackoffBase());
+        if (configHolder.getExponentialBackoffBase() != null) {
+            config.setExponentialBackoffBase(configHolder.getExponentialBackoffBase());
         }
-        config.setTaskListWorkerThreadCount(optionalConfigHolder.getTaskListActivityThreadCounts());
-        config.setTaskListActivityTaskPollerThreadCount(optionalConfigHolder.getTaskListActivityPollerThreadCounts());
-        config.setTaskListDeciderThreadCount(optionalConfigHolder.getTaskListDeciderThreadCounts());
-        config.setTaskListDecisionTaskPollerThreadCount(optionalConfigHolder.getTaskListDeciderPollerThreadCounts());
-        config.setTaskListPeriodicSubmitterThreadCount(optionalConfigHolder.getTaskListPeriodicSubmitterThreadCounts());
+        applyTaskListConfigData(config, configHolder.getTaskListBucketCounts(),
+                                TaskListConfig::setBucketCount);
+        applyTaskListConfigData(config, configHolder.getTaskListActivityThreadCounts(),
+                                TaskListConfig::setActivityTaskThreadCount);
+        applyTaskListConfigData(config, configHolder.getTaskListActivityPollerThreadCounts(),
+                                TaskListConfig::setActivityTaskPollerThreadCount);
+        applyTaskListConfigData(config, configHolder.getTaskListDeciderThreadCounts(),
+                                TaskListConfig::setDecisionTaskThreadCount);
+        applyTaskListConfigData(config, configHolder.getTaskListDeciderPollerThreadCounts(),
+                                TaskListConfig::setDecisionTaskPollerThreadCount);
+        applyTaskListConfigData(config, configHolder.getTaskListPeriodicSubmitterThreadCounts(),
+                                TaskListConfig::setPeriodicSubmitterThreadCount);
         return config;
+    }
+
+    private void applyTaskListConfigData(FluxCapacitorConfig config, Map<String, Integer> taskListData,
+                                         BiConsumer<TaskListConfig, Integer> taskListConfigConsumer) {
+        if (taskListData != null) {
+            for (Map.Entry<String, Integer> entry : taskListData.entrySet()) {
+                taskListConfigConsumer.accept(config.getTaskListConfig(entry.getKey()), entry.getValue());
+            }
+        }
     }
 
     /**

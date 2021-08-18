@@ -79,6 +79,10 @@ public class TaskListConfig {
      *
      * The bucket count is applied to activity and decision task workers and pollers, but not periodic submitters.
      *
+     * Keep in mind that while the bucket count can be safely increased for a task list (aside from throttling concerns),
+     * lowering the bucket count can only be done safely if there are no workflows running for this task list, because
+     * Flux only polls for work on task list buckets under this count.
+     *
      * By default, the bucket count is 1.
      */
     public void setBucketCount(int bucketCount) {
@@ -141,7 +145,8 @@ public class TaskListConfig {
             return false;
         }
         TaskListConfig that = (TaskListConfig) other;
-        return activityTaskThreadCount == that.activityTaskThreadCount
+        return bucketCount == that.bucketCount
+               && activityTaskThreadCount == that.activityTaskThreadCount
                && decisionTaskThreadCount == that.decisionTaskThreadCount
                && periodicSubmitterThreadCount == that.periodicSubmitterThreadCount
                && Objects.equals(activityTaskPollerThreadCount, that.activityTaskPollerThreadCount)
@@ -150,7 +155,7 @@ public class TaskListConfig {
 
     @Override
     public int hashCode() {
-        return Objects.hash(activityTaskThreadCount, activityTaskPollerThreadCount, decisionTaskThreadCount,
+        return Objects.hash(bucketCount, activityTaskThreadCount, activityTaskPollerThreadCount, decisionTaskThreadCount,
                             decisionTaskPollerThreadCount, periodicSubmitterThreadCount);
     }
 }
