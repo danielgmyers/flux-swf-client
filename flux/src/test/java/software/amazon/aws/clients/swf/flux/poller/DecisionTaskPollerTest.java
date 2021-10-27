@@ -48,7 +48,6 @@ import software.amazon.aws.clients.swf.flux.poller.signals.DelayRetrySignalData;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestBranchStep;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestBranchingWorkflow;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestPartitionedStep;
-import software.amazon.aws.clients.swf.flux.poller.testwf.TestPartitionedStepUsesPartitionIdGeneratorResult;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestPeriodicWorkflow;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestPeriodicWorkflowCustomTaskList;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestStepHasOptionalInputAttribute;
@@ -62,6 +61,7 @@ import software.amazon.aws.clients.swf.flux.poller.testwf.TestWorkflowWithAlways
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestWorkflowWithFailureTransition;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestWorkflowWithPartitionedStep;
 import software.amazon.aws.clients.swf.flux.poller.testwf.TestWorkflowWithStepCustomHeartbeatTimeout;
+import software.amazon.aws.clients.swf.flux.step.PartitionIdGeneratorResult;
 import software.amazon.aws.clients.swf.flux.step.StepApply;
 import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.step.StepResult;
@@ -69,7 +69,6 @@ import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
 import software.amazon.aws.clients.swf.flux.util.RetryUtils;
 import software.amazon.aws.clients.swf.flux.wf.Periodic;
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
-import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphBuilder;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphNode;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkServiceException;
@@ -728,10 +727,75 @@ public class DecisionTaskPollerTest {
     }
 
     @Test
-    public void decide_schedulePartitionedSecondStepWhenFirstStepSucceeds() throws JsonProcessingException {
+    public void decide_schedulePartitionedSecondStep_OnlyOnePartition_ScheduleActivityFailed() throws JsonProcessingException {
+        List<String> partitionIds = new ArrayList<>();
+        String failedPartition = "p1";
+        partitionIds.add(failedPartition);
+
+        TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        partitionedStep.setPartitionIds(partitionIds);
+
+        Map<String, String> input = new TreeMap<>();
+        input.put("SomeInput", "Value");
+
+        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+
+        HistoryEvent startEvent = history.scheduleStepAttempt();
+        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success());
+
+        history.recordScheduleAttemptFailed(failedPartition);
+
+        WorkflowState state = history.buildCurrentState();
+
+        WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
+
+        mockery.replay();
+
+        String workflowId = state.getWorkflowId();
+        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, currentStep, workflowId, state,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 deciderMetrics, (o) -> stepMetrics);
+        WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
+
+        String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, currentStep);
+        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
+                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+
+        Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
+        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assert.assertTrue(stepMetrics.isClosed());
+
+        mockery.verify();
+
+        // there should be two decisions in the response: a metadata marker, and a signal.
+        Assert.assertEquals(2, response.decisions().size());
+        Assert.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(0).decisionType());
+
+        PartitionIdGeneratorResult expectedPartitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+        PartitionMetadata expectedPartitionMetadata
+                = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
+
+        Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class)),
+                            response.decisions().get(0).recordMarkerDecisionAttributes().markerName());
+        Assert.assertEquals(expectedPartitionMetadata.toJson(),
+                            response.decisions().get(0).recordMarkerDecisionAttributes().details());
+
+        // second decision should always be a hack signal to force a new decision
+        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, response.decisions().get(1).decisionType());
+        Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), response.decisions().get(1).signalExternalWorkflowExecutionDecisionAttributes());
+    }
+
+    @Test
+    public void decide_schedulePartitionedSecondStepWhenFirstStepSucceeds_NoMarkerYet() throws JsonProcessingException {
         List<String> partitionIds = new ArrayList<>();
         partitionIds.add("p1");
         partitionIds.add("p2");
+        partitionIds.add("p3");
 
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
@@ -771,6 +835,73 @@ public class DecisionTaskPollerTest {
 
         mockery.verify();
 
+        // there should be two decisions in the response: a metadata marker, and a signal.
+        Assert.assertEquals(2, response.decisions().size());
+        Assert.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(0).decisionType());
+
+        PartitionIdGeneratorResult expectedPartitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+        PartitionMetadata expectedPartitionMetadata
+                = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
+
+        Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class)),
+                            response.decisions().get(0).recordMarkerDecisionAttributes().markerName());
+        Assert.assertEquals(expectedPartitionMetadata.toJson(),
+                            response.decisions().get(0).recordMarkerDecisionAttributes().details());
+
+        // second decision should always be a hack signal to force a new decision
+        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, response.decisions().get(1).decisionType());
+        Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), response.decisions().get(1).signalExternalWorkflowExecutionDecisionAttributes());
+    }
+
+    @Test
+    public void decide_schedulePartitionedSecondStepWhenFirstStepSucceeds_MarkerAlreadyPresent() throws JsonProcessingException {
+        List<String> partitionIds = new ArrayList<>();
+        partitionIds.add("p1");
+        partitionIds.add("p2");
+        partitionIds.add("p3");
+
+        TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        partitionedStep.setPartitionIds(partitionIds);
+
+        Map<String, String> input = new TreeMap<>();
+        input.put("SomeInput", "Value");
+
+        Map<String, String> output = new TreeMap<>();
+        output.put("ExtraOutput", "AnotherValue");
+
+        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+
+        HistoryEvent startEvent = history.scheduleStepAttempt();
+        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarker(now, TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+
+        WorkflowState state = history.buildCurrentState();
+
+        mockery.replay();
+
+        WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
+        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+        WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
+
+        String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
+        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
+                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+
+        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+
+        mockery.verify();
+
         Assert.assertEquals(partitionIds.size(), response.decisions().size());
         Set<String> remainingPartitionsToSchedule = new HashSet<>(partitionIds);
         for (Decision decision : response.decisions()) {
@@ -804,103 +935,6 @@ public class DecisionTaskPollerTest {
             String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
                     = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepTwo,
-                    expectedInput, activityId);
-            attrs = attrs.toBuilder().control(partitionId).build();
-
-            Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
-        }
-
-        Assert.assertTrue(remainingPartitionsToSchedule.isEmpty());
-    }
-
-    @Test
-    public void decide_schedulePartitionedSecondStepWhenFirstStepSucceeds_PartitionIdGeneratorAddsAttribute() throws JsonProcessingException {
-        Set<String> partitionIds = new HashSet<>();
-        partitionIds.add("p1");
-        partitionIds.add("p2");
-
-        Workflow wf = () -> {
-            WorkflowStep stepOne = new TestStepOne();
-            WorkflowStep partitionedStep = new TestPartitionedStepUsesPartitionIdGeneratorResult(partitionIds);
-            WorkflowGraphBuilder b = new WorkflowGraphBuilder(stepOne);
-            b.alwaysTransition(stepOne, partitionedStep);
-
-            b.addStep(partitionedStep);
-            b.alwaysClose(partitionedStep);
-
-            return b.build();
-        };
-
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
-
-        Map<String, String> output = new TreeMap<>();
-        output.put("ExtraOutput", "AnotherValue");
-
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(wf, now.minusSeconds(15), input);
-
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
-
-        WorkflowState state = history.buildCurrentState();
-
-        mockery.replay();
-
-        WorkflowStep firstStep = wf.getGraph().getFirstStep();
-        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(wf, firstStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                                 deciderMetrics, (o) -> stepMetrics);
-        WorkflowStep stepTwo = wf.getGraph().getNodes().get(TestPartitionedStepUsesPartitionIdGeneratorResult.class).getStep();
-        validateExecutionContext(response.executionContext(), wf, stepTwo);
-
-        String activityName = TaskNaming.activityName(wf, firstStep);
-        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
-
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
-        Assert.assertTrue(stepMetrics.isClosed());
-
-        mockery.verify();
-
-        Assert.assertEquals(partitionIds.size(), response.decisions().size());
-        Set<String> remainingPartitionsToSchedule = new HashSet<>(partitionIds);
-        for (Decision decision : response.decisions()) {
-            String partitionId = decision.scheduleActivityTaskDecisionAttributes().control();
-            Assert.assertNotNull(partitionId);
-            Assert.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
-            remainingPartitionsToSchedule.remove(partitionId);
-
-            Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
-
-            Map<String, String> expectedInput = new TreeMap<>(input);
-            expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
-            expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
-            expectedInput.putAll(output);
-
-            expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-            expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-
-            // the partition id generator should have added an extra attribute
-            expectedInput.put(TestPartitionedStepUsesPartitionIdGeneratorResult.PARTITION_ID_GENERATOR_RESULT_ATTRIBUTE,
-                              StepAttributes.encode(TestPartitionedStepUsesPartitionIdGeneratorResult.PARTITION_ID_GENERATOR_RESULT_ATTRIBUTE_VALUE));
-
-            // because this is the first attempt of the step and we don't control 'now' from the unit test,
-            // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-            // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-            // and then save it to the input map for the actual comparison.
-            Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-            Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-            Assert.assertNotNull(attemptTime);
-            Assert.assertTrue(closeEvent.eventTimestamp().isBefore(attemptTime.toInstant()));
-            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
-
-            String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
-            ScheduleActivityTaskDecisionAttributes attrs
-                    = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(wf, stepTwo,
                                                                                 expectedInput, activityId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
@@ -1038,8 +1072,14 @@ public class DecisionTaskPollerTest {
         partitionIds.add(succeededPartition);
         partitionIds.add(failedPartition);
 
+        String additionalAttributeName = "AdditionalPartitionGeneratorData";
+        Long additionalAttributeValue = 1234L;
+        Map<String, Object> additionalAttributes = new HashMap<>();
+        additionalAttributes.put(additionalAttributeName, additionalAttributeValue);
+
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
+        partitionedStep.setAdditionalAttributes(additionalAttributes);
 
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
@@ -1080,6 +1120,7 @@ public class DecisionTaskPollerTest {
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
         expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
+        expectedInput.put(additionalAttributeName, StepAttributes.encode(additionalAttributeValue));
 
         // because this is the first attempt of the step and we don't control 'now' from the unit test,
         // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.

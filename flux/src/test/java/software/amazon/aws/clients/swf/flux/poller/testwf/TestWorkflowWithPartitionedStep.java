@@ -17,7 +17,7 @@
 package software.amazon.aws.clients.swf.flux.poller.testwf;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraph;
@@ -31,7 +31,7 @@ public class TestWorkflowWithPartitionedStep implements Workflow {
         this(Arrays.asList("1", "2"));
     }
 
-    public TestWorkflowWithPartitionedStep(List<String> partitionIds) {
+    public TestWorkflowWithPartitionedStep(Collection<String> partitionIds) {
         TestStepOne stepOne = new TestStepOne();
         TestPartitionedStep partitionedStep = new TestPartitionedStep(partitionIds);
         TestStepHasOptionalInputAttribute stepThree = new TestStepHasOptionalInputAttribute();
