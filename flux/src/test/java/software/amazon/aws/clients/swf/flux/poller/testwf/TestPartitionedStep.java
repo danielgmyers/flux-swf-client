@@ -16,15 +16,19 @@
 
 package software.amazon.aws.clients.swf.flux.poller.testwf;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.Assert;
 
 import software.amazon.aws.clients.swf.flux.metrics.MetricRecorder;
 import software.amazon.aws.clients.swf.flux.step.Attribute;
 import software.amazon.aws.clients.swf.flux.step.PartitionIdGenerator;
+import software.amazon.aws.clients.swf.flux.step.PartitionIdGeneratorResult;
 import software.amazon.aws.clients.swf.flux.step.PartitionedWorkflowStep;
 import software.amazon.aws.clients.swf.flux.step.StepApply;
 import software.amazon.aws.clients.swf.flux.step.StepAttributes;
@@ -34,14 +38,20 @@ public class TestPartitionedStep implements PartitionedWorkflowStep {
 
     public static final String PARTITION_ID_GENERATOR_METRIC = "partitionIdCountOrSomething";
 
-    private final List<String> partitionIds;
+    private final Set<String> partitionIds;
+    private final Map<String, Object> additionalAttributes;
 
     public TestPartitionedStep() {
         this(Arrays.asList("1", "2"));
     }
 
-    public TestPartitionedStep(List<String> partitionIds) {
-        this.partitionIds = new ArrayList<>(partitionIds);
+    public TestPartitionedStep(Collection<String> partitionIds) {
+        this(partitionIds, new HashMap<>());
+    }
+
+    public TestPartitionedStep(Collection<String> partitionIds, Map<String, Object> additionalAttributes) {
+        this.partitionIds = new HashSet<>(partitionIds);
+        this.additionalAttributes = additionalAttributes;
     }
 
     @StepApply
@@ -53,15 +63,20 @@ public class TestPartitionedStep implements PartitionedWorkflowStep {
     }
 
     @PartitionIdGenerator
-    public List<String> partitionIds(MetricRecorder metrics, @Attribute(StepAttributes.WORKFLOW_ID) String workflowId) {
+    public PartitionIdGeneratorResult partitionIds(MetricRecorder metrics, @Attribute(StepAttributes.WORKFLOW_ID) String workflowId) {
         metrics.addCount(PARTITION_ID_GENERATOR_METRIC, partitionIds.size());
         metrics.addProperty("workflowIdForPartitionGenerator", workflowId);
         Assert.assertNotNull(workflowId);
-        return partitionIds;
+        return PartitionIdGeneratorResult.create(partitionIds).withAttributes(additionalAttributes);
     }
 
-    public void setPartitionIds(List<String> partitionIds) {
+    public void setPartitionIds(Collection<String> partitionIds) {
         this.partitionIds.clear();
         this.partitionIds.addAll(partitionIds);
+    }
+
+    public void setAdditionalAttributes(Map<String, Object> additionalAttributes) {
+        this.additionalAttributes.clear();
+        this.additionalAttributes.putAll(additionalAttributes);
     }
 }

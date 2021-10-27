@@ -33,23 +33,21 @@ import software.amazon.awssdk.services.swf.model.HistoryEvent;
  */
 public final class PartitionState {
 
+    private String partitionId;
     private String activityId;
     private Instant attemptScheduledTime;
     private Instant attemptCompletedTime;
     private Map<String, String> attemptInput;
     private Map<String, String> attemptOutput;
     private StepResult.ResultAction attemptResult;
-    private Long attemptScheduledEventId;
 
     /**
      * Builds a PartitionState based on a given scheduledEvent and closedEvent.
      * The closedEvent may be null if the scheduled activity has not closed yet.
      */
     public static PartitionState build(HistoryEvent scheduledEvent, HistoryEvent closedEvent) {
-        if (!WorkflowState.ACTIVITY_START_EVENTS.contains(scheduledEvent.eventType())) {
-            throw new RuntimeException("The scheduledEvent's type must be one of: "
-                                       + WorkflowState.ACTIVITY_START_EVENTS.stream().map(EventType::toString)
-                                                                            .collect(Collectors.joining(",")));
+        if (scheduledEvent.eventType() != EventType.ACTIVITY_TASK_SCHEDULED) {
+            throw new RuntimeException("The scheduledEvent's type must be " + EventType.ACTIVITY_TASK_SCHEDULED);
         }
         if (closedEvent != null && !WorkflowState.ACTIVITY_CLOSED_EVENTS.contains(closedEvent.eventType())) {
             throw new RuntimeException("The closedEvent's type must be one of: "
@@ -62,9 +60,9 @@ public final class PartitionState {
         }
 
         PartitionState state = new PartitionState();
+        state.partitionId = scheduledEvent.activityTaskScheduledEventAttributes().control();
         state.activityId = scheduledEvent.activityTaskScheduledEventAttributes().activityId();
         state.attemptScheduledTime = scheduledEvent.eventTimestamp();
-        state.attemptScheduledEventId = scheduledEvent.eventId();
         state.attemptInput = WorkflowState.getStepData(scheduledEvent);
 
         if (closedEvent != null) {
@@ -87,7 +85,7 @@ public final class PartitionState {
     }
 
     public String getPartitionId() {
-        return StepAttributes.decode(String.class, attemptInput.get(StepAttributes.PARTITION_ID));
+        return partitionId;
     }
 
     public long getPartitionCount() {
@@ -122,9 +120,5 @@ public final class PartitionState {
 
     public String getResultCode() {
         return attemptOutput.get(StepAttributes.RESULT_CODE);
-    }
-
-    public Long getAttemptScheduledEventId() {
-        return attemptScheduledEventId;
     }
 }

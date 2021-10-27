@@ -56,6 +56,7 @@ import software.amazon.awssdk.services.swf.model.ActivityType;
 import software.amazon.awssdk.services.swf.model.ChildPolicy;
 import software.amazon.awssdk.services.swf.model.EventType;
 import software.amazon.awssdk.services.swf.model.HistoryEvent;
+import software.amazon.awssdk.services.swf.model.MarkerRecordedEventAttributes;
 import software.amazon.awssdk.services.swf.model.PollForDecisionTaskResponse;
 import software.amazon.awssdk.services.swf.model.ScheduleActivityTaskFailedCause;
 import software.amazon.awssdk.services.swf.model.ScheduleActivityTaskFailedEventAttributes;
@@ -608,6 +609,25 @@ public class WorkflowHistoryBuilder {
         signal.setActivityId(timerId);
         signal.setResultCode(resultCode);
         return recordSignalEvent(signal);
+    }
+
+    public HistoryEvent recordPartitionMetadataMarker(Instant eventTime, String stepName,
+                                                      PartitionIdGeneratorResult partitionIdGeneratorResult)
+            throws JsonProcessingException {
+        PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(partitionIdGeneratorResult);
+
+        return recordMarker(eventTime, TaskNaming.partitionMetadataMarkerName(stepName),
+                            metadata.toJson());
+    }
+
+    public HistoryEvent recordMarker(Instant eventTime, String name, String details) {
+        MarkerRecordedEventAttributes attrs = MarkerRecordedEventAttributes.builder()
+                                                    .markerName(name).details(details).build();
+
+        HistoryEvent event = HistoryEvent.builder().eventId(eventIds.next()).eventType(EventType.MARKER_RECORDED)
+                .eventTimestamp(eventTime).markerRecordedEventAttributes(attrs).build();
+        events.add(event);
+        return event;
     }
 
     private HistoryEvent buildActivityScheduledEvent(Instant eventTime, String partitionId) {

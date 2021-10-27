@@ -25,6 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import software.amazon.aws.clients.swf.flux.poller.signals.BaseSignalData;
 import software.amazon.aws.clients.swf.flux.poller.signals.ForceResultSignalData;
 import software.amazon.aws.clients.swf.flux.poller.signals.SignalType;
@@ -39,6 +43,8 @@ import software.amazon.awssdk.services.swf.model.PollForDecisionTaskResponse;
 // package-private, we don't want anyone except DecisionTaskPoller using this
 final class WorkflowState {
 
+    private static final Logger log = LoggerFactory.getLogger(WorkflowState.class);
+
     // package-private for use in tests
     static final String FORCED_RESULT_MESSAGE = "Activity forcibly completed due to "
                                                 + SignalType.FORCE_RESULT.getFriendlyName() + " signal.";
@@ -50,6 +56,7 @@ final class WorkflowState {
     private static final Set<EventType> TIMER_START_EVENTS = new HashSet<>();
     private static final Set<EventType> TIMER_CLOSED_EVENTS = new HashSet<>();
     private static final Set<EventType> SIGNAL_EVENTS = new HashSet<>();
+    private static final Set<EventType> MARKER_EVENTS = new HashSet<>();
     private static final Set<EventType> WORKFLOW_CANCEL_REQUESTED_EVENTS = new HashSet<>();
     private static final Set<EventType> WORKFLOW_END_EVENTS = new HashSet<>();
 
@@ -74,6 +81,8 @@ final class WorkflowState {
 
         SIGNAL_EVENTS.add(EventType.WORKFLOW_EXECUTION_SIGNALED);
 
+        MARKER_EVENTS.add(EventType.MARKER_RECORDED);
+
         WORKFLOW_CANCEL_REQUESTED_EVENTS.add(EventType.WORKFLOW_EXECUTION_CANCEL_REQUESTED);
 
         WORKFLOW_END_EVENTS.add(EventType.WORKFLOW_EXECUTION_CANCELED);
@@ -93,6 +102,7 @@ final class WorkflowState {
     private Instant currentStepCompletionTime;
     private String currentStepLastActivityCompletionMessage;
     private Long currentStepMaxRetryCount;
+    private Map<String, String> rawPartitionMetadata;
     private Map<String, Map<String, List<PartitionState>>> stepPartitions;
     private Map<String, TimerData> openTimers;
     private Map<String, Long> closedTimers;
@@ -138,6 +148,19 @@ final class WorkflowState {
 
     public Long getCurrentStepMaxRetryCount() {
         return currentStepMaxRetryCount;
+    }
+
+    public PartitionMetadata getPartitionMetadata(String stepName) throws JsonProcessingException {
+        if (rawPartitionMetadata.containsKey(stepName)) {
+            try {
+                return PartitionMetadata.fromJson(rawPartitionMetadata.get(stepName));
+            } catch (JsonProcessingException e) {
+                // If we couldn't parse it, then for the purposes of representing workflow state we should behave
+                // as if the metadata doesn't exist at all.
+                log.warn("Unable to parse partition metadata from marker data for step {}", stepName, e);
+            }
+        }
+        return null;
     }
 
     public Map<String, Map<String, List<PartitionState>>> getStepPartitions() {
@@ -198,6 +221,7 @@ final class WorkflowState {
         HistoryEvent mostRecentStartedEvent = null;
 
         WorkflowState ws = new WorkflowState();
+        ws.rawPartitionMetadata = new HashMap<>();
         ws.openTimers = new HashMap<>();
         ws.closedTimers = new HashMap<>();
         ws.stepPartitions = new HashMap<>();
@@ -219,30 +243,67 @@ final class WorkflowState {
                 // This case is a bit weird. Basically, we submitted a ScheduleActivityTask decision,
                 // and SWF failed to schedule it as requested (e.g. we may have exceeded their rate limit
                 // for scheduling activities).
+
+                // The decider will deal with this in a couple of ways depending on the exact details,
+                // but for our purposes here we just need to do the following:
+                // 1. If the retry attempt for this partition is larger than 0, ignore the event entirely.
+                // 2. If the retry attempt for this partition is zero, and this is the first time we've seen this partition id
+                //    (which will happen if only one attempt to schedule this partition was made, and it failed),
+                //    then we need to track that we've seen this partition id but have no metadata for it.
+                // See https://github.com/awslabs/flux-swf-client/issues/33 for details on why this is important.
+
                 // We'll deal with this by treating it as if we know the partition id but have not yet scheduled it.
-                // We also have to extract the partition id from the activity id since it's not stored anywhere else.
+                // We also have to extract the partition id from the activity id since it's not stored in the event data.
                 String activityName = event.scheduleActivityTaskFailedEventAttributes().activityType().name();
                 String stepName = TaskNaming.stepNameFromActivityName(activityName);
                 String activityId = event.scheduleActivityTaskFailedEventAttributes().activityId();
                 String retryAttemptAndPartitionId = activityId.substring(stepName.length() + 1); // skip the step name and first _
                 String partitionId = null;
+
+                // If the step is partitioned, the remainder of the activity id is of the form "{retryAttempt}_{partitionId}".
+                // If the step isn't partitioned, we can just ignore this event. It'll get rescheduled properly.
                 if (retryAttemptAndPartitionId.contains("_")) {
                     int underscorePos = retryAttemptAndPartitionId.indexOf("_");
+                    int retryAttempt = Integer.parseInt(retryAttemptAndPartitionId.substring(0, underscorePos));
+                    if (retryAttempt > 0) {
+                        // Since the retry attempt is nonzero, we can ignore this event entirely.
+                        continue;
+                    }
+
                     partitionId = retryAttemptAndPartitionId.substring(underscorePos + 1);
+
+                    // the retry attempt is 0, so we need to check if we previously saw state for this workflow step.
+                    if (ws.stepPartitions.containsKey(activityName)) {
+                        // if we see an entry for the partition id already, then either:
+                        // a) we've seen a successful execution of the partition
+                        // b) we've seen a failed attempt to execute attempt 0 of the partition
+                        // In both cases we can skip this event.
+                        if (ws.stepPartitions.get(activityName).containsKey(partitionId)) {
+                            continue;
+                        }
+                    }
+
+                    // If we get here, we need to store the partition id with no state so that we know we've seen this case.
+                    ws.stepPartitions.putIfAbsent(activityName, new HashMap<>());
+
+                    // We use a linked list because we're building the list in reverse order, back to front,
+                    // so every insert will be at the beginning.
+                    ws.stepPartitions.get(activityName).putIfAbsent(partitionId, new LinkedList<>());
                 }
+            } else if (MARKER_EVENTS.contains(event.eventType())) {
+                // There may be markers we don't care about in the history, such as the "unknown result code" marker that Flux adds,
+                // or markers added by other tools.
+                String prefix = TaskNaming.PARTITION_METADATA_MARKER_NAME_PREFIX;
+                String markerName = event.markerRecordedEventAttributes().markerName();
+                if (markerName != null && markerName.startsWith(prefix)) {
+                    // TODO -- handle data split across multiple markers.
 
-                // If the step isn't partitioned, we can just ignore this event. It'll get rescheduled properly.
-                // Otherwise, we need to save the partition id for later reference.
-                if (partitionId != null) {
-                    if (!ws.stepPartitions.containsKey(activityName)) {
-                        ws.stepPartitions.put(activityName, new HashMap<>());
-                    }
+                    // We need to extract the activity name from the marker name, which is of the form "{prefix}.{stepName}".
+                    String stepName = markerName.substring(prefix.length() + 1);
 
-                    if (!ws.stepPartitions.get(activityName).containsKey(partitionId)) {
-                        // we use a linked list because we're building the list in reverse order, back to front,
-                        // so every insert will be at the beginning.
-                        ws.stepPartitions.get(activityName).put(partitionId, new LinkedList<>());
-                    }
+                    // It's possible the marker was added more than once for some reason.
+                    // If it was, we want to use the most recent one, so only insert if we don't already have a record for it.
+                    ws.rawPartitionMetadata.putIfAbsent(stepName, getMarkerData(event));
                 }
             } else if (ACTIVITY_CLOSED_EVENTS.contains(event.eventType())) {
                 if (mostRecentClosedEvent == null) {
@@ -387,7 +448,7 @@ final class WorkflowState {
                             && !StepResult.FAIL_RESULT_CODE.equals(ws.currentStepResultCode)) {
                         ws.currentStepResultCode = effectiveResultCode;
                     } else if (effectiveResultCode == null) {
-                        // we dont have a resultCode for the partition it means we need to retry it
+                        // If we don't have a resultCode for the partition, it means we need to retry it.
                         hasPartitionNeedingRetry = true;
                         break;
                     }
@@ -485,6 +546,17 @@ final class WorkflowState {
             default:
                 // If we get here, then someone added an entry to ACTIVITY_CLOSED_EVENTS but didn't handle it here.
                 throw new RuntimeException("Unable to retrieve step output result for event of type " + event.eventTypeAsString());
+        }
+    }
+
+    // package-private for use in tests
+    static String getMarkerData(HistoryEvent event) {
+        switch (event.eventType()) {
+            case MARKER_RECORDED:
+                return event.markerRecordedEventAttributes().details();
+            default:
+                // If we get here, then someone added an entry to MARKER_EVENTS but didn't handle it here.
+                throw new RuntimeException("Unable to retrieve marker data for event of type " + event.eventTypeAsString());
         }
     }
 

@@ -24,6 +24,8 @@ import software.amazon.aws.clients.swf.flux.wf.Workflow;
  */
 public final class TaskNaming {
 
+    public static final String PARTITION_METADATA_MARKER_NAME_PREFIX = "_partitionMetadata";
+
     private TaskNaming() {}
 
     public static String workflowName(Workflow workflow) {
@@ -34,20 +36,28 @@ public final class TaskNaming {
         return clazz.getSimpleName();
     }
 
+    public static String stepName(WorkflowStep step) {
+        return stepName(step.getClass());
+    }
+
+    public static String stepName(Class<? extends WorkflowStep> stepClass) {
+        return stepClass.getSimpleName();
+    }
+
     public static String activityName(Workflow workflow, WorkflowStep step) {
-        return String.format("%s.%s", workflowName(workflow), step.getClass().getSimpleName());
+        return activityName(workflowName(workflow), stepName(step));
     }
 
     public static String activityName(Workflow workflow, Class<? extends WorkflowStep> stepClass) {
-        return String.format("%s.%s", workflowName(workflow), stepClass.getSimpleName());
+        return activityName(workflowName(workflow), stepName(stepClass));
     }
 
     public static String activityName(String workflowName, WorkflowStep step) {
-        return String.format("%s.%s", workflowName, step.getClass().getSimpleName());
+        return activityName(workflowName, stepName(step));
     }
 
     public static String activityName(Class<? extends Workflow> workflowClass, Class<? extends WorkflowStep> stepClass) {
-        return activityName(workflowName(workflowClass), stepClass.getSimpleName());
+        return activityName(workflowName(workflowClass), stepName(stepClass));
     }
 
     public static String activityName(String workflowName, String stepName) {
@@ -74,7 +84,6 @@ public final class TaskNaming {
             throw new RuntimeException("Invalid activity name: " + activityName);
         }
         return parts[1];
-
     }
 
     /**
@@ -95,5 +104,12 @@ public final class TaskNaming {
         } else {
             return stepName + "_" + retryAttempt + "_" + partitionId;
         }
+    }
+
+    /**
+     * Given a step name, constructs a partition metadata marker name.
+     */
+    public static String partitionMetadataMarkerName(String stepName) {
+        return String.format("%s.%s", PARTITION_METADATA_MARKER_NAME_PREFIX, stepName);
     }
 }
