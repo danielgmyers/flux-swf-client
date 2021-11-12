@@ -611,13 +611,19 @@ public class WorkflowHistoryBuilder {
         return recordSignalEvent(signal);
     }
 
-    public HistoryEvent recordPartitionMetadataMarker(Instant eventTime, String stepName,
-                                                      PartitionIdGeneratorResult partitionIdGeneratorResult)
+    public List<HistoryEvent> recordPartitionMetadataMarkers(Instant eventTime, String stepName,
+                                                             PartitionIdGeneratorResult partitionIdGeneratorResult)
             throws JsonProcessingException {
         PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(partitionIdGeneratorResult);
 
-        return recordMarker(eventTime, TaskNaming.partitionMetadataMarkerName(stepName),
-                            metadata.toJson());
+        List<String> markerDetailsList = metadata.toMarkerDetailsList();
+
+        List<HistoryEvent> markers = new ArrayList<>();
+        for (int i = 0; i < markerDetailsList.size(); i++) {
+            markers.add(recordMarker(eventTime, TaskNaming.partitionMetadataMarkerName(stepName, i, markerDetailsList.size()),
+                                    markerDetailsList.get(i)));
+        }
+        return markers;
     }
 
     public HistoryEvent recordMarker(Instant eventTime, String name, String details) {

@@ -102,7 +102,7 @@ final class WorkflowState {
     private Instant currentStepCompletionTime;
     private String currentStepLastActivityCompletionMessage;
     private Long currentStepMaxRetryCount;
-    private Map<String, String> rawPartitionMetadata;
+    private Map<String, List<String>> rawPartitionMetadata;
     private Map<String, Map<String, List<PartitionState>>> stepPartitions;
     private Map<String, TimerData> openTimers;
     private Map<String, Long> closedTimers;
@@ -153,7 +153,7 @@ final class WorkflowState {
     public PartitionMetadata getPartitionMetadata(String stepName) throws JsonProcessingException {
         if (rawPartitionMetadata.containsKey(stepName)) {
             try {
-                return PartitionMetadata.fromJson(rawPartitionMetadata.get(stepName));
+                return PartitionMetadata.fromMarkerDetailsList(rawPartitionMetadata.get(stepName));
             } catch (JsonProcessingException e) {
                 // If we couldn't parse it, then for the purposes of representing workflow state we should behave
                 // as if the metadata doesn't exist at all.
@@ -237,6 +237,9 @@ final class WorkflowState {
 
         Map<Long, HistoryEvent> closedEventsByScheduledEventId = new HashMap<>();
 
+        Map<String, Set<Long>> partitionMarkerSubsetsFound = new HashMap<>();
+        Map<String, List<String>> partitionMarkerSubsets = new HashMap<>();
+
         // the events should be in reverse-chronological order
         for (HistoryEvent event : task.events()) {
             if (ACTIVITY_SCHEDULING_FAILURE_EVENTS.contains(event.eventType())) {
@@ -293,17 +296,28 @@ final class WorkflowState {
             } else if (MARKER_EVENTS.contains(event.eventType())) {
                 // There may be markers we don't care about in the history, such as the "unknown result code" marker that Flux adds,
                 // or markers added by other tools.
-                String prefix = TaskNaming.PARTITION_METADATA_MARKER_NAME_PREFIX;
                 String markerName = event.markerRecordedEventAttributes().markerName();
-                if (markerName != null && markerName.startsWith(prefix)) {
-                    // TODO -- handle data split across multiple markers.
+                if (TaskNaming.isPartitionMetadataMarker(markerName)) {
+                    String stepName = TaskNaming.extractPartitionMetadataMarkerStepName(markerName);
+                    Long subsetId = TaskNaming.extractPartitionMetadataMarkerSubsetId(markerName);
 
-                    // We need to extract the activity name from the marker name, which is of the form "{prefix}.{stepName}".
-                    String stepName = markerName.substring(prefix.length() + 1);
+                    partitionMarkerSubsetsFound.putIfAbsent(stepName, new HashSet<>());
+                    partitionMarkerSubsetsFound.get(stepName).add(subsetId);
 
-                    // It's possible the marker was added more than once for some reason.
-                    // If it was, we want to use the most recent one, so only insert if we don't already have a record for it.
-                    ws.rawPartitionMetadata.putIfAbsent(stepName, getMarkerData(event));
+                    partitionMarkerSubsets.putIfAbsent(stepName, new LinkedList<>());
+                    partitionMarkerSubsets.get(stepName).add(getMarkerData(event));
+
+                    // If we've found all of the subsets, we can record the aggregate marker data.
+                    // We can then clear out the temporary places we were storing it in since we don't need it anymore.
+                    Long markerCount = TaskNaming.extractPartitionMetadataMarkerCount(markerName);
+                    if (partitionMarkerSubsetsFound.get(stepName).size() == markerCount) {
+                        // It's possible a marker was added more than once for some reason,
+                        // so only insert if we don't already have marker data for this step.
+                        ws.rawPartitionMetadata.putIfAbsent(stepName, partitionMarkerSubsets.get(stepName));
+
+                        partitionMarkerSubsetsFound.remove(stepName);
+                        partitionMarkerSubsets.remove(stepName);
+                    }
                 }
             } else if (ACTIVITY_CLOSED_EVENTS.contains(event.eventType())) {
                 if (mostRecentClosedEvent == null) {

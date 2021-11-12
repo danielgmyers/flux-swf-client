@@ -516,14 +516,18 @@ public class DecisionTaskPoller implements Runnable {
                                                                          workflowId, metricsFactory);
             PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(result);
 
-            RecordMarkerDecisionAttributes markerAttrs = RecordMarkerDecisionAttributes.builder()
-                    .markerName(TaskNaming.partitionMetadataMarkerName(nextStepName))
-                    .details(metadata.toJson())
-                    .build();
-            Decision marker = Decision.builder().decisionType(DecisionType.RECORD_MARKER)
-                    .recordMarkerDecisionAttributes(markerAttrs)
-                    .build();
-            decisions.add(marker);
+            List<String> markerDetailsList = metadata.toMarkerDetailsList();
+            for (int i = 0; i < markerDetailsList.size(); i++) {
+                String markerDetails = markerDetailsList.get(i);
+                RecordMarkerDecisionAttributes markerAttrs = RecordMarkerDecisionAttributes.builder()
+                        .markerName(TaskNaming.partitionMetadataMarkerName(nextStepName, i, markerDetailsList.size()))
+                        .details(markerDetails)
+                        .build();
+                Decision marker = Decision.builder().decisionType(DecisionType.RECORD_MARKER)
+                        .recordMarkerDecisionAttributes(markerAttrs)
+                        .build();
+                decisions.add(marker);
+            }
 
             SignalExternalWorkflowExecutionDecisionAttributes hackAttrs = buildHackSignalDecisionAttrs(state);
             Decision hackSignal = Decision.builder().decisionType(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
