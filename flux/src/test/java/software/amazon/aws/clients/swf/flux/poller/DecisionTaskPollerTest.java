@@ -41,6 +41,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import software.amazon.aws.clients.swf.flux.FluxCapacitorImpl;
+import software.amazon.aws.clients.swf.flux.IdUtils;
 import software.amazon.aws.clients.swf.flux.metrics.InMemoryMetricRecorder;
 import software.amazon.aws.clients.swf.flux.metrics.MetricRecorder;
 import software.amazon.aws.clients.swf.flux.metrics.MetricRecorderFactory;
@@ -780,9 +781,9 @@ public class DecisionTaskPollerTest {
         PartitionMetadata expectedPartitionMetadata
                 = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
 
-        Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class)),
+        Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), 0, 1),
                             response.decisions().get(0).recordMarkerDecisionAttributes().markerName());
-        Assert.assertEquals(expectedPartitionMetadata.toJson(),
+        Assert.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
                             response.decisions().get(0).recordMarkerDecisionAttributes().details());
 
         // second decision should always be a hack signal to force a new decision
@@ -844,14 +845,163 @@ public class DecisionTaskPollerTest {
         PartitionMetadata expectedPartitionMetadata
                 = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
 
-        Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class)),
+        Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), 0, 1),
                             response.decisions().get(0).recordMarkerDecisionAttributes().markerName());
-        Assert.assertEquals(expectedPartitionMetadata.toJson(),
+        Assert.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
                             response.decisions().get(0).recordMarkerDecisionAttributes().details());
 
         // second decision should always be a hack signal to force a new decision
         Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, response.decisions().get(1).decisionType());
         Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), response.decisions().get(1).signalExternalWorkflowExecutionDecisionAttributes());
+    }
+
+    @Test
+    public void decide_schedulePartitionedSecondStepWhenFirstStepSucceeds_MultipleMarkersNeeded() throws JsonProcessingException {
+        Set<String> partitionIds = new HashSet<>();
+        for (int i = 0; i < 1000; i++) {
+            partitionIds.add(IdUtils.randomId(100));
+        }
+
+        TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        partitionedStep.setPartitionIds(partitionIds);
+
+        Map<String, String> input = new TreeMap<>();
+        input.put("SomeInput", "Value");
+
+        Map<String, String> output = new TreeMap<>();
+        output.put("ExtraOutput", "AnotherValue");
+
+        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+
+        HistoryEvent startEvent = history.scheduleStepAttempt();
+        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        WorkflowState state = history.buildCurrentState();
+
+        mockery.replay();
+
+        WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
+        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 deciderMetrics, (o) -> stepMetrics);
+        WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
+
+        String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
+        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
+                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+
+        Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
+        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assert.assertTrue(stepMetrics.isClosed());
+
+        mockery.verify();
+
+        PartitionIdGeneratorResult expectedPartitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+        PartitionMetadata expectedPartitionMetadata
+                = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
+        List<String> markerDetailsList = expectedPartitionMetadata.toMarkerDetailsList();
+
+        // There should be two kinds of decisions in the response: metadata markers, and a signal.
+        Assert.assertEquals(1 + markerDetailsList.size(), response.decisions().size());
+
+        for (int i = 0; i < markerDetailsList.size(); i++) {
+            Assert.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(i).decisionType());
+
+            Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), i, markerDetailsList.size()),
+                                response.decisions().get(i).recordMarkerDecisionAttributes().markerName());
+            Assert.assertEquals(markerDetailsList.get(i),
+                                response.decisions().get(i).recordMarkerDecisionAttributes().details());
+        }
+
+        // The last decision should always be a hack signal to force a new decision.
+        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, response.decisions().get(markerDetailsList.size()).decisionType());
+        Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), response.decisions().get(markerDetailsList.size()).signalExternalWorkflowExecutionDecisionAttributes());
+    }
+
+    @Test
+    public void decide_schedulePartitionedSecondStepWhenFirstStepSucceeds_MultipleMarkersNeeded_IgnoresExistingPartialMarkerSet() throws JsonProcessingException {
+        Set<String> partitionIds = new HashSet<>();
+        for (int i = 0; i < 1000; i++) {
+            partitionIds.add(IdUtils.randomId(100));
+        }
+
+        TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        partitionedStep.setPartitionIds(partitionIds);
+
+        Map<String, String> input = new TreeMap<>();
+        input.put("SomeInput", "Value");
+
+        Map<String, String> output = new TreeMap<>();
+        output.put("ExtraOutput", "AnotherValue");
+
+        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+
+        HistoryEvent startEvent = history.scheduleStepAttempt();
+        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(partitionIdGeneratorResult);
+        List<String> markerDetailsList = metadata.toMarkerDetailsList();
+
+        // Note we're intentionally omitting the last marker, to simulate a scenario where somehow one of the markers didn't make it into the history.
+        // We add them all at once so SWF will add them all at the same time, so this shouldn't happen unless there's a bug in Flux.
+        for (int i = 0; i < markerDetailsList.size() - 1; i++) {
+            history.recordMarker(now, TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(partitionedStep), i, markerDetailsList.size()),
+                                     markerDetailsList.get(i));
+        }
+
+        WorkflowState state = history.buildCurrentState();
+
+        mockery.replay();
+
+        WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
+        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 deciderMetrics, (o) -> stepMetrics);
+        WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
+
+        String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
+        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
+                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+
+        Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
+        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assert.assertTrue(stepMetrics.isClosed());
+
+        mockery.verify();
+
+        PartitionIdGeneratorResult expectedPartitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+        PartitionMetadata expectedPartitionMetadata
+                = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
+        List<String> expectedMarkerDetailsList = expectedPartitionMetadata.toMarkerDetailsList();
+
+        // There should be two kinds of decisions in the response: metadata markers, and a signal.
+        Assert.assertEquals(1 + expectedMarkerDetailsList.size(), response.decisions().size());
+
+        for (int i = 0; i < expectedMarkerDetailsList.size(); i++) {
+            Assert.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(i).decisionType());
+
+            Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), i, expectedMarkerDetailsList.size()),
+                                response.decisions().get(i).recordMarkerDecisionAttributes().markerName());
+            Assert.assertEquals(expectedMarkerDetailsList.get(i),
+                                response.decisions().get(i).recordMarkerDecisionAttributes().details());
+        }
+
+        // The last decision should always be a hack signal to force a new decision.
+        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, response.decisions().get(expectedMarkerDetailsList.size()).decisionType());
+        Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), response.decisions().get(expectedMarkerDetailsList.size()).signalExternalWorkflowExecutionDecisionAttributes());
     }
 
     @Test
@@ -879,7 +1029,7 @@ public class DecisionTaskPollerTest {
         PartitionIdGeneratorResult partitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
 
-        history.recordPartitionMetadataMarker(now, TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+        history.recordPartitionMetadataMarkers(now, TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
 
         WorkflowState state = history.buildCurrentState();
 

@@ -65,7 +65,7 @@ public final class TaskNaming {
     }
 
     /**
-     * Given a full activity name (as produced by TaskNaming.activityName()), extracts the workflow name.
+     * Given a full activity name (as produced by {@link #activityName}), extracts the workflow name.
      */
     public static String workflowNameFromActivityName(String activityName) {
         String[] parts = activityName.split("\\.");
@@ -76,7 +76,7 @@ public final class TaskNaming {
     }
 
     /**
-     * Given a full activity name (as produced by TaskNaming.activityName()), extracts the step name.
+     * Given a full activity name (as produced by {@link #activityName}), extracts the step name.
      */
     public static String stepNameFromActivityName(String activityName) {
         String[] parts = activityName.split("\\.");
@@ -107,9 +107,54 @@ public final class TaskNaming {
     }
 
     /**
-     * Given a step name, constructs a partition metadata marker name.
+     * Given a marker name (as produced by {@link #partitionMetadataMarkerName},
+     * determines whether it is a partition metadata marker.
      */
-    public static String partitionMetadataMarkerName(String stepName) {
-        return String.format("%s.%s", PARTITION_METADATA_MARKER_NAME_PREFIX, stepName);
+    public static boolean isPartitionMetadataMarker(String markerName) {
+        return markerName != null && markerName.startsWith(PARTITION_METADATA_MARKER_NAME_PREFIX);
+    }
+
+    /**
+     * Given a step name and information about how many metadata markers there are,
+     * constructs a partition metadata marker name.
+     */
+    public static String partitionMetadataMarkerName(String stepName, long subsetId, long markerCount) {
+        return String.format("%s.%s.%d.%d", PARTITION_METADATA_MARKER_NAME_PREFIX, stepName, subsetId, markerCount);
+    }
+
+    /**
+     * Given a full partition metadata marker name (as produced by {@link #activityName}),
+     * extracts the step name.
+     */
+    public static String extractPartitionMetadataMarkerStepName(String metadataMarkerName) {
+        String[] parts = metadataMarkerName.split("\\.");
+        if (parts.length != 4) {
+            throw new RuntimeException("Invalid metadata marker name: " + metadataMarkerName);
+        }
+        return parts[1];
+    }
+
+    /**
+     * Given a full partition metadata marker name (as produced by {@link #activityName}),
+     * extracts the marker subset id number.
+     */
+    public static Long extractPartitionMetadataMarkerSubsetId(String metadataMarkerName) {
+        String[] parts = metadataMarkerName.split("\\.");
+        if (parts.length != 4) {
+            throw new RuntimeException("Invalid metadata marker name: " + metadataMarkerName);
+        }
+        return Long.parseLong(parts[2]);
+    }
+
+    /**
+     * Given a full partition metadata marker name (as produced by {@link #activityName}),
+     * extracts the marker count.
+     */
+    public static Long extractPartitionMetadataMarkerCount(String metadataMarkerName) {
+        String[] parts = metadataMarkerName.split("\\.");
+        if (parts.length != 4) {
+            throw new RuntimeException("Invalid metadata marker name: " + metadataMarkerName);
+        }
+        return Long.parseLong(parts[3]);
     }
 }

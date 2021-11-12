@@ -34,6 +34,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import software.amazon.aws.clients.swf.flux.FluxCapacitorImpl;
+import software.amazon.aws.clients.swf.flux.IdUtils;
 import software.amazon.aws.clients.swf.flux.poller.signals.DelayRetrySignalData;
 import software.amazon.aws.clients.swf.flux.poller.signals.ForceResultSignalData;
 import software.amazon.aws.clients.swf.flux.poller.signals.SignalType;
@@ -224,7 +225,7 @@ public class WorkflowStateTest {
         WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
         HistoryEvent startEvent = history.scheduleStepAttempt();
         String completionMessage = "Custom result!";
-        HistoryEvent endEvent = history.recordActivityResult(StepResult.success(TestBranchingWorkflow.CUSTOM_RESULT, completionMessage).withAttributes(output));
+        HistoryEvent endEvent = history.recordActivityResult(StepResult.complete(TestBranchingWorkflow.CUSTOM_RESULT, completionMessage).withAttributes(output));
         WorkflowState ws = history.buildCurrentState();
 
         Assert.assertEquals(now, ws.getWorkflowStartDate());
@@ -2140,7 +2141,7 @@ public class WorkflowStateTest {
                 = PartitionIdGeneratorResult.create().withPartitionIds(partitionIds);
 
         String stepName = TaskNaming.stepName(TestPartitionedStep.class);
-        history.recordPartitionMetadataMarker(now, stepName, partitionIdGeneratorResult);
+        history.recordPartitionMetadataMarkers(now, stepName, partitionIdGeneratorResult);
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2189,7 +2190,37 @@ public class WorkflowStateTest {
                 = PartitionIdGeneratorResult.create().withPartitionIds(partitionIds);
 
         String stepName = TaskNaming.stepName(TestPartitionedStep.class);
-        history.recordPartitionMetadataMarker(now, stepName, partitionIdGeneratorResult);
+        history.recordPartitionMetadataMarkers(now, stepName, partitionIdGeneratorResult);
+
+        WorkflowState state = history.buildCurrentState();
+
+        PartitionMetadata metadata = state.getPartitionMetadata(stepName);
+        Assert.assertNotNull(metadata);
+
+        Assert.assertEquals(partitionIds, metadata.getPartitionIds());
+    }
+
+    @Test
+    public void testGetPartitionMetadata_PartitionIdsSplitAcrossMultipleMetadataMarkers() throws JsonProcessingException {
+        Set<String> partitionIds = new HashSet<>();
+        for (int i = 0; i < 1000; i++) {
+            partitionIds.add(IdUtils.randomId(100));
+        }
+
+        Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
+
+        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), Collections.emptyMap());
+
+        history.scheduleStepAttempt();
+        history.recordActivityResult(StepResult.success());
+
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(partitionIds);
+
+        String stepName = TaskNaming.stepName(TestPartitionedStep.class);
+        List<HistoryEvent> markerEvents = history.recordPartitionMetadataMarkers(now, stepName, partitionIdGeneratorResult);
+        Assert.assertTrue(markerEvents.size() > 1);
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2215,7 +2246,7 @@ public class WorkflowStateTest {
         history.recordActivityResult(StepResult.success());
 
         String stepName = TaskNaming.stepName(TestPartitionedStep.class);
-        String metadataMarkerName = TaskNaming.partitionMetadataMarkerName(stepName);
+        String metadataMarkerName = TaskNaming.partitionMetadataMarkerName(stepName, 0, 1);
 
         // this marker's content isn't valid so we should behave as if there is no marker
         history.recordMarker(now, metadataMarkerName, "this is not valid json {");
@@ -2242,7 +2273,7 @@ public class WorkflowStateTest {
         history.recordActivityResult(StepResult.success());
 
         String stepName = TaskNaming.stepName(TestPartitionedStep.class);
-        String metadataMarkerName = TaskNaming.partitionMetadataMarkerName(stepName);
+        String metadataMarkerName = TaskNaming.partitionMetadataMarkerName(stepName, 0, 1);
 
         // this marker's content isn't valid, but we're going to add another valid marker afterward
         history.recordMarker(now, metadataMarkerName, "this is not valid json {");
@@ -2251,7 +2282,7 @@ public class WorkflowStateTest {
         PartitionIdGeneratorResult partitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(partitionIds);
 
-        history.recordPartitionMetadataMarker(now, stepName, partitionIdGeneratorResult);
+        history.recordPartitionMetadataMarkers(now, stepName, partitionIdGeneratorResult);
 
         WorkflowState state = history.buildCurrentState();
 
