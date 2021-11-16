@@ -18,6 +18,7 @@ package software.amazon.aws.clients.swf.flux.util;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,13 +33,40 @@ public final class ThreadUtils {
     private ThreadUtils() {}
 
     /**
+     * This is a copy of java.util.concurrent.Executors.DefaultThreadFactory, but with the pool name overridden.
+     */
+    static class NamedThreadFactory implements ThreadFactory {
+        private static final AtomicInteger POOL_NUMBER = new AtomicInteger(1);
+        private final ThreadGroup group;
+        private final AtomicInteger threadNumber = new AtomicInteger(1);
+        private final String namePrefix;
+
+        NamedThreadFactory(final String poolName) {
+            SecurityManager securityManager = System.getSecurityManager();
+            group = (securityManager != null) ? securityManager.getThreadGroup() : Thread.currentThread().getThreadGroup();
+            namePrefix = String.format("%s-%d-thread-", poolName, POOL_NUMBER.getAndIncrement());
+        }
+
+        public Thread newThread(Runnable runnable) {
+            Thread thread = new Thread(group, runnable, namePrefix + threadNumber.getAndIncrement(), 0);
+            if (thread.isDaemon()) {
+                thread.setDaemon(false);
+            }
+            if (thread.getPriority() != Thread.NORM_PRIORITY) {
+                thread.setPriority(Thread.NORM_PRIORITY);
+            }
+            return thread;
+        }
+    }
+
+    /**
      * We wrap the Runnable in an exception swallower (which logs a warning), but the default uncaught
      * exception handler still calls printStackTrace() on the exception. This method creates a thread factory
      * that overrides this behavior.
      */
-    public static ThreadFactory createStackTraceSuppressingThreadFactory() {
+    public static ThreadFactory createStackTraceSuppressingThreadFactory(final String poolName) {
         return new ThreadFactory() {
-            private final ThreadFactory backingThreadFactory = Executors.defaultThreadFactory();
+            private final ThreadFactory backingThreadFactory = new NamedThreadFactory(poolName);
             @Override
             public Thread newThread(Runnable runnable) {
                 Thread thread = backingThreadFactory.newThread(runnable);

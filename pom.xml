@@ -108,6 +108,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${mavenplugin.surefire.version}</version>
                 <configuration>
+                    <argLine>-Duser.timezone=UTC</argLine>
                     <parallel>classes</parallel>
                     <threadCount>3</threadCount>
                     <includes>

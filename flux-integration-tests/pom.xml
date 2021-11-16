@@ -36,7 +36,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <artifactId>slf4j-nop</artifactId>
+            <artifactId>slf4j-simple</artifactId>
             <groupId>org.slf4j</groupId>
             <version>${slf4j.version}</version>
             <scope>test</scope>

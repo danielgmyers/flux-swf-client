@@ -40,9 +40,9 @@ public class BlockOnSubmissionThreadPoolExecutor extends ThreadPoolExecutor {
     /**
      * Creates a fixed-size thread pool.
      */
-    public BlockOnSubmissionThreadPoolExecutor(int fixedPoolSize) {
+    public BlockOnSubmissionThreadPoolExecutor(int fixedPoolSize, final String poolName) {
         super(fixedPoolSize, fixedPoolSize, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(fixedPoolSize),
-              ThreadUtils.createStackTraceSuppressingThreadFactory());
+              ThreadUtils.createStackTraceSuppressingThreadFactory(poolName));
         submissionSemaphore = new Semaphore(fixedPoolSize);
     }
 
