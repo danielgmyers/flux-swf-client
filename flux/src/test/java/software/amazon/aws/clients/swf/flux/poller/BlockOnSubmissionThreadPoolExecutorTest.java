@@ -31,7 +31,7 @@ public class BlockOnSubmissionThreadPoolExecutorTest {
 
     @Before
     public void setup() {
-        executor = new BlockOnSubmissionThreadPoolExecutor(1);
+        executor = new BlockOnSubmissionThreadPoolExecutor(1, "executor");
     }
 
     @Test

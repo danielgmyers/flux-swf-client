@@ -181,7 +181,7 @@ public class DecisionTaskPollerTest {
             }
         };
 
-        executor = new BlockOnSubmissionThreadPoolExecutor(1);
+        executor = new BlockOnSubmissionThreadPoolExecutor(1, "executor");
         poller = new DecisionTaskPoller(metricsFactory, swf, DOMAIN, Workflow.DEFAULT_TASK_LIST_NAME, IDENTITY,
                                         FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, workflows, activities, executor);
     }

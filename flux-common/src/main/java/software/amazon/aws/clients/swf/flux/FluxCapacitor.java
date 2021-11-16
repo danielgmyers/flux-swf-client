@@ -54,9 +54,11 @@ public interface FluxCapacitor {
                                                      String workflowDomain);
 
     /**
-     * Shuts down this FluxCapacitor object's worker threads.
+     * Shuts down this FluxCapacitor object's worker thread pools. Running threads are not interrupted.
      * Once you call this method, this FluxCapacitor object should not be used anymore,
      * a new one should be created with FluxCapacitorFactory.create instead.
+     *
+     * FluxCapacitor will likely take about 60 seconds to shut down, since that's the long-polling duration.
      *
      * This method obeys the ExecutorService.shutdown() contract.
      */

@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -502,7 +503,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
         for (String taskList : bucketedTaskLists) {
             int poolSize = config.getTaskListConfig(taskList).getDecisionTaskThreadCount();
-            deciderThreadsPerTaskList.put(taskList, new BlockOnSubmissionThreadPoolExecutor(poolSize));
+            String poolName = String.format("%s-%s", "decider", taskList);
+            deciderThreadsPerTaskList.put(taskList, new BlockOnSubmissionThreadPoolExecutor(poolSize, poolName));
 
             poolSize = config.getTaskListConfig(taskList).getDecisionTaskPollerThreadCount();
             ScheduledExecutorService service = createExecutorService(taskList, hostname, "decisionPoller", poolSize,
@@ -512,7 +514,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
             decisionTaskPollerThreadsPerTaskList.put(taskList, service);
 
             poolSize = config.getTaskListConfig(taskList).getActivityTaskThreadCount();
-            workerThreadsPerTaskList.put(taskList, new BlockOnSubmissionThreadPoolExecutor(poolSize));
+            poolName = String.format("%s-%s", "activityWorker", taskList);
+            workerThreadsPerTaskList.put(taskList, new BlockOnSubmissionThreadPoolExecutor(poolSize, poolName));
 
             poolSize = config.getTaskListConfig(taskList).getActivityTaskPollerThreadCount();
             service = createExecutorService(taskList, hostname, "activityPoller", poolSize,
@@ -547,7 +550,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
      */
     private ScheduledExecutorService createExecutorService(String taskList, String hostname, String taskTypeName, int poolSize,
                                                            Function<String, Runnable> taskCreator) {
-        ThreadFactory threadFactory = ThreadUtils.createStackTraceSuppressingThreadFactory();
+        String poolName = String.format("%s-%s", taskTypeName, taskList);
+        ThreadFactory threadFactory = ThreadUtils.createStackTraceSuppressingThreadFactory(poolName);
         ScheduledExecutorService service = Executors.newScheduledThreadPool(poolSize, threadFactory);
         for (int i = 0; i < poolSize; i++) {
             String taskName = String.format("%s_%s-%s_%s", hostname, taskTypeName, taskList, i);

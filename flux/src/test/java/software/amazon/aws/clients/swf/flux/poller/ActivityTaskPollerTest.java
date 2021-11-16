@@ -185,7 +185,7 @@ public class ActivityTaskPollerTest {
             }
         };
 
-        executor = new BlockOnSubmissionThreadPoolExecutor(1);
+        executor = new BlockOnSubmissionThreadPoolExecutor(1, "executor");
         poller = new ActivityTaskPoller(metricsFactory, swf, DOMAIN, Workflow.DEFAULT_TASK_LIST_NAME,
                                         IDENTITY, workflows, steps, executor);
     }
