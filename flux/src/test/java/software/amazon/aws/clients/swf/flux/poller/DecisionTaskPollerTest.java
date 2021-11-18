@@ -422,10 +422,10 @@ public class DecisionTaskPollerTest {
         // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
         // and then save it to the input map for the actual comparison.
         Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
         Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime.toInstant()));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime.toInstant()));
+        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
+        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
@@ -479,9 +479,9 @@ public class DecisionTaskPollerTest {
         // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
         // and then save it to the input map for the actual comparison.
         Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
         Assert.assertNotNull(attemptTime);
-        Assert.assertFalse(closeEvent.eventTimestamp().isAfter(attemptTime.toInstant()));
+        Assert.assertFalse(closeEvent.eventTimestamp().isAfter(attemptTime));
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
@@ -633,10 +633,10 @@ public class DecisionTaskPollerTest {
         // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
         // and then save it to the input map for the actual comparison.
         Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
         Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime.toInstant()));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime.toInstant()));
+        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
+        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
@@ -701,10 +701,10 @@ public class DecisionTaskPollerTest {
         // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
         // and then save it to the input map for the actual comparison.
         Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
         Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime.toInstant()));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime.toInstant()));
+        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
+        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
@@ -788,6 +788,163 @@ public class DecisionTaskPollerTest {
 
         // second decision should always force a new decision
         Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
+    }
+
+    @Test
+    public void decide_schedulePartitionedSecondStep_TwoPartitions_ScheduleActivityFailed() throws JsonProcessingException {
+        List<String> failedPartitions = new ArrayList<>();
+        failedPartitions.add("p1");
+        failedPartitions.add("p2");
+
+        TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        partitionedStep.setPartitionIds(failedPartitions);
+
+        Map<String, String> input = new TreeMap<>();
+        input.put("SomeInput", "Value");
+
+        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+
+        HistoryEvent startEvent = history.scheduleStepAttempt();
+        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success());
+
+        for (String partitionId : failedPartitions) {
+            history.recordScheduleAttemptFailed(partitionId);
+        }
+
+        WorkflowState state = history.buildCurrentState();
+
+        WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
+
+        mockery.replay();
+
+        String workflowId = state.getWorkflowId();
+        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, currentStep, workflowId, state,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 deciderMetrics, (o) -> stepMetrics);
+        WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
+
+        String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, currentStep);
+        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
+                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+
+        Assert.assertEquals(failedPartitions.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
+        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assert.assertTrue(stepMetrics.isClosed());
+
+        mockery.verify();
+
+        // there should be two decisions in the response: a metadata marker, and a signal.
+        Assert.assertEquals(2, response.decisions().size());
+        Assert.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(0).decisionType());
+
+        PartitionIdGeneratorResult expectedPartitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(failedPartitions));
+        PartitionMetadata expectedPartitionMetadata
+                = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
+
+        Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), 0, 1),
+                            response.decisions().get(0).recordMarkerDecisionAttributes().markerName());
+        Assert.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
+                            response.decisions().get(0).recordMarkerDecisionAttributes().details());
+
+        // second decision should always force a new decision
+        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
+    }
+
+    @Test
+    public void decide_schedulePartitionedSecondStep_TwoPartitions_ScheduleActivityFailed_MetadataMarkerAlreadyPresent() throws JsonProcessingException {
+        List<String> failedPartitions = new ArrayList<>();
+        failedPartitions.add("p1");
+        failedPartitions.add("p2");
+
+        TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        partitionedStep.setPartitionIds(failedPartitions);
+
+        Map<String, String> input = new TreeMap<>();
+        input.put("SomeInput", "Value");
+
+        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+
+        HistoryEvent startEvent = history.scheduleStepAttempt();
+        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success());
+
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(failedPartitions));
+
+        history.recordPartitionMetadataMarkers(now, TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+
+        for (String partitionId : failedPartitions) {
+            history.recordScheduleAttemptFailed(partitionId);
+        }
+
+        WorkflowState state = history.buildCurrentState();
+
+        WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
+
+        mockery.replay();
+
+        String workflowId = state.getWorkflowId();
+        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, currentStep, workflowId, state,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 deciderMetrics,
+                (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+        WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
+
+        String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, currentStep);
+        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
+                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+
+        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+
+        mockery.verify();
+
+        Assert.assertEquals(failedPartitions.size(), response.decisions().size());
+        Set<String> remainingPartitionsToSchedule = new HashSet<>(failedPartitions);
+        for (Decision decision : response.decisions()) {
+            String partitionId = decision.scheduleActivityTaskDecisionAttributes().control();
+            Assert.assertNotNull(partitionId);
+            Assert.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
+            remainingPartitionsToSchedule.remove(partitionId);
+
+            Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+
+            Map<String, String> expectedInput = new TreeMap<>(input);
+            expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
+            expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(failedPartitions.size()));
+
+            expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
+            expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
+            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+
+            // because this is the first attempt of the step and we don't control 'now' from the unit test,
+            // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
+            // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
+            // and then save it to the input map for the actual comparison.
+            Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
+            Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+            Assert.assertNotNull(attemptTime);
+            // the attempt time should be before or equal to the close event time.
+            Assert.assertFalse(closeEvent.eventTimestamp().isAfter(attemptTime));
+            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
+
+            String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
+            ScheduleActivityTaskDecisionAttributes attrs
+                    = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepTwo,
+                                                                                expectedInput, activityId);
+            attrs = attrs.toBuilder().control(partitionId).build();
+
+            Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        }
+
+        Assert.assertTrue(remainingPartitionsToSchedule.isEmpty());
     }
 
     @Test
@@ -1072,10 +1229,10 @@ public class DecisionTaskPollerTest {
             // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
             // and then save it to the input map for the actual comparison.
             Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-            Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+            Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
             Assert.assertNotNull(attemptTime);
             // the attempt time should be before or equal to the close event time.
-            Assert.assertFalse(closeEvent.eventTimestamp().isAfter(attemptTime.toInstant()));
+            Assert.assertFalse(closeEvent.eventTimestamp().isAfter(attemptTime));
             expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
 
             String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
@@ -1273,10 +1430,10 @@ public class DecisionTaskPollerTest {
         // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
         // and then save it to the input map for the actual comparison.
         Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
         Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime.toInstant()));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime.toInstant()));
+        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
+        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
 
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
@@ -1418,7 +1575,7 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(Date.from(partitionFirstAttemptTimes.get(partitionId))));
+            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(partitionFirstAttemptTimes.get(partitionId)));
 
             String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
@@ -1493,10 +1650,10 @@ public class DecisionTaskPollerTest {
         // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
         // and then save it to the input map for the actual comparison.
         Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
         Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime.toInstant()));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime.toInstant()));
+        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
+        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
 
         String activityId = TaskNaming.createActivityId(stepThree, 0, null);
@@ -1559,10 +1716,10 @@ public class DecisionTaskPollerTest {
         // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
         // and then save it to the input map for the actual comparison.
         Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
         Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime.toInstant()));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime.toInstant()));
+        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
+        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
@@ -1674,10 +1831,10 @@ public class DecisionTaskPollerTest {
         // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
         // and then save it to the input map for the actual comparison.
         Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
         Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime.toInstant()));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime.toInstant()));
+        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
+        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
@@ -1724,7 +1881,7 @@ public class DecisionTaskPollerTest {
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(Date.from(startEvent1.eventTimestamp())));
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(startEvent1.eventTimestamp()));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
@@ -1846,7 +2003,7 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(Date.from(startEvent1.eventTimestamp())));
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(startEvent1.eventTimestamp()));
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
                                                                             TaskNaming.createActivityId(currentStep, 1, null));
@@ -1968,7 +2125,7 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(Date.from(startEvent1.eventTimestamp())));
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(startEvent1.eventTimestamp()));
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
                                                                             TaskNaming.createActivityId(currentStep, 1, null));
@@ -2077,7 +2234,7 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(Date.from(startEvent1.eventTimestamp())));
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(startEvent1.eventTimestamp()));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
 
         String activityIdSecondAttempt = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 1, null);
@@ -2211,10 +2368,10 @@ public class DecisionTaskPollerTest {
         // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
         // and then save it to the input map for the actual comparison.
         Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
         Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime.toInstant()));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime.toInstant()));
+        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
+        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
 
         String activityId = TaskNaming.createActivityId(nextStep.getStep(), 0, null);
@@ -2298,10 +2455,10 @@ public class DecisionTaskPollerTest {
         // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
         // and then save it to the input map for the actual comparison.
         Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Date attemptTime = StepAttributes.decode(Date.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
         Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime.toInstant()));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime.toInstant()));
+        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
+        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
         expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
 
         String activityId = TaskNaming.createActivityId(nextStep.getStep(), 0, null);
@@ -2490,7 +2647,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionToReschedule));
         expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
         expectedInput.put(StepAttributes.RETRY_ATTEMPT, Long.toString(1));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(Date.from(startP1Event.eventTimestamp())));
+        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(startP1Event.eventTimestamp()));
 
         String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionToReschedule);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2520,7 +2677,8 @@ public class DecisionTaskPollerTest {
 
         mockery.replay();
 
-        WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
+        Assert.assertEquals(TaskNaming.activityName(workflow, TestStepOne.class), state.getCurrentActivityName());
+        WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });

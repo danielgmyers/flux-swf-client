@@ -103,7 +103,8 @@ final class WorkflowState {
     private String currentStepLastActivityCompletionMessage;
     private Long currentStepMaxRetryCount;
     private Map<String, List<String>> rawPartitionMetadata;
-    private Map<String, Map<String, List<PartitionState>>> stepPartitions;
+    private Map<String, Instant> stepInitialAttemptTimes;
+    private Map<String, Map<String, PartitionState>> latestPartitionStates;
     private Map<String, TimerData> openTimers;
     private Map<String, Long> closedTimers;
     private Map<String, BaseSignalData> signalsByActivityId;
@@ -150,7 +151,7 @@ final class WorkflowState {
         return currentStepMaxRetryCount;
     }
 
-    public PartitionMetadata getPartitionMetadata(String stepName) throws JsonProcessingException {
+    public PartitionMetadata getPartitionMetadata(String stepName) {
         if (rawPartitionMetadata.containsKey(stepName)) {
             try {
                 return PartitionMetadata.fromMarkerDetailsList(rawPartitionMetadata.get(stepName));
@@ -163,8 +164,15 @@ final class WorkflowState {
         return null;
     }
 
-    public Map<String, Map<String, List<PartitionState>>> getStepPartitions() {
-        return Collections.unmodifiableMap(stepPartitions);
+    public Map<String, PartitionState> getLatestPartitionStates(String activityName) {
+        if (!latestPartitionStates.containsKey(activityName)) {
+            return Collections.emptyMap();
+        }
+        return latestPartitionStates.get(activityName);
+    }
+
+    public Instant getStepInitialAttemptTime(String activityName) {
+        return stepInitialAttemptTimes.get(activityName);
     }
 
     public Map<String, TimerData> getOpenTimers() {
@@ -224,8 +232,10 @@ final class WorkflowState {
         ws.rawPartitionMetadata = new HashMap<>();
         ws.openTimers = new HashMap<>();
         ws.closedTimers = new HashMap<>();
-        ws.stepPartitions = new HashMap<>();
         ws.signalsByActivityId = new HashMap<>();
+
+        ws.stepInitialAttemptTimes = new HashMap<>();
+        ws.latestPartitionStates = new HashMap<>();
 
         ws.workflowCancelRequestDate = null;
         ws.workflowExecutionClosed = false;
@@ -261,7 +271,7 @@ final class WorkflowState {
                 String stepName = TaskNaming.stepNameFromActivityName(activityName);
                 String activityId = event.scheduleActivityTaskFailedEventAttributes().activityId();
                 String retryAttemptAndPartitionId = activityId.substring(stepName.length() + 1); // skip the step name and first _
-                String partitionId = null;
+                String partitionId;
 
                 // If the step is partitioned, the remainder of the activity id is of the form "{retryAttempt}_{partitionId}".
                 // If the step isn't partitioned, we can just ignore this event. It'll get rescheduled properly.
@@ -275,23 +285,21 @@ final class WorkflowState {
 
                     partitionId = retryAttemptAndPartitionId.substring(underscorePos + 1);
 
+                    if (!ws.latestPartitionStates.containsKey(activityName)) {
+                        ws.latestPartitionStates.put(activityName, new HashMap<>());
+                    }
+
                     // the retry attempt is 0, so we need to check if we previously saw state for this workflow step.
-                    if (ws.stepPartitions.containsKey(activityName)) {
-                        // if we see an entry for the partition id already, then either:
-                        // a) we've seen a successful execution of the partition
-                        // b) we've seen a failed attempt to execute attempt 0 of the partition
-                        // In both cases we can skip this event.
-                        if (ws.stepPartitions.get(activityName).containsKey(partitionId)) {
-                            continue;
-                        }
+                    // if we see an entry for the partition id already, then either:
+                    // a) we've seen a successful execution of the partition
+                    // b) we've seen a failed attempt to execute attempt 0 of the partition
+                    // In both cases we can skip this event.
+                    if (ws.latestPartitionStates.get(activityName).containsKey(partitionId)) {
+                        continue;
                     }
 
                     // If we get here, we need to store the partition id with no state so that we know we've seen this case.
-                    ws.stepPartitions.putIfAbsent(activityName, new HashMap<>());
-
-                    // We use a linked list because we're building the list in reverse order, back to front,
-                    // so every insert will be at the beginning.
-                    ws.stepPartitions.get(activityName).putIfAbsent(partitionId, new LinkedList<>());
+                    ws.latestPartitionStates.get(activityName).put(partitionId, null);
                 }
             } else if (MARKER_EVENTS.contains(event.eventType())) {
                 // There may be markers we don't care about in the history, such as the "unknown result code" marker that Flux adds,
@@ -334,19 +342,19 @@ final class WorkflowState {
                     ws.workflowInput = getStepData(event);
                 } else if (EventType.ACTIVITY_TASK_SCHEDULED.equals(event.eventType())) {
                     String activityName = getActivityName(event);
-                    PartitionState partition = PartitionState.build(event, closedEventsByScheduledEventId.get(event.eventId()));
+                    String partitionId = event.activityTaskScheduledEventAttributes().control();
 
-                    if (!ws.stepPartitions.containsKey(activityName)) {
-                        ws.stepPartitions.put(activityName, new HashMap<>());
+                    // Since we're iterating over these in reverse order, we can just always overwrite whatever time is here.
+                    ws.stepInitialAttemptTimes.put(activityName, event.eventTimestamp());
+
+                    // if we already have newer state for this partition, don't bother creating an older PartitionState.
+                    if (!ws.latestPartitionStates.containsKey(activityName)) {
+                        ws.latestPartitionStates.put(activityName, new HashMap<>());
                     }
-
-                    if (!ws.stepPartitions.get(activityName).containsKey(partition.getPartitionId())) {
-                        // we use a linked list because we're building the list in reverse order, back to front,
-                        // so every insert will be at the beginning.
-                        ws.stepPartitions.get(activityName).put(partition.getPartitionId(), new LinkedList<>());
+                    if (!ws.latestPartitionStates.get(activityName).containsKey(partitionId)) {
+                        PartitionState partition = PartitionState.build(event, closedEventsByScheduledEventId.get(event.eventId()));
+                        ws.latestPartitionStates.get(activityName).put(partitionId, partition);
                     }
-
-                    ws.stepPartitions.get(activityName).get(partition.getPartitionId()).add(0, partition);
                 }
             } else if (TIMER_START_EVENTS.contains(event.eventType())) {
                 // The timer will be in the closedTimersByStartedEventId map if it is already closed.
@@ -398,7 +406,7 @@ final class WorkflowState {
         ws.currentActivityName = getActivityName(mostRecentStartedEvent);
 
         if (ws.currentActivityName != null) {
-            Map<String, List<PartitionState>> currentStepPartitions = ws.stepPartitions.get(ws.currentActivityName);
+            Map<String, PartitionState> currentStepPartitions = ws.latestPartitionStates.get(ws.currentActivityName);
             if (currentStepPartitions.isEmpty()) {
                 throw new BadWorkflowStateException("Found a workflow step with no history");
             }
@@ -411,14 +419,14 @@ final class WorkflowState {
 
             boolean hasPartitionNeedingRetry = false;
 
-            for (List<PartitionState> partitionHistory : currentStepPartitions.values()) {
-                if (partitionHistory.isEmpty()) {
+            for (Map.Entry<String, PartitionState> e : currentStepPartitions.entrySet()) {
+                PartitionState lastState = e.getValue();
+                if (lastState == null) {
                     // If we get here, then we tried to schedule this partition but we got a ScheduleActivityFailedEvent.
                     // In this case, we'll need to treat the partition as needing to be retried/rescheduled.
                     hasPartitionNeedingRetry = true;
                     continue;
                 }
-                PartitionState lastState = partitionHistory.get(partitionHistory.size() - 1);
 
                 if (lastState.getResultCode() != null) {
                     ws.currentStepLastActivityCompletionMessage
@@ -428,15 +436,11 @@ final class WorkflowState {
 
                 ws.currentStepMaxRetryCount = Math.max(ws.currentStepMaxRetryCount, lastState.getRetryAttempt());
 
-                PartitionState firstState = partitionHistory.get(0);
-                if (ws.currentStepFirstScheduledTime == null
-                        || ws.currentStepFirstScheduledTime.isAfter(firstState.getAttemptScheduledTime())) {
-                    ws.currentStepFirstScheduledTime = firstState.getAttemptScheduledTime();
-                }
+                ws.currentStepFirstScheduledTime = ws.stepInitialAttemptTimes.get(ws.currentActivityName);
 
                 String stepName = TaskNaming.stepNameFromActivityName(ws.currentActivityName);
-                String signalActivityId = TaskNaming.createActivityId(stepName, lastState.getRetryAttempt() + 1,
-                                                    lastState.getPartitionId());
+                String partitionId = e.getKey();
+                String signalActivityId = TaskNaming.createActivityId(stepName, lastState.getRetryAttempt() + 1, partitionId);
 
                 String effectiveResultCode = lastState.getResultCode();
                 BaseSignalData signal = ws.signalsByActivityId.get(signalActivityId);

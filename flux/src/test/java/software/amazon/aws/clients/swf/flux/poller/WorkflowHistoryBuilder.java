@@ -111,7 +111,7 @@ public class WorkflowHistoryBuilder {
         this.currentStepPartitionLastScheduledEvent = new HashMap<>();
         this.currentStepInput = new HashMap<>();
         if (input != null) {
-            input.forEach(this.currentStepInput::put);
+            this.currentStepInput.putAll(input);
         }
         currentStepInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(WORKFLOW_ID));
         currentStepInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(RUN_ID));

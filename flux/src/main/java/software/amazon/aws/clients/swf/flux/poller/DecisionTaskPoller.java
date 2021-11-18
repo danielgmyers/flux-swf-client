@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.RejectedExecutionException;
@@ -342,23 +343,24 @@ public class DecisionTaskPoller implements Runnable {
                               StepAttributes.encode(state.getWorkflowStartDate()));
         } else {
             // build the next step's input based on the previous step's input and output
-            Map<String, List<PartitionState>> currentStepPartitions = state.getStepPartitions().get(activityName);
+            Map<String, PartitionState> currentStepPartitions = state.getLatestPartitionStates(activityName);
             if (currentStepPartitions != null) {
-                // Here we just want any arbitrary partition's last state, we're just trying to determine the next step's input.
+                // Here we just want any arbitrary partition's state, we're just trying to determine the next step's input.
                 // We need to make sure we only consider partitions that have state; there is an edge case where
                 // we can know about a partition but not have any state for it if SWF failed the first schedule attempt.
-                List<PartitionState> states = currentStepPartitions.values().stream().filter(ps -> !ps.isEmpty())
-                                                                   .findFirst().orElse(Collections.emptyList());
+                // Note that the .orElse() here can't trigger since we are working against the most recently executed step,
+                // for which we always have state.
+                // If we didn't have state, then the workflow just started and currentStep would be null, which is handled above.
+                PartitionState partition = currentStepPartitions.values().stream()
+                                                                .filter(Objects::nonNull).findFirst().orElse(null);
 
-                // TODO -- Is it possible for the .orElse() in the previous line to happen? If so, this will throw.
-                PartitionState lastState = states.get(states.size() - 1);
-                nextStepInput = new HashMap<>(lastState.getAttemptInput());
+                nextStepInput = new HashMap<>(partition.getAttemptInput());
 
                 boolean currentStepIsPartitioned = PartitionedWorkflowStep.class.isAssignableFrom(currentStep.getClass());
                 if (!currentStepIsPartitioned) {
                     // Non-partitioned steps can pass along their output to subsequent steps.
                     // Retry count and result code will be stripped out below.
-                    nextStepInput.putAll(lastState.getAttemptOutput());
+                    nextStepInput.putAll(partition.getAttemptOutput());
                 }
 
                 // Strip out fields that are specific to each attempt, they will be populated below as needed.
@@ -373,7 +375,25 @@ public class DecisionTaskPoller implements Runnable {
         NextStepSelection selection = findNextStep(workflow, currentStep, currentStepResultCode);
         String nextStepNameForContext = null;
         Map<String, String> contextAttributes = new HashMap<>();
-        if (selection.workflowShouldClose()) {
+        if (selection.workflowShouldClose() || state.isWorkflowCancelRequested()) {
+
+            // If workflow cancellation was requested, we need to check whether any individual tasks need to be canceled.
+            if (state.isWorkflowCancelRequested()) {
+                for (PartitionState partition : state.getLatestPartitionStates(activityName).values()) {
+                    // For each in-flight partition missing an attempt result (meaning, a worker is actively working it),
+                    // request cancellation of the activity task.
+                    if (partition != null && partition.getAttemptResult() == null) {
+                        decisions.add(buildRequestCancelActivityTaskDecision(partition.getActivityId()));
+                    }
+                }
+
+                // Also cancel any open retry timers.
+                for (String timerId : state.getOpenTimers().keySet()) {
+                    decisions.add(buildCancelTimerDecision(timerId));
+                }
+            }
+
+
             Decision decision = handleWorkflowCompletion(workflow, workflowId, state, metrics);
             if (decision != null) {
                 decisions.add(decision);
@@ -412,17 +432,12 @@ public class DecisionTaskPoller implements Runnable {
                 decisions.addAll(handleStepScheduling(workflow, workflowId, selection.getNextStep(), state, nextStepInput,
                                                       exponentialBackoffBase, metrics, metricsFactory));
 
-                // if a workflow cancellation request was received, but we haven't actually cancelled the workflow,
-                // we need to add a cancellation decision to the end of the decision list.
-                if (state.isWorkflowCancelRequested()) {
-                    decisions.add(handleWorkflowCompletion(workflow, workflowId, state, metrics));
-                } else {
-                    nextStepNameForContext = selection.getNextStep().getClass().getSimpleName();
+                nextStepNameForContext = selection.getNextStep().getClass().getSimpleName();
 
-                    WorkflowGraphNode nextNode = workflow.getGraph().getNodes().get(selection.getNextStep().getClass());
-                    Map<String, String> resultCodeMap = getResultCodeMapForContext(nextNode);
-                    contextAttributes.put(EXECUTION_CONTEXT_NEXT_STEP_RESULT_CODES, StepAttributes.encode(resultCodeMap));
-                }
+                WorkflowGraphNode nextNode = workflow.getGraph().getNodes().get(selection.getNextStep().getClass());
+                Map<String, String> resultCodeMap = getResultCodeMapForContext(nextNode);
+                contextAttributes.put(EXECUTION_CONTEXT_NEXT_STEP_RESULT_CODES, StepAttributes.encode(resultCodeMap));
+
             }
         }
 
@@ -466,7 +481,7 @@ public class DecisionTaskPoller implements Runnable {
         PartitionMetadata nextStepPartitionMetadata = state.getPartitionMetadata(nextStepName);
 
         // If we already have state for the step, we are probably retrying. Otherwise, it's a new step.
-        if (state.getStepPartitions().containsKey(nextActivityName)) {
+        if (!state.getLatestPartitionStates(nextActivityName).isEmpty()) {
             // Here we need to decide whether to generate partition metadata.
 
             // First we need to check if we already have partition metadata (from the marker) for this partition.
@@ -483,8 +498,8 @@ public class DecisionTaskPoller implements Runnable {
                 boolean hasNonEmptyState = false;
                 boolean hasEmptyState = false;
 
-                for (List<PartitionState> partition : state.getStepPartitions().get(nextActivityName).values()) {
-                    if (partition.isEmpty()) {
+                for (PartitionState partition : state.getLatestPartitionStates(nextActivityName).values()) {
+                    if (partition == null) {
                         hasEmptyState = true;
                     } else {
                         hasNonEmptyState = true;
@@ -545,7 +560,7 @@ public class DecisionTaskPoller implements Runnable {
                 // In this case, we don't have partition metadata but we didn't decide to generate partition metadata.
                 // We'll need to extract the partition IDs from the set of partitions we have state for.
                 // This should only happen during deployment of this change.
-                partitionIds = state.getStepPartitions().get(nextActivityName).keySet();
+                partitionIds = state.getLatestPartitionStates(nextActivityName).keySet();
             }
         } else {
             partitionIds = Collections.singleton(null);
@@ -575,10 +590,11 @@ public class DecisionTaskPoller implements Runnable {
             // If we get here, we need to extract the additional attributes from one of the successfully-scheduled partitions.
             // Note that we can't get here if there aren't any successfully-scheduled partitions, since we would have
             // generated partition metadata and returned from this method earlier.
+            // In other words, if we got here, then we don't have a partition metadata marker,
+            // and there was at least one successfully-scheduled partition, which means the .orElse() here can't trigger.
+            PartitionState lastState = state.getLatestPartitionStates(nextActivityName)
+                    .values().stream().filter(Objects::nonNull).findFirst().orElse(null);
 
-            List<PartitionState> states = state.getStepPartitions().get(nextActivityName)
-                    .values().stream().filter(ps -> !ps.isEmpty()).findFirst().orElse(Collections.emptyList());
-            PartitionState lastState = states.get(states.size() - 1);
             for (Map.Entry<String, String> e : lastState.getAttemptInput().entrySet()) {
                 nextStepInput.putIfAbsent(e.getKey(), e.getValue());
             }
@@ -589,15 +605,7 @@ public class DecisionTaskPoller implements Runnable {
         }
 
         for (String partitionId : partitionIds) {
-            PartitionState firstAttempt = null;
-            PartitionState lastAttempt = null;
-            if (state.getStepPartitions().get(nextActivityName) != null) {
-                List<PartitionState> states = state.getStepPartitions().get(nextActivityName).get(partitionId);
-                if (states != null && !states.isEmpty()) {
-                    firstAttempt = states.get(0);
-                    lastAttempt = states.get(states.size() - 1);
-                }
-            }
+            PartitionState lastAttempt = state.getLatestPartitionStates(nextActivityName).get(partitionId);
 
             if (lastAttempt != null && lastAttempt.getResultCode() != null) {
                 // Non-partitioned steps should not get here.
@@ -616,11 +624,7 @@ public class DecisionTaskPoller implements Runnable {
             long attemptNumber = 0L;
             if (lastAttempt != null && lastAttempt.getAttemptResult() == null) {
                 // The last attempt was already scheduled (possibly even started) but hasn't finished yet.
-                // If the workflow was canceled, we need to cancel the in-progress activity.
-                if (state.isWorkflowCancelRequested()) {
-                    decisions.add(buildRequestCancelActivityTaskDecision(lastAttempt.getActivityId()));
-                }
-                // ... then move on to the next partition either way.
+                // Just move on to the next partition.
                 continue;
             } else if (lastAttempt != null) {
                 // This is a retry.
@@ -657,10 +661,7 @@ public class DecisionTaskPoller implements Runnable {
                 // this is a retry if we get in here.
                 BaseSignalData signal = state.getSignalsByActivityId().get(activityId);
                 if (state.getOpenTimers().containsKey(activityId)) {
-                    if (state.isWorkflowCancelRequested()) {
-                        decisions.add(buildCancelTimerDecision(activityId));
-                        continue;
-                    } else if (signal != null) {
+                    if (signal != null) {
                         // The retry timer id matches the next attempt's activity id, which matches the signal's activity id.
                         // ScheduleDelayedRetry events need to be ignored if the timer is still open.
 
@@ -718,9 +719,9 @@ public class DecisionTaskPoller implements Runnable {
                 // We need to check if the previous step ended due to a ForceResult signal; if so,
                 // we may need to cancel its retry timer. We don't really know which partition it might have been,
                 // so it's easiest to just check for open timers for any partition of the previous step and cancel them.
-                Map<String, List<PartitionState>> prevStep = state.getStepPartitions().get(state.getCurrentActivityName());
-                for (Map.Entry<String, List<PartitionState>> prevPartition : prevStep.entrySet()) {
-                    PartitionState prevState = prevPartition.getValue().get(prevPartition.getValue().size() - 1);
+                Map<String, PartitionState> prevStep = state.getLatestPartitionStates(state.getCurrentActivityName());
+                for (Map.Entry<String, PartitionState> prevPartition : prevStep.entrySet()) {
+                    PartitionState prevState = prevPartition.getValue();
 
                     String currentStepName = TaskNaming.stepNameFromActivityName(state.getCurrentActivityName());
                     String prevActivityId = TaskNaming.createActivityId(currentStepName, prevState.getRetryAttempt() + 1,
@@ -737,38 +738,35 @@ public class DecisionTaskPoller implements Runnable {
                 continue;
             }
 
-            // If the workflow was canceled, we shouldn't try to schedule the next attempt of this step.
-            if (!state.isWorkflowCancelRequested()) {
-                // If we get this far, we know we're scheduling a run of nextStep.
-                // First let's populate the attempt-specific fields into the next step input map.
-                Map<String, String> actualInput = new TreeMap<>(nextStepInput);
-                if (attemptNumber > 0L) {
-                    actualInput.put(StepAttributes.RETRY_ATTEMPT, Long.toString(attemptNumber));
-                }
-                if (partitionId != null) {
-                    actualInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
-                    actualInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
-                }
-                Instant firstAttemptDate = Instant.now();
-                if (firstAttempt != null) {
-                    firstAttemptDate = firstAttempt.getAttemptScheduledTime();
-                }
-                actualInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(firstAttemptDate));
-
-                ScheduleActivityTaskDecisionAttributes attrs
-                        = buildScheduleActivityTaskDecisionAttrs(workflow, nextStep, actualInput, activityId);
-
-                // We'll save the partition id in the control field for convenience in debugging and testing,
-                // and to reference when rebuilding partition state to avoid having to inspect the step's input attributes.
-                attrs = attrs.toBuilder().control(partitionId).build();
-
-                Decision decision = Decision.builder().decisionType(DecisionType.SCHEDULE_ACTIVITY_TASK)
-                                                      .scheduleActivityTaskDecisionAttributes(attrs)
-                                                      .build();
-                decisions.add(decision);
-
-                log.debug("Workflow {} will have activity {} scheduled for execution.", workflowId, activityId);
+            // If we get this far, we know we're scheduling a run of nextStep.
+            // First let's populate the attempt-specific fields into the next step input map.
+            Map<String, String> actualInput = new TreeMap<>(nextStepInput);
+            if (attemptNumber > 0L) {
+                actualInput.put(StepAttributes.RETRY_ATTEMPT, Long.toString(attemptNumber));
             }
+            if (partitionId != null) {
+                actualInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
+                actualInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
+            }
+            Instant firstAttemptDate = state.getStepInitialAttemptTime(nextActivityName);
+            if (firstAttemptDate == null) {
+                firstAttemptDate = Instant.now();
+            }
+            actualInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(firstAttemptDate));
+
+            ScheduleActivityTaskDecisionAttributes attrs
+                    = buildScheduleActivityTaskDecisionAttrs(workflow, nextStep, actualInput, activityId);
+
+            // We'll save the partition id in the control field for convenience in debugging and testing,
+            // and to reference when rebuilding partition state to avoid having to inspect the step's input attributes.
+            attrs = attrs.toBuilder().control(partitionId).build();
+
+            Decision decision = Decision.builder().decisionType(DecisionType.SCHEDULE_ACTIVITY_TASK)
+                                                  .scheduleActivityTaskDecisionAttributes(attrs)
+                                                  .build();
+            decisions.add(decision);
+
+            log.debug("Workflow {} will have activity {} scheduled for execution.", workflowId, activityId);
 
         }
         return decisions;
