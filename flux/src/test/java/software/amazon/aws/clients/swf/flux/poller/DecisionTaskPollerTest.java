@@ -786,9 +786,8 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
                             response.decisions().get(0).recordMarkerDecisionAttributes().details());
 
-        // second decision should always be a hack signal to force a new decision
-        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, response.decisions().get(1).decisionType());
-        Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), response.decisions().get(1).signalExternalWorkflowExecutionDecisionAttributes());
+        // second decision should always force a new decision
+        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
     }
 
     @Test
@@ -850,9 +849,8 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
                             response.decisions().get(0).recordMarkerDecisionAttributes().details());
 
-        // second decision should always be a hack signal to force a new decision
-        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, response.decisions().get(1).decisionType());
-        Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), response.decisions().get(1).signalExternalWorkflowExecutionDecisionAttributes());
+        // second decision should always force a new decision
+        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
     }
 
     @Test
@@ -918,9 +916,8 @@ public class DecisionTaskPollerTest {
                                 response.decisions().get(i).recordMarkerDecisionAttributes().details());
         }
 
-        // The last decision should always be a hack signal to force a new decision.
-        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, response.decisions().get(markerDetailsList.size()).decisionType());
-        Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), response.decisions().get(markerDetailsList.size()).signalExternalWorkflowExecutionDecisionAttributes());
+        // The last decision should always force a new decision
+        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(markerDetailsList.size()));
     }
 
     @Test
@@ -999,9 +996,8 @@ public class DecisionTaskPollerTest {
                                 response.decisions().get(i).recordMarkerDecisionAttributes().details());
         }
 
-        // The last decision should always be a hack signal to force a new decision.
-        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, response.decisions().get(expectedMarkerDetailsList.size()).decisionType());
-        Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), response.decisions().get(expectedMarkerDetailsList.size()).signalExternalWorkflowExecutionDecisionAttributes());
+        // The last decision should always force a new decision
+        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(markerDetailsList.size()));
     }
 
     @Test
@@ -1775,9 +1771,8 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(0).decisionType());
         Assert.assertEquals(CancelTimerDecisionAttributes.builder().timerId(activityId).build(), decisions.get(0).cancelTimerDecisionAttributes());
 
-        // second decision should always be a hack signal to force a new decision
-        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, decisions.get(1).decisionType());
-        Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), decisions.get(1).signalExternalWorkflowExecutionDecisionAttributes());
+        // second decision should always force a new decision
+        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
 
         mockery.verify();
     }
@@ -2145,9 +2140,8 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(CancelTimerDecisionAttributes.builder().timerId(timerEvent.timerStartedEventAttributes().timerId()).build(),
                             decisions.get(0).cancelTimerDecisionAttributes());
 
-        // second decision should always be a hack signal to force a new decision
-        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, decisions.get(1).decisionType());
-        Assert.assertEquals(DecisionTaskPoller.buildHackSignalDecisionAttrs(state), decisions.get(1).signalExternalWorkflowExecutionDecisionAttributes());
+        // second decision should always force a new decision
+        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
     }
 
     @Test
@@ -3171,6 +3165,16 @@ public class DecisionTaskPollerTest {
         }
         // the 28th retry should delay longer than 300 seconds
         Assert.assertTrue(RetryUtils.calculateRetryBackoffInSeconds(step, 28, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE) > 300);
+    }
+
+    @Test
+    public void testDecisionToForceNewDecision() {
+        StartTimerDecisionAttributes expectedAttrs
+                = DecisionTaskPoller.buildStartTimerDecisionAttrs(DecisionTaskPoller.FORCE_NEW_DECISION_TIMER_ID, 0, null);
+        Decision expected = Decision.builder().decisionType(DecisionType.START_TIMER)
+                .startTimerDecisionAttributes(expectedAttrs).build();
+
+        Assert.assertEquals(expected, DecisionTaskPoller.decisionToForceNewDecision());
     }
 
     private void validateExecutionContext(String executionContext, Workflow workflow, WorkflowStep expectedNextStep) {

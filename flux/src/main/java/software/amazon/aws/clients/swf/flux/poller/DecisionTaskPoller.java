@@ -98,6 +98,7 @@ public class DecisionTaskPoller implements Runnable {
 
     static final String DELAY_EXIT_TIMER_ID = "_delayExit";
     static final String UNKNOWN_RESULT_RETRY_TIMER_ID = "_unknownResultCode";
+    static final String FORCE_NEW_DECISION_TIMER_ID = "_forceNewDecision";
 
     static final Duration UNKNOWN_RESULT_RETRY_TIMER_DELAY = Duration.ofMinutes(1);
 
@@ -506,7 +507,7 @@ public class DecisionTaskPoller implements Runnable {
         if (generatePartitionMetadata) {
             // If we need to generate partition ids, then we need to return two decisions.
             // First, we need to record a marker containing the partition metadata.
-            // Second, like when we cancel a retry timer, we need to force another decision by sending a signal to this workflow.
+            // Second, like when we cancel a retry timer, we need to force another decision to occur.
             // We do them separately to reduce the likelihood that throttling of activity scheduling affects recording the marker,
             // and (less importantly) because the marker will use up some of the 1MB of data we can send back in the decision
             // response, which may reduce the number of partitions we could schedule.
@@ -529,11 +530,7 @@ public class DecisionTaskPoller implements Runnable {
                 decisions.add(marker);
             }
 
-            SignalExternalWorkflowExecutionDecisionAttributes hackAttrs = buildHackSignalDecisionAttrs(state);
-            Decision hackSignal = Decision.builder().decisionType(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
-                    .signalExternalWorkflowExecutionDecisionAttributes(hackAttrs)
-                    .build();
-            decisions.add(hackSignal);
+            decisions.add(decisionToForceNewDecision());
 
             // As noted above, we don't want to schedule the partitions at the same time, so we'll return immediately.
             return decisions;
@@ -823,12 +820,8 @@ public class DecisionTaskPoller implements Runnable {
                 decisions.add(buildCancelTimerDecision(signal.getActivityId()));
 
                 // Simply canceling the timer won't cause a new decision task to be scheduled, meaning the step retry would never
-                // be scheduled; to solve this, we send a no-op signal to force a new decision task.
-                SignalExternalWorkflowExecutionDecisionAttributes hackAttrs = buildHackSignalDecisionAttrs(state);
-                Decision hackSignal = Decision.builder().decisionType(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
-                                                        .signalExternalWorkflowExecutionDecisionAttributes(hackAttrs)
-                                                        .build();
-                decisions.add(hackSignal);
+                // be scheduled; to solve this, we need to force a new decision task.
+                decisions.add(decisionToForceNewDecision());
 
                 log.debug("Immediately retrying activity {} due to {} signal.",
                           signal.getActivityId(), signal.getSignalType().getFriendlyName());
@@ -1082,12 +1075,24 @@ public class DecisionTaskPoller implements Runnable {
                                  .build();
     }
 
-    // package-private for use in tests
-    static SignalExternalWorkflowExecutionDecisionAttributes buildHackSignalDecisionAttrs(WorkflowState state) {
-        return SignalExternalWorkflowExecutionDecisionAttributes.builder()
-                .signalName("HackSignal")
-                .workflowId(state.getWorkflowId())
-                .runId(state.getWorkflowRunId())
+    /**
+     * There are two relatively easy ways to force a new decision task to occur:
+     * 1) Return a SignalExternalWorkflowExecutionDecision telling this workflow to signal itself.
+     * 2) Set a zero-second timer.
+     *
+     * The first option causes three events to be added to the workflow, with a new decision task sometimes taking place
+     * before the third event (an ExternalWorkflowSignaled notification) is even added to the event history,
+     * due to the asynchronous signaling machinery in SWF.
+     *
+     * The second option only results in two events, StartTimer and TimerFired, and the second happens immediately.
+     *
+     * Previously Flux used the first option but the second option is lighter weight.
+     *
+     * Visible for use in tests.
+     */
+    static Decision decisionToForceNewDecision() {
+        return Decision.builder().decisionType(DecisionType.START_TIMER)
+                .startTimerDecisionAttributes(buildStartTimerDecisionAttrs(FORCE_NEW_DECISION_TIMER_ID, 0, null))
                 .build();
     }
 
