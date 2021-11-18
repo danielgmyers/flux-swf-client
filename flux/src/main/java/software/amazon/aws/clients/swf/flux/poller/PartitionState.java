@@ -55,8 +55,11 @@ public final class PartitionState {
                                                                              .collect(Collectors.joining(",")));
         }
 
-        if (closedEvent != null && !scheduledEvent.eventId().equals(WorkflowState.getScheduledEventId(closedEvent))) {
-            throw new RuntimeException("The closedEvent's ScheduledEventId should correspond to the provided scheduledEvent.");
+        if (closedEvent != null) {
+            Long scheduledEventIdForClosedEvent = WorkflowState.getScheduledEventId(closedEvent);
+            if (!scheduledEvent.eventId().equals(scheduledEventIdForClosedEvent)) {
+                throw new RuntimeException("The closedEvent's ScheduledEventId should correspond to the provided scheduledEvent.");
+            }
         }
 
         PartitionState state = new PartitionState();

@@ -43,8 +43,8 @@
     </scm>
     <properties>
         <flux.version>${project.version}</flux.version>
-        <awssdk.version>2.17.9</awssdk.version>
-        <jackson.version>2.12.4</jackson.version>
+        <awssdk.version>2.17.100</awssdk.version>
+        <jackson.version>2.13.0</jackson.version>
         <slf4j.version>1.7.32</slf4j.version>
 
         <junit.version>4.13.2</junit.version>
