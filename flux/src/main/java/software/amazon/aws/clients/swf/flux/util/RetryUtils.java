@@ -50,11 +50,22 @@ public final class RetryUtils {
     }
 
     /**
-     * Retries a given function up to maxAttempts times, with exponential backoff and jitter, and a maximum
-     * retry delay of maxRetryDelay. It records time and various count metrics using the specified operation prefix.
+     * Retries a given function up to maxAttempts times, with exponential backoff and jitter, a minimum retry delay
+     * of 100ms, and a maximum retry delay of maxRetryDelay.
+     * It records time and various count metrics using the specified operation prefix.
      */
     public static <T> T executeWithInlineBackoff(Supplier<T> function, long maxAttempts, Duration maxRetryDelay,
                                                  MetricRecorder metrics, String operationPrefix) {
+        return executeWithInlineBackoff(function, maxAttempts, Duration.ofMillis(100), maxRetryDelay, metrics, operationPrefix);
+    }
+
+    /**
+     * Retries a given function up to maxAttempts times, with exponential backoff and jitter, a minimum
+     * retry delay of minRetryDelay, and a maximum retry delay of maxRetryDelay.
+     * It records time and various count metrics using the specified operation prefix.
+     */
+    public static <T> T executeWithInlineBackoff(Supplier<T> function, long maxAttempts, Duration minRetryDelay,
+                                                 Duration maxRetryDelay, MetricRecorder metrics, String operationPrefix) {
         String timeMetricName = operationPrefix + "Time";
         String callCountMetricName = operationPrefix + "CallCount";
         String failureCountMetricName = operationPrefix + "Error";
@@ -96,10 +107,9 @@ public final class RetryUtils {
                     throw e;
                 }
 
-                // we'll always start backing off after the second retry, starting at 10 milliseconds delay.
-                // then we'll back off up to maxRetryDelay per retry, with 10% jitter.
+                // we'll always start backing off after the second retry, up to maxRetryDelay per retry, with 10% jitter.
                 // we'll treat this as milliseconds and sleep for this long.
-                long sleepTimeMillis = calculateRetryBackoff(1, 100, maxRetryDelay.toMillis(), retry, 10,
+                long sleepTimeMillis = calculateRetryBackoff(1, minRetryDelay.toMillis(), maxRetryDelay.toMillis(), retry, 10,
                     FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
                 log.debug("Throttled by SWF, retrying after {}ms.", sleepTimeMillis);
                 try {
@@ -124,10 +134,9 @@ public final class RetryUtils {
                     throw e;
                 }
 
-                // we'll always start backing off after the second retry, starting at 10 milliseconds delay.
-                // then we'll back off up to maxRetryDelay per retry, with 10% jitter.
+                // we'll always start backing off after the second retry, up to maxRetryDelay per retry, with 10% jitter.
                 // we'll treat this as milliseconds and sleep for this long.
-                long sleepTimeMillis = calculateRetryBackoff(1, 100, maxRetryDelay.toMillis(), retry, 10,
+                long sleepTimeMillis = calculateRetryBackoff(1, minRetryDelay.toMillis(), maxRetryDelay.toMillis(), retry, 10,
                     FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
                 log.debug("Retryable client Exception, retrying after {}ms.", sleepTimeMillis);
                 try {
