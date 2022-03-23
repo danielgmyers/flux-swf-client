@@ -48,7 +48,7 @@ public class ActivityTaskPoller implements Runnable {
     // package-private for test visibility
     static final String ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX = "Flux.ActivityTaskPoll";
     static final String RESPOND_ACTIVITY_TASK_COMPLETED_METRIC_PREFIX = "Flux.RespondActivityTaskCompleted";
-    static final String RESPOND_ACTIVITY_TASK_FAILED_METRIC_PREFIX = "Flux.RespondActivityTaskSucceeded";
+    static final String RESPOND_ACTIVITY_TASK_FAILED_METRIC_PREFIX = "Flux.RespondActivityTaskFailed";
 
     static final String WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME = "Flux.WorkerThreadAvailabilityWaitTime";
     static final String NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME = "Flux.NoActivityTaskToExecute";

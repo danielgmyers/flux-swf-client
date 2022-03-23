@@ -45,6 +45,8 @@ import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphBuilder;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphNode;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.services.swf.SwfClient;
 import software.amazon.awssdk.services.swf.model.ActivityType;
 import software.amazon.awssdk.services.swf.model.ActivityTypeInfo;
@@ -321,6 +323,24 @@ public class FluxCapacitorTest {
     }
 
     @Test
+    public void registersDomainIfNotAlreadyRegistered_HandlesThrottling() {
+        EasyMock.expect(swf.describeDomain(DescribeDomainRequest.builder().name(DOMAIN).build()))
+                .andThrow(SdkServiceException.builder().statusCode(429).build());
+        EasyMock.expect(swf.describeDomain(DescribeDomainRequest.builder().name(DOMAIN).build()))
+                .andThrow(UnknownResourceException.builder().build());
+
+        RegisterDomainRequest register = RegisterDomainRequest.builder().name(DOMAIN)
+                .workflowExecutionRetentionPeriodInDays(FluxCapacitorImpl.WORKFLOW_EXECUTION_RETENTION_PERIOD_IN_DAYS)
+                .build();
+        EasyMock.expect(swf.registerDomain(register)).andThrow(SdkServiceException.builder().statusCode(429).build());
+        EasyMock.expect(swf.registerDomain(register)).andReturn(RegisterDomainResponse.builder().build());
+
+        mockery.replay();
+        fc.ensureDomainExists();
+        mockery.verify();
+    }
+
+    @Test
     public void doesNotRegisterDomainIfAlreadyRegistered() {
         EasyMock.expect(swf.describeDomain(DescribeDomainRequest.builder().name(DOMAIN).build()))
                 .andReturn(DescribeDomainResponse.builder().build()); // contents don't matter for now
@@ -336,6 +356,20 @@ public class FluxCapacitorTest {
 
         RegisterWorkflowTypeRequest register = FluxCapacitorImpl.buildRegisterWorkflowRequest(DOMAIN, workflowName);
 
+        EasyMock.expect(swf.registerWorkflowType(register)).andReturn(RegisterWorkflowTypeResponse.builder().build());
+
+        mockery.replay();
+        fc.registerWorkflows();
+        mockery.verify();
+    }
+
+    @Test
+    public void registersWorkflowIfNotAlreadyRegistered_HandlesThrottling() {
+        expectDescribeWorkflows(false);
+
+        RegisterWorkflowTypeRequest register = FluxCapacitorImpl.buildRegisterWorkflowRequest(DOMAIN, workflowName);
+
+        EasyMock.expect(swf.registerWorkflowType(register)).andThrow(SdkServiceException.builder().statusCode(429).build());
         EasyMock.expect(swf.registerWorkflowType(register)).andReturn(RegisterWorkflowTypeResponse.builder().build());
 
         mockery.replay();
@@ -360,6 +394,23 @@ public class FluxCapacitorTest {
             String activityName = TaskNaming.activityName(workflowName, node.getStep());
             RegisterActivityTypeRequest register = FluxCapacitorImpl.buildRegisterActivityRequest(DOMAIN, activityName);
 
+            EasyMock.expect(swf.registerActivityType(register)).andReturn(RegisterActivityTypeResponse.builder().build());
+        }
+
+        mockery.replay();
+        fc.registerActivities();
+        mockery.verify();
+    }
+
+    @Test
+    public void registersActivitiesIfNotAlreadyRegistered_HandlesThrottling() {
+        expectDescribeActivities(false);
+
+        for(WorkflowGraphNode node : workflow.getGraph().getNodes().values()) {
+            String activityName = TaskNaming.activityName(workflowName, node.getStep());
+            RegisterActivityTypeRequest register = FluxCapacitorImpl.buildRegisterActivityRequest(DOMAIN, activityName);
+
+            EasyMock.expect(swf.registerActivityType(register)).andThrow(SdkServiceException.builder().statusCode(429).build());
             EasyMock.expect(swf.registerActivityType(register)).andReturn(RegisterActivityTypeResponse.builder().build());
         }
 
