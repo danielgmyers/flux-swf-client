@@ -190,7 +190,7 @@
                             </execution>
                         </executions>
                         <configuration>
-                            <keyname>A9C2E0DFFED2658D75A64D7A7C5DC8336806E60E</keyname>
+                            <keyname>${env.GPG_KEY_ID}</keyname>
                             <passphrase>${env.GPG_PASSPHRASE}</passphrase>
                             <gpgArguments>
                                 <arg>--batch</arg>
