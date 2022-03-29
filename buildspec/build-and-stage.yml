@@ -2,6 +2,7 @@
 version: 0.2
 env:
   secrets-manager:
+    GPG_KEY_ID: "gpg-signing-key-id"
     GPG_PASSPHRASE: "gpg-signing-key-passphrase"
     GPG_PRIVATE_KEY: "gpg-signing-key-private-key"
     MAVEN_CENTRAL_USERNAME: "MavenCentral:username"
