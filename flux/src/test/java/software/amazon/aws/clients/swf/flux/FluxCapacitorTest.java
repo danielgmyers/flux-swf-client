@@ -16,6 +16,7 @@
 
 package software.amazon.aws.clients.swf.flux;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -93,7 +94,7 @@ public class FluxCapacitorTest {
 
         FluxCapacitorConfig config  = new FluxCapacitorConfig();
         config.setSwfDomain(DOMAIN);
-        fc = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config);
+        fc = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config, Clock.systemUTC());
         fc.populateNameMaps(Collections.singletonList(workflow));
     }
 
@@ -121,7 +122,7 @@ public class FluxCapacitorTest {
 
         FluxCapacitorConfig config  = new FluxCapacitorConfig();
         config.setSwfDomain(DOMAIN);
-        FluxCapacitorImpl fcCustom = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config);
+        FluxCapacitorImpl fcCustom = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config, Clock.systemUTC());
         fcCustom.populateNameMaps(Collections.singletonList(workflowCustomTaskList));
 
         String workflowId = "my-workflow-id";
@@ -150,7 +151,7 @@ public class FluxCapacitorTest {
         FluxCapacitorConfig config  = new FluxCapacitorConfig();
         config.setSwfDomain(DOMAIN);
         config.putTaskListConfig(workflowCustomTaskList.taskList(), taskListConfig);
-        FluxCapacitorImpl fcCustom = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config);
+        FluxCapacitorImpl fcCustom = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config, Clock.systemUTC());
         fcCustom.populateNameMaps(Collections.singletonList(workflowCustomTaskList));
 
         String workflowId = "my-workflow-id";
@@ -189,7 +190,7 @@ public class FluxCapacitorTest {
 
         FluxCapacitorConfig config  = new FluxCapacitorConfig();
         config.setSwfDomain(DOMAIN);
-        FluxCapacitorImpl fcCustom = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config);
+        FluxCapacitorImpl fcCustom = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config, Clock.systemUTC());
         fcCustom.populateNameMaps(Collections.singletonList(customWorkflow));
 
         String workflowId = "my-workflow-id";
@@ -251,7 +252,7 @@ public class FluxCapacitorTest {
 
         FluxCapacitorConfig config  = new FluxCapacitorConfig();
         config.setSwfDomain(DOMAIN);
-        FluxCapacitor fcNoWorkflows = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config);
+        FluxCapacitor fcNoWorkflows = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config, Clock.systemUTC());
 
         Workflow temp = () -> new WorkflowGraphBuilder(new TestStepOne()).successTransition(TestStepOne.class, CloseWorkflow.class).build();
         fc.populateNameMaps(Collections.singletonList(temp));
@@ -273,7 +274,7 @@ public class FluxCapacitorTest {
 
         FluxCapacitorConfig config  = new FluxCapacitorConfig();
         config.setSwfDomain(DOMAIN);
-        FluxCapacitor fcNoWorkflows = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config);
+        FluxCapacitor fcNoWorkflows = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config, Clock.systemUTC());
 
         mockery.replay();
         try {

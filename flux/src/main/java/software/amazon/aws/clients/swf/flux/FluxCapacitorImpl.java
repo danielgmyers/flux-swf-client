@@ -19,6 +19,7 @@ package software.amazon.aws.clients.swf.flux;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
@@ -122,6 +123,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     // task list buckets. It does not need to be secure nor a perfect distribution.
     private static final Random RANDOM = new Random();
 
+    private final Clock clock;
+
     /**
      * Creates a FluxCapacitor object and does various bits of setup e.g. registering the swf domain.
      * Intentionally package-private, only the Factory should be using the constructor.
@@ -162,7 +165,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
             builder.endpointOverride(URI.create(config.getSwfEndpoint()));
         }
 
-        return new FluxCapacitorImpl(metricsFactory, builder.build(), config);
+        return new FluxCapacitorImpl(metricsFactory, builder.build(), config, Clock.systemUTC());
     }
 
     @Override
@@ -339,11 +342,13 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
      * @param swf    - The SWF client that should be used for all SWF API calls
      * @param config - Config data used to configure FluxCapacitor behavior.
      */
-    FluxCapacitorImpl(MetricRecorderFactory metricsFactory, SwfClient swf, FluxCapacitorConfig config) {
+    FluxCapacitorImpl(MetricRecorderFactory metricsFactory, SwfClient swf, FluxCapacitorConfig config,
+                      Clock clock) {
         this.metricsFactory = metricsFactory;
         this.swf = swf;
         this.config = config;
         this.workflowDomain = config.getSwfDomain();
+        this.clock = clock;
 
         this.workflowsByName = new HashMap<>();
         this.activitiesByName = new HashMap<>();
@@ -543,7 +548,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
             ScheduledExecutorService service = createExecutorService(taskList, hostname, "decisionPoller", poolSize,
                 deciderName -> new DecisionTaskPoller(metricsFactory, swf, workflowDomain, taskList, deciderName,
                                                       exponentialBackoffCoefficient, workflowsByName,
-                                                      activitiesByName, deciderThreadsPerTaskList.get(taskList)));
+                                                      activitiesByName, deciderThreadsPerTaskList.get(taskList),
+                                                      clock));
             decisionTaskPollerThreadsPerTaskList.put(taskList, service);
 
             poolSize = config.getTaskListConfig(taskList).getActivityTaskThreadCount();

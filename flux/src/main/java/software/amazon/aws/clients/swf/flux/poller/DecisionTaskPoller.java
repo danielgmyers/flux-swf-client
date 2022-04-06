@@ -16,6 +16,7 @@
 
 package software.amazon.aws.clients.swf.flux.poller;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -117,6 +118,8 @@ public class DecisionTaskPoller implements Runnable {
 
     private final BlockOnSubmissionThreadPoolExecutor deciderThreadPool;
 
+    private final Clock clock;
+
     /**
      * Constructs a decision poller.
      *
@@ -133,7 +136,7 @@ public class DecisionTaskPoller implements Runnable {
     public DecisionTaskPoller(MetricRecorderFactory metricsFactory, SwfClient swfClient, String workflowDomain,
                               String taskListName, String identity, double exponentialBackoffBase,
                               Map<String, Workflow> workflows, Map<String, WorkflowStep> workflowSteps,
-                              BlockOnSubmissionThreadPoolExecutor deciderThreadPool) {
+                              BlockOnSubmissionThreadPoolExecutor deciderThreadPool, Clock clock) {
         this.metricsFactory = metricsFactory;
         this.swf = swfClient;
         this.domain = workflowDomain;
@@ -150,6 +153,8 @@ public class DecisionTaskPoller implements Runnable {
         this.workflowSteps = workflowSteps;
 
         this.deciderThreadPool = deciderThreadPool;
+
+        this.clock = clock;
     }
 
     @Override
@@ -222,8 +227,9 @@ public class DecisionTaskPoller implements Runnable {
             WorkflowStep currentStep = workflowSteps.get(state.getCurrentActivityName());
 
             RespondDecisionTaskCompletedRequest response = decide(workflow, currentStep,
-                                                              taskWithFullHistory.workflowExecution().workflowId(),
-                                                              state, exponentialBackoffBase, metrics, metricsFactory);
+                                                                  taskWithFullHistory.workflowExecution().workflowId(),
+                                                                  state, exponentialBackoffBase, metrics, metricsFactory,
+                                                                  clock);
             RespondDecisionTaskCompletedRequest responseWithToken
                     = response.toBuilder().taskToken(taskWithFullHistory.taskToken()).build();
 
@@ -319,7 +325,8 @@ public class DecisionTaskPoller implements Runnable {
      */
     static RespondDecisionTaskCompletedRequest decide(Workflow workflow, WorkflowStep currentStep, String workflowId,
                                                       WorkflowState state, double exponentialBackoffBase,
-                                                      MetricRecorder metrics, MetricRecorderFactory metricsFactory)
+                                                      MetricRecorder metrics, MetricRecorderFactory metricsFactory,
+                                                      Clock clock)
             throws JsonProcessingException {
         String workflowName = TaskNaming.workflowName(workflow);
         String activityName = (currentStep == null ? null : TaskNaming.activityName(workflowName, currentStep));
@@ -394,7 +401,7 @@ public class DecisionTaskPoller implements Runnable {
             }
 
 
-            Decision decision = handleWorkflowCompletion(workflow, workflowId, state, metrics);
+            Decision decision = handleWorkflowCompletion(workflow, workflowId, state, metrics, clock);
             if (decision != null) {
                 decisions.add(decision);
             }
@@ -430,7 +437,7 @@ public class DecisionTaskPoller implements Runnable {
                 log.warn("Workflow {} is already closed, so no new tasks can be scheduled.", workflowId);
             } else {
                 decisions.addAll(handleStepScheduling(workflow, workflowId, selection.getNextStep(), state, nextStepInput,
-                                                      exponentialBackoffBase, metrics, metricsFactory));
+                                                      exponentialBackoffBase, metrics, metricsFactory, clock));
 
                 nextStepNameForContext = selection.getNextStep().getClass().getSimpleName();
 
@@ -468,7 +475,8 @@ public class DecisionTaskPoller implements Runnable {
     private static List<Decision> handleStepScheduling(Workflow workflow, String workflowId, WorkflowStep nextStep,
                                                        WorkflowState state, Map<String, String> nextStepInput,
                                                        double exponentialBackoffBase, MetricRecorder fluxMetrics,
-                                                       MetricRecorderFactory metricsFactory) throws JsonProcessingException {
+                                                       MetricRecorderFactory metricsFactory,
+                                                       Clock clock) throws JsonProcessingException {
         List<Decision> decisions = new LinkedList<>();
 
         String workflowName = TaskNaming.workflowName(workflow);
@@ -750,7 +758,7 @@ public class DecisionTaskPoller implements Runnable {
             }
             Instant firstAttemptDate = state.getStepInitialAttemptTime(nextActivityName);
             if (firstAttemptDate == null) {
-                firstAttemptDate = Instant.now();
+                firstAttemptDate = clock.instant();
             }
             actualInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(firstAttemptDate));
 
@@ -839,7 +847,7 @@ public class DecisionTaskPoller implements Runnable {
     }
 
     private static Decision handleWorkflowCompletion(Workflow workflow, String workflowId, WorkflowState state,
-                                                     MetricRecorder metrics) {
+                                                     MetricRecorder metrics, Clock clock) {
         String workflowName = TaskNaming.workflowName(workflow);
         String finalActivityName = state.getCurrentActivityName();
 
@@ -877,7 +885,7 @@ public class DecisionTaskPoller implements Runnable {
             }
 
             // Figure out how much time is left between now and the expected workflow end date
-            Duration duration = Duration.between(Instant.now(), expectedWorkflowEnd);
+            Duration duration = Duration.between(clock.instant(), expectedWorkflowEnd);
 
             // always delay at least one second just so there's always a timer when we handle these workflows
             long delayInSeconds = Math.max(1, duration.getSeconds());
