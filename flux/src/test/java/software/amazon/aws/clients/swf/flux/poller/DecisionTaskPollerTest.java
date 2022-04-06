@@ -21,7 +21,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -68,6 +67,7 @@ import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.step.StepResult;
 import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
 import software.amazon.aws.clients.swf.flux.util.RetryUtils;
+import software.amazon.aws.clients.swf.flux.util.ManualClock;
 import software.amazon.aws.clients.swf.flux.wf.Periodic;
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphNode;
@@ -123,6 +123,8 @@ public class DecisionTaskPollerTest {
     private DecisionTaskPoller poller;
 
     private BlockOnSubmissionThreadPoolExecutor executor;
+
+    private ManualClock clock;
 
     @Before
     public void setup() {
@@ -181,9 +183,12 @@ public class DecisionTaskPollerTest {
             }
         };
 
+        clock = new ManualClock();
+
         executor = new BlockOnSubmissionThreadPoolExecutor(1, "executor");
         poller = new DecisionTaskPoller(metricsFactory, swf, DOMAIN, Workflow.DEFAULT_TASK_LIST_NAME, IDENTITY,
-                                        FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, workflows, activities, executor);
+                                        FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, workflows, activities,
+                                        executor, clock);
     }
 
     @Test
@@ -325,7 +330,7 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void testRun_SubmitsDecisionResult() throws InterruptedException {
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, Instant.now());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock);
         WorkflowState state = history.buildCurrentState();
         expectPoll(history.buildDecisionTask());
 
@@ -370,9 +375,9 @@ public class DecisionTaskPollerTest {
         DecisionTaskPoller pollerCustomTaskList = new DecisionTaskPoller(metricsFactory, swf, DOMAIN,
                                                                          customTaskListName, IDENTITY,
                                                                          FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                         workflows, activities, executor);
+                                                                         workflows, activities, executor, clock);
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithCustomTaskList, Instant.now());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithCustomTaskList, clock);
         WorkflowState state = history.buildCurrentState();
         expectPoll(history.buildDecisionTask(), workflowWithCustomTaskList.taskList());
 
@@ -403,30 +408,24 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(20), input);
+        // move the clock forward so that when the decision is made,
+        // the first step's initial attempt time will be different than the workflow start time
+        Instant activityInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, null, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, workflow.getGraph().getFirstStep());
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        // because this is the first attempt of the step and we don't control 'now' from the unit test,
-        // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-        // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-        // and then save it to the input map for the actual comparison.
-        Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-        Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(activityInitialAttemptTime));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
@@ -451,12 +450,18 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success().withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success().withAttributes(output));
+
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -464,7 +469,7 @@ public class DecisionTaskPollerTest {
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
         Decision decision = response.decisions().get(0);
@@ -474,15 +479,7 @@ public class DecisionTaskPollerTest {
         expectedInput.putAll(input);
         expectedInput.putAll(output);
 
-        // because this is the first attempt of the step and we don't control 'now' from the unit test,
-        // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-        // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-        // and then save it to the input map for the actual comparison.
-        Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-        Assert.assertNotNull(attemptTime);
-        Assert.assertFalse(closeEvent.eventTimestamp().isAfter(attemptTime));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
+        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
@@ -495,8 +492,7 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
         String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
-        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -514,12 +510,14 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.complete("custom-result-code", "Graph doesn't handle this result code").withAttributes(output));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.complete("custom-result-code", "Graph doesn't handle this result code").withAttributes(output));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -527,7 +525,7 @@ public class DecisionTaskPollerTest {
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
 
         Assert.assertEquals(2, response.decisions().size());
         Decision markerDecision = response.decisions().get(0);
@@ -559,14 +557,18 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.complete("custom-result-code", "Graph doesn't handle this result code").withAttributes(output));
-        HistoryEvent timerEvent = history.startTimer(DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_ID,
-                                                     DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_DELAY);
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.complete("custom-result-code", "Graph doesn't handle this result code").withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
+        history.startTimer(DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_ID,
+                           DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_DELAY);
 
         WorkflowState state = history.buildCurrentState();
 
@@ -574,7 +576,7 @@ public class DecisionTaskPollerTest {
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
 
         Assert.assertEquals(1, response.decisions().size());
         Decision markerDecision = response.decisions().get(0);
@@ -600,22 +602,27 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowStep firstStep = workflow.getGraph().getFirstStep();
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+        history.scheduleStepAttempt();
 
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
         history.recordScheduleAttemptFailed();
 
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, firstStep, state.getWorkflowId(), state,
                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
 
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
@@ -628,16 +635,7 @@ public class DecisionTaskPollerTest {
         expectedInput.putAll(output);
         expectedInput.remove(StepAttributes.RESULT_CODE);
 
-        // because this is the first attempt of the step and we don't control 'now' from the unit test,
-        // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-        // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-        // and then save it to the input map for the actual comparison.
-        Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-        Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
+        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
@@ -649,8 +647,7 @@ public class DecisionTaskPollerTest {
 
         Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
-        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -666,14 +663,21 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent startEvent = history.scheduleStepAttempt();
-        history.recordActivityResult(StepResult.retry());
-        HistoryEvent timerEvent = history.startRetryTimer(Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.retry());
+
+        clock.forward(Duration.ofMillis(100));
+        history.startRetryTimer(Duration.ofSeconds(10));
+
+        Instant forceResultSignalTime = clock.forward(Duration.ofMillis(100));
         history.recordForceResultSignal(StepResult.SUCCEED_RESULT_CODE);
+
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -684,7 +688,7 @@ public class DecisionTaskPollerTest {
         // we expect two decisions: one for scheduling the next step, and one for canceling the retry timer for the current step.
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
         List<Decision> decisions = response.decisions();
@@ -696,16 +700,7 @@ public class DecisionTaskPollerTest {
 
         Map<String, String> expectedInput = new TreeMap<>(input);
 
-        // because this is the first attempt of the step and we don't control 'now' from the unit test,
-        // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-        // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-        // and then save it to the input map for the actual comparison.
-        Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-        Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
+        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
@@ -717,9 +712,10 @@ public class DecisionTaskPollerTest {
 
         Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
-        Assert.assertEquals(now.toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis(),
-                            1000.0 /* account for timing variance in the test execution */);
+        // if we scheduled the second step via force-result, then step one's execution time should be
+        // from the beginning of its first attempt until the time of the force-result signal.
+        Assert.assertEquals(Duration.between(startEvent.eventTimestamp(), forceResultSignalTime),
+                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -739,14 +735,19 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success());
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
 
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success());
+
+        clock.forward(Duration.ofMillis(100));
         history.recordScheduleAttemptFailed(failedPartition);
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
@@ -756,13 +757,12 @@ public class DecisionTaskPollerTest {
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, currentStep, workflowId, state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                                 deciderMetrics, (o) -> stepMetrics);
+                                                                                 deciderMetrics, (o) -> stepMetrics, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, currentStep);
-        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
         Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
@@ -802,15 +802,22 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success());
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success());
+
+        clock.forward(Duration.ofMillis(100));
 
         for (String partitionId : failedPartitions) {
             history.recordScheduleAttemptFailed(partitionId);
         }
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -821,13 +828,12 @@ public class DecisionTaskPollerTest {
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, currentStep, workflowId, state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                                 deciderMetrics, (o) -> stepMetrics);
+                                                                                 deciderMetrics, (o) -> stepMetrics, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, currentStep);
-        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
         Assert.assertEquals(failedPartitions.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
@@ -867,20 +873,29 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success());
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success());
+
+        clock.forward(Duration.ofMillis(100));
 
         PartitionIdGeneratorResult partitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(failedPartitions));
 
-        history.recordPartitionMetadataMarkers(now, TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+
+        clock.forward(Duration.ofMillis(100));
 
         for (String partitionId : failedPartitions) {
             history.recordScheduleAttemptFailed(partitionId);
         }
+
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -892,13 +907,12 @@ public class DecisionTaskPollerTest {
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, currentStep, workflowId, state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
                                                                                  deciderMetrics,
-                (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, currentStep);
-        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
@@ -924,16 +938,7 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
-            // because this is the first attempt of the step and we don't control 'now' from the unit test,
-            // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-            // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-            // and then save it to the input map for the actual comparison.
-            Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-            Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-            Assert.assertNotNull(attemptTime);
-            // the attempt time should be before or equal to the close event time.
-            Assert.assertFalse(closeEvent.eventTimestamp().isAfter(attemptTime));
-            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
+            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
 
             String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
@@ -963,12 +968,16 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
 
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
@@ -976,13 +985,12 @@ public class DecisionTaskPollerTest {
         WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> stepMetrics);
+                deciderMetrics, (o) -> stepMetrics, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
-        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
         Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
@@ -1026,12 +1034,16 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
 
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
@@ -1039,13 +1051,12 @@ public class DecisionTaskPollerTest {
         WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                                 deciderMetrics, (o) -> stepMetrics);
+                                                                                 deciderMetrics, (o) -> stepMetrics, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
-        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
         Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
@@ -1093,11 +1104,16 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
 
         PartitionIdGeneratorResult partitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
@@ -1108,9 +1124,11 @@ public class DecisionTaskPollerTest {
         // Note we're intentionally omitting the last marker, to simulate a scenario where somehow one of the markers didn't make it into the history.
         // We add them all at once so SWF will add them all at the same time, so this shouldn't happen unless there's a bug in Flux.
         for (int i = 0; i < markerDetailsList.size() - 1; i++) {
-            history.recordMarker(now, TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(partitionedStep), i, markerDetailsList.size()),
+            history.recordMarker(clock.instant(), TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(partitionedStep), i, markerDetailsList.size()),
                                      markerDetailsList.get(i));
         }
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1119,13 +1137,12 @@ public class DecisionTaskPollerTest {
         WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                                 deciderMetrics, (o) -> stepMetrics);
+                                                                                 deciderMetrics, (o) -> stepMetrics, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
-        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
         Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
@@ -1173,16 +1190,22 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent closeEvent = history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
 
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
         PartitionIdGeneratorResult partitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
 
-        history.recordPartitionMetadataMarkers(now, TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1191,13 +1214,12 @@ public class DecisionTaskPollerTest {
         WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
-        Assert.assertEquals(closeEvent.eventTimestamp().toEpochMilli() - startEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
@@ -1223,17 +1245,7 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-
-            // because this is the first attempt of the step and we don't control 'now' from the unit test,
-            // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-            // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-            // and then save it to the input map for the actual comparison.
-            Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-            Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-            Assert.assertNotNull(attemptTime);
-            // the attempt time should be before or equal to the close event time.
-            Assert.assertFalse(closeEvent.eventTimestamp().isAfter(attemptTime));
-            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
+            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
 
             String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
@@ -1262,16 +1274,28 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
 
         for (String partitionId : partitionIds) {
             history.scheduleStepAttempt(partitionId);
+
+            clock.forward(Duration.ofMillis(100));
+
             history.recordActivityResult(partitionId, StepResult.retry());
+
+            clock.rewind(Duration.ofMillis(100));
         }
+
+        // move back ahead of the partitions
+        clock.forward(Duration.ofMillis(150));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1279,7 +1303,7 @@ public class DecisionTaskPollerTest {
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
@@ -1323,18 +1347,29 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
 
         for (String partitionId : partitionIds) {
             history.scheduleStepAttempt(partitionId);
 
+            clock.forward(Duration.ofMillis(100));
+
             StepResult result = (partitionId.equals(succeededPartition) ? StepResult.success() : StepResult.retry());
             history.recordActivityResult(partitionId, result);
+
+            clock.rewind(Duration.ofMillis(100));
         }
+
+        // move back ahead of the partitions
+        clock.forward(Duration.ofMillis(150));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1342,7 +1377,7 @@ public class DecisionTaskPollerTest {
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
@@ -1387,17 +1422,23 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        history.scheduleStepAttempt(succeededPartition);
-        history.recordActivityResult(succeededPartition, StepResult.success());
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
+        history.scheduleStepAttempt(succeededPartition);
         history.recordScheduleAttemptFailed(failedPartition);
 
+        clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(succeededPartition, StepResult.success());
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1406,7 +1447,7 @@ public class DecisionTaskPollerTest {
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, workflowId, state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
@@ -1425,17 +1466,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
         expectedInput.put(additionalAttributeName, StepAttributes.encode(additionalAttributeValue));
 
-        // because this is the first attempt of the step and we don't control 'now' from the unit test,
-        // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-        // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-        // and then save it to the input map for the actual comparison.
-        Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-        Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
-
+        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
@@ -1468,17 +1499,30 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
+
+
+        clock.forward(Duration.ofMillis(100));
 
         for (String partitionId : partitionIds) {
             history.scheduleStepAttempt(partitionId);
+
+            clock.forward(Duration.ofMillis(100));
+
             StepResult result = (partitionId.equals(failedPartition) ? StepResult.failure() : StepResult.retry());
             history.recordActivityResult(partitionId, result);
+
+            clock.rewind(Duration.ofMillis(100));
         }
+
+        // move back ahead of the partitions
+        clock.forward(Duration.ofMillis(150));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1486,7 +1530,7 @@ public class DecisionTaskPollerTest {
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
@@ -1526,22 +1570,32 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
-        Map<String, Instant> partitionFirstAttemptTimes = new HashMap<>();
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
         for (String partitionId : partitionIds) {
-            HistoryEvent startEvent = history.scheduleStepAttempt(partitionId);
-            partitionFirstAttemptTimes.put(partitionId, startEvent.eventTimestamp());
+            history.scheduleStepAttempt(partitionId);
 
+            clock.forward(Duration.ofSeconds(1));
             history.recordActivityResult(partitionId, StepResult.retry());
+
+            clock.forward(Duration.ofSeconds(1));
             history.startRetryTimer(partitionId, Duration.ofSeconds(10));
+
+            clock.forward(Duration.ofSeconds(10));
             history.closeRetryTimer(partitionId, false);
+
+            clock.rewind(Duration.ofSeconds(12));
         }
+
+        clock.forward(Duration.ofSeconds(13));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1550,7 +1604,7 @@ public class DecisionTaskPollerTest {
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, workflowId, state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
@@ -1572,10 +1626,10 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
             expectedInput.put(StepAttributes.RETRY_ATTEMPT, Long.toString(1));
 
+            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
             expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(partitionFirstAttemptTimes.get(partitionId)));
 
             String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
@@ -1604,21 +1658,28 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
-        HistoryEvent partitionStartEvent = null;
-        HistoryEvent partitionEndEvent = null;
+        clock.forward(Duration.ofMillis(100));
+        Duration stepTwoDuration = Duration.ofMillis(100);
+
         for (String partitionId : partitionIds) {
-            HistoryEvent start = history.scheduleStepAttempt(partitionId);
-            if (partitionStartEvent == null) {
-                partitionStartEvent = start;
-            }
-            partitionEndEvent = history.recordActivityResult(partitionId, StepResult.success());
+            history.scheduleStepAttempt(partitionId);
+            clock.forward(stepTwoDuration);
+
+            history.recordActivityResult(partitionId, StepResult.success());
+            clock.rewind(stepTwoDuration);
         }
+
+        clock.forward(stepTwoDuration.multipliedBy(2));
+
+        Instant stepThreeInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1627,34 +1688,22 @@ public class DecisionTaskPollerTest {
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, workflowId, state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> stepMetrics);
+                deciderMetrics, (o) -> stepMetrics, clock);
         WorkflowStep stepThree = workflowWithPartitionedStep.getGraph().getNodes().get(TestStepHasOptionalInputAttribute.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepThree);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         String partitionedStepName = TaskNaming.activityName(workflowWithPartitionedStepName, partitionedStep);
-        Assert.assertNotNull(partitionEndEvent);
-        Assert.assertEquals(partitionEndEvent.eventTimestamp().toEpochMilli() - partitionStartEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)).toMillis());
+        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
 
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.putAll(output);
+        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepThreeInitialAttemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-
-        // because this is the first attempt of the step and we don't control 'now' from the unit test,
-        // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-        // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-        // and then save it to the input map for the actual comparison.
-        Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-        Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
 
         String activityId = TaskNaming.createActivityId(stepThree, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -1677,22 +1726,33 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
-        HistoryEvent firstAttemptBegin = null;
+        Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+
         for (int i = 0; i < 4; i++) {
-            HistoryEvent attemptBegin = history.scheduleStepAttempt();
-            if (firstAttemptBegin == null) {
-                firstAttemptBegin = attemptBegin;
-            }
+            history.scheduleStepAttempt();
+
+            clock.forward(Duration.ofMillis(100));
             history.recordActivityResult(StepResult.retry());
+
+            clock.forward(Duration.ofMillis(100));
             history.startRetryTimer(Duration.ofSeconds(10));
+
+            clock.forward(Duration.ofSeconds(10));
             history.closeRetryTimer(false);
+
+            clock.forward(Duration.ofMillis(100));
         }
 
         history.scheduleStepAttempt();
-        HistoryEvent lastAttemptEnd = history.recordActivityResult(StepResult.success().withAttributes(output));
+
+        Instant stepOneEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.success().withAttributes(output));
+
+        Duration stepOneTotalDuration = Duration.between(stepOneInitialAttemptTime, stepOneEndTime);
+
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1701,7 +1761,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
 
@@ -1711,16 +1771,7 @@ public class DecisionTaskPollerTest {
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.putAll(output);
 
-        // because this is the first attempt of the step and we don't control 'now' from the unit test,
-        // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-        // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-        // and then save it to the input map for the actual comparison.
-        Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-        Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
+        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
@@ -1732,8 +1783,7 @@ public class DecisionTaskPollerTest {
 
         Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
-        Assert.assertEquals(lastAttemptEnd.eventTimestamp().toEpochMilli() - firstAttemptBegin.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(stepOneTotalDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(5, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -1746,15 +1796,14 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithCustomHeartbeatTimeout, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithCustomHeartbeatTimeout, clock, input);
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithCustomHeartbeatTimeout, null, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> stepMetrics);
+                deciderMetrics, (o) -> stepMetrics, clock);
         validateExecutionContext(response.executionContext(), workflowWithCustomHeartbeatTimeout, workflowWithCustomHeartbeatTimeout.getGraph().getFirstStep());
 
         Decision decision = response.decisions().get(0);
@@ -1772,11 +1821,15 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1785,7 +1838,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> stepMetrics);
+                deciderMetrics, (o) -> stepMetrics, clock);
 
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
@@ -1808,10 +1861,12 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.recordScheduleAttemptFailed();
+
+        Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1819,32 +1874,17 @@ public class DecisionTaskPollerTest {
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, null, state.getWorkflowId(), state,
                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> stepMetrics);
+                deciderMetrics, (o) -> stepMetrics, clock);
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        // because this is the first attempt of the step and we don't control 'now' from the unit test,
-        // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-        // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-        // and then save it to the input map for the actual comparison.
-        Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-        Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-
-        // Start time of the workflow should match what was in the workflow state
-        Instant workflowStartTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.WORKFLOW_START_TIME));
-        Assert.assertNotNull(workflowStartTime);
-        Assert.assertEquals(state.getWorkflowStartDate(), workflowStartTime);
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(workflowStartTime));
 
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -1861,13 +1901,21 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
-        HistoryEvent startEvent1 = history.scheduleStepAttempt();
+        Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
+
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(10));
         history.closeRetryTimer(false);
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -1876,12 +1924,12 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> stepMetrics);
+                deciderMetrics, (o) -> stepMetrics, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(startEvent1.eventTimestamp()));
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
@@ -1902,15 +1950,21 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
+
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofSeconds(2));
         history.recordRetryNowSignal();
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
@@ -1918,7 +1972,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         List<Decision> decisions = response.decisions();
         Assert.assertEquals(2, decisions.size());
@@ -1939,12 +1993,15 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         history.recordRetryNowSignal();
 
         WorkflowState state = history.buildCurrentState();
@@ -1954,7 +2011,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
@@ -1973,23 +2030,27 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_IgnoreRetryNowSignalIfTimerAlreadyClosed_SchedulesNextActivityAttempt() throws JsonProcessingException {
-        Instant now = Instant.now();
-
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
-        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode("workflow-id"));
-        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode("run-id"));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(now)));
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
-        HistoryEvent startEvent1 = history.scheduleStepAttempt();
+        Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
+
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(10));
         history.closeRetryTimer(false);
 
+        clock.forward(Duration.ofMillis(100));
         history.recordRetryNowSignal();
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
@@ -1997,13 +2058,16 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(startEvent1.eventTimestamp()));
+        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
+        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
+        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
                                                                             TaskNaming.createActivityId(currentStep, 1, null));
@@ -2018,15 +2082,21 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
+
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofSeconds(2));
         history.recordDelayRetrySignal(Duration.ofSeconds(142));
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
@@ -2034,7 +2104,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         List<Decision> decisions = response.decisions();
         Assert.assertEquals(2, decisions.size());
@@ -2060,14 +2130,18 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         history.recordDelayRetrySignal(Duration.ofSeconds(142));
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
@@ -2075,7 +2149,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
@@ -2094,22 +2168,28 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_IgnoreDelayRetrySignalIfTimerAlreadyClosed_SchedulesNextActivityAttempt() throws JsonProcessingException {
-        Instant now = Instant.now();
-
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
-        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode("workflow-id"));
-        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode("run-id"));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(now)));
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
-        HistoryEvent startEvent1 = history.scheduleStepAttempt();
+        Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
+
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(10));
         history.closeRetryTimer(false);
 
+        clock.forward(Duration.ofMillis(100));
+
         history.recordDelayRetrySignal(Duration.ofSeconds(142));
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2119,13 +2199,16 @@ public class DecisionTaskPollerTest {
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, workflowId, state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(startEvent1.eventTimestamp()));
+        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
+        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
+        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
                                                                             TaskNaming.createActivityId(currentStep, 1, null));
@@ -2140,15 +2223,26 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
+
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(2));
         history.recordDelayRetrySignal(Duration.ofSeconds(142));
+
+        // these two happen at the same time since they're in the same decision
+        clock.forward(Duration.ofMillis(100));
         history.closeRetryTimer(true);
         history.recordScheduleDelayedRetrySignal(Duration.ofSeconds(142));
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2157,7 +2251,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
@@ -2177,12 +2271,18 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
+
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofMillis(100));
         history.recordScheduleDelayedRetrySignal(Duration.ofSeconds(142));
 
         WorkflowState state = history.buildCurrentState();
@@ -2192,7 +2292,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         List<Decision> decisions = response.decisions();
         Assert.assertTrue(decisions.toString(), decisions.isEmpty());
@@ -2205,18 +2305,32 @@ public class DecisionTaskPollerTest {
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
-        HistoryEvent startEvent1 = history.scheduleStepAttempt();
+        Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
+
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(2));
         history.recordDelayRetrySignal(Duration.ofSeconds(142));
+
+        // these two events are in the same decision and happen at the same time
+        clock.forward(Duration.ofMillis(100));
         history.closeRetryTimer(true);
         history.recordScheduleDelayedRetrySignal(Duration.ofSeconds(142));
+
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(Duration.ofSeconds(142));
+
+        clock.forward(Duration.ofSeconds(142));
         history.closeRetryTimer(false);
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
@@ -2225,7 +2339,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, workflowId, state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
 
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
@@ -2234,7 +2348,7 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(startEvent1.eventTimestamp()));
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
 
         String activityIdSecondAttempt = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 1, null);
@@ -2263,29 +2377,38 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
+        // both partitions are initially scheduled at the same time
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt(succeededPartition);
         history.scheduleStepAttempt(retryPendingPartition);
 
+        // for convenience we'll say they finished at the same time
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(succeededPartition, StepResult.success());
         history.recordActivityResult(retryPendingPartition, StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerEvent = history.startRetryTimer(retryPendingPartition, Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofSeconds(2));
         history.recordRetryNowSignal(retryPendingPartition);
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, partitionedStep);
         List<Decision> decisions = response.decisions();
         mockery.verify();
@@ -2319,21 +2442,32 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
-        HistoryEvent partitionStartEvent = history.scheduleStepAttempt(succeededPartition);
+        // both partitions initially scheduled at the same time
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt(succeededPartition);
         history.scheduleStepAttempt(partitionToForce);
 
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(succeededPartition, StepResult.success());
         history.recordActivityResult(partitionToForce, StepResult.retry());
 
-        HistoryEvent timerEvent = history.startRetryTimer(partitionToForce, Duration.ofSeconds(10));
+        clock.forward(Duration.ofMillis(100));
+        history.startRetryTimer(partitionToForce, Duration.ofSeconds(10));
 
-        HistoryEvent partitionEndEvent = history.recordForceResultSignal(partitionToForce, StepResult.SUCCEED_RESULT_CODE);
+        Instant stepTwoEndTime = clock.forward(Duration.ofSeconds(3));
+        history.recordForceResultSignal(partitionToForce, StepResult.SUCCEED_RESULT_CODE);
+
+        Duration stepTwoDuration = Duration.between(stepTwoInitialAttemptTime, stepTwoEndTime);
+
+        Instant stepThreeInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2342,7 +2476,7 @@ public class DecisionTaskPollerTest {
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, workflowId, state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowGraphNode nextStep = workflowWithPartitionedStep.getGraph().getNodes().get(TestStepHasOptionalInputAttribute.class);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, nextStep.getStep());
         List<Decision> decisions = response.decisions();
@@ -2353,26 +2487,15 @@ public class DecisionTaskPollerTest {
 
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        Assert.assertEquals(partitionEndEvent.eventTimestamp().toEpochMilli() - partitionStartEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)).toMillis());
+        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
 
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.putAll(output);
+        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepThreeInitialAttemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-
-        // because this is the first attempt of the step and we don't control 'now' from the unit test,
-        // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-        // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-        // and then save it to the input map for the actual comparison.
-        Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-        Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
 
         String activityId = TaskNaming.createActivityId(nextStep.getStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2399,29 +2522,46 @@ public class DecisionTaskPollerTest {
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now, input);
-
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
-        HistoryEvent partitionStartEvent = history.scheduleStepAttempt(retryingPartition);
+        // both partitions initially scheduled at the same time
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt(retryingPartition);
         history.scheduleStepAttempt(partitionToForce);
 
+        // for convenience we'll say they finished at the same time
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(retryingPartition, StepResult.retry());
         history.recordActivityResult(partitionToForce, StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(retryingPartition, Duration.ofSeconds(10));
         history.startRetryTimer(partitionToForce, Duration.ofSeconds(10));
 
+
+        clock.forward(Duration.ofSeconds(2));
         history.recordForceResultSignal(partitionToForce, StepResult.SUCCEED_RESULT_CODE);
+        clock.forward(Duration.ofSeconds(1));
         history.closeRetryTimer(partitionToForce, true);
 
+        clock.forward(Duration.ofSeconds(7));
         history.closeRetryTimer(retryingPartition, false);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt(retryingPartition);
-        HistoryEvent partitionEndEvent = history.recordActivityResult(retryingPartition, StepResult.success());
+
+        Instant stepTwoEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(retryingPartition, StepResult.success());
+
+        Duration stepTwoDuration = Duration.between(stepTwoInitialAttemptTime, stepTwoEndTime);
+
+        Instant stepThreeInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2429,7 +2569,7 @@ public class DecisionTaskPollerTest {
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowGraphNode nextStep = workflowWithPartitionedStep.getGraph().getNodes().get(TestStepHasOptionalInputAttribute.class);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, nextStep.getStep());
         mockery.verify();
@@ -2440,26 +2580,15 @@ public class DecisionTaskPollerTest {
 
         Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        Assert.assertEquals(partitionEndEvent.eventTimestamp().toEpochMilli() - partitionStartEvent.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)).toMillis());
+        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
         Assert.assertEquals(2, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
 
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.putAll(output);
+        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepThreeInitialAttemptTime));
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-
-        // because this is the first attempt of the step and we don't control 'now' from the unit test,
-        // the ACTIVITY_INITIAL_ATTEMPT_TIME will vary from test to test.
-        // to solve this we'll extract ACTIVITY_INTIAL_ATTEMPT_TIME, ensure it's not null and a valid Date,
-        // and then save it to the input map for the actual comparison.
-        Map<String, String> decisionInput = StepAttributes.decode(Map.class, decision.scheduleActivityTaskDecisionAttributes().input());
-        Instant attemptTime = StepAttributes.decode(Instant.class, decisionInput.get(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
-        Assert.assertNotNull(attemptTime);
-        Assert.assertTrue(now.minusSeconds(30).isBefore(attemptTime));
-        Assert.assertTrue(now.plusSeconds(30).isAfter(attemptTime));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(attemptTime));
 
         String activityId = TaskNaming.createActivityId(nextStep.getStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2486,30 +2615,38 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
+        // both partitions initially scheduled at the same time
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt(retryingPartition);
         history.scheduleStepAttempt(partitionToForce);
 
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(retryingPartition, StepResult.retry());
         history.recordActivityResult(partitionToForce, StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(retryingPartition, Duration.ofSeconds(10));
         HistoryEvent timer2Event = history.startRetryTimer(partitionToForce, Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofMillis(100));
         history.recordForceResultSignal(partitionToForce, StepResult.SUCCEED_RESULT_CODE);
 
+        clock.forward(Duration.ofMillis(100));
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, partitionedStep);
         Decision decision = response.decisions().get(0);
         mockery.verify();
@@ -2539,21 +2676,29 @@ public class DecisionTaskPollerTest {
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt(partitionToReschedule);
         history.scheduleStepAttempt(partitionToForce);
 
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(partitionToReschedule, StepResult.retry());
         history.recordActivityResult(partitionToForce, StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timer2Event = history.startRetryTimer(partitionToForce, Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofSeconds(2));
         history.recordForceResultSignal(partitionToForce, StepResult.SUCCEED_RESULT_CODE);
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2561,7 +2706,7 @@ public class DecisionTaskPollerTest {
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, partitionedStep);
         List<Decision> decisions = response.decisions();
         mockery.verify();
@@ -2597,33 +2742,37 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Instant now = Instant.now();
-
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
-        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode("workflow-id"));
-        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode("run-id"));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(now)));
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, now, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
-        HistoryEvent startP1Event = history.scheduleStepAttempt(partitionToReschedule);
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt(partitionToReschedule);
         history.scheduleStepAttempt(partitionToForce);
 
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(partitionToReschedule, StepResult.retry());
         history.recordActivityResult(partitionToForce, StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         history.startRetryTimer(partitionToReschedule, Duration.ofSeconds(10));
         HistoryEvent timer2Event = history.startRetryTimer(partitionToForce, Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofSeconds(10));
         history.closeRetryTimer(partitionToReschedule, false);
         history.recordForceResultSignal(partitionToForce, StepResult.SUCCEED_RESULT_CODE);
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2632,7 +2781,7 @@ public class DecisionTaskPollerTest {
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, workflowId, state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, partitionedStep);
         List<Decision> decisions = response.decisions();
         mockery.verify();
@@ -2647,7 +2796,10 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionToReschedule));
         expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
         expectedInput.put(StepAttributes.RETRY_ATTEMPT, Long.toString(1));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(startP1Event.eventTimestamp()));
+        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
+        expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
+        expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
+        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
         String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionToReschedule);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2665,15 +2817,24 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_cancelsWorkflowWhenCancelRequestReceived_PreviousStepAlreadySucceeded() throws JsonProcessingException {
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock);
 
-        HistoryEvent start1Event = history.scheduleStepAttempt();
-        HistoryEvent close1Event = history.recordActivityResult(StepResult.success());
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
 
-        HistoryEvent cancelRequestEvent = history.recordCancelWorkflowExecutionRequest();
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success());
+
+        Instant workflowCancelRequestDate = clock.forward(Duration.ofMillis(100));
+        history.recordCancelWorkflowExecutionRequest();
+
+        // we move the clock a bit to be sure that the workflow close time is the cancel requested time, not the current time
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
+
+        Duration workflowDuration = Duration.between(state.getWorkflowStartDate(), workflowCancelRequestDate);
 
         mockery.replay();
 
@@ -2681,7 +2842,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.CANCEL_WORKFLOW_EXECUTION, decision.decisionType());
@@ -2691,10 +2852,8 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep stepOne = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         String stepOneActivityName = TaskNaming.activityName(workflowName, stepOne);
-        Assert.assertEquals(close1Event.eventTimestamp().toEpochMilli() - start1Event.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)).toMillis());
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)));
+        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
@@ -2703,20 +2862,28 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_cancelsWorkflowWhenCancelRequestReceived_CancelsInProgressActivity() throws JsonProcessingException {
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock);
 
-        HistoryEvent start1Event = history.scheduleStepAttempt();
-        HistoryEvent cancelRequestEvent = history.recordCancelWorkflowExecutionRequest();
+        Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Instant workflowCancelRequestDate = clock.forward(Duration.ofMillis(100));
+        history.recordCancelWorkflowExecutionRequest();
+
+        // we move the clock a bit to be sure that the workflow close time is the cancel requested time, not the current time
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
+
+        Duration stepOneDuration = Duration.between(stepOneInitialAttemptTime, workflowCancelRequestDate);
+        Duration workflowDuration = Duration.between(state.getWorkflowStartDate(), workflowCancelRequestDate);
 
         mockery.replay();
 
         WorkflowStep stepOne = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, stepOne, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
 
         Assert.assertEquals(2, response.decisions().size());
@@ -2734,10 +2901,8 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
 
         String stepOneActivityName = TaskNaming.activityName(workflowName, stepOne);
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - start1Event.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)).toMillis());
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)));
+        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
@@ -2746,24 +2911,34 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_cancelsWorkflowWhenCancelRequestReceived_CancelsOpenRetryTimer() throws JsonProcessingException {
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock);
 
-        HistoryEvent start1Event = history.scheduleStepAttempt();
+        Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timer1Event = history.startRetryTimer(Duration.ofSeconds(10));
 
-        HistoryEvent cancelRequestEvent = history.recordCancelWorkflowExecutionRequest();
+        Instant workflowCancelRequestDate = clock.forward(Duration.ofSeconds(2));
+        history.recordCancelWorkflowExecutionRequest();
+
+        // we move the clock a bit to be sure that the workflow close time is the cancel requested time, not the current time
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
+
+        Duration stepOneDuration = Duration.between(stepOneInitialAttemptTime, workflowCancelRequestDate);
+        Duration workflowDuration = Duration.between(state.getWorkflowStartDate(), workflowCancelRequestDate);
 
         mockery.replay();
 
         WorkflowStep stepOne = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, stepOne, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
 
         Assert.assertEquals(2, response.decisions().size());
@@ -2782,10 +2957,8 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
 
         String stepOneActivityName = TaskNaming.activityName(workflowName, stepOne);
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - start1Event.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)).toMillis());
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)));
+        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
@@ -2794,26 +2967,37 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_cancelsWorkflowWhenCancelRequestReceived_CancelIsHigherPriorityThanSignal() throws JsonProcessingException {
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock);
 
-        HistoryEvent start1Event = history.scheduleStepAttempt();
+        Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timer1Event = history.startRetryTimer(Duration.ofSeconds(10));
 
-        HistoryEvent cancelRequestEvent = history.recordCancelWorkflowExecutionRequest();
+        Instant workflowCancelRequestDate = clock.forward(Duration.ofSeconds(2));
+        history.recordCancelWorkflowExecutionRequest();
 
+        clock.forward(Duration.ofMillis(100));
         history.recordRetryNowSignal();
 
+        // we move the clock a bit to be sure that the workflow close time is the cancel requested time, not the current time
+        clock.forward(Duration.ofMillis(100));
+
         WorkflowState state = history.buildCurrentState();
+
+        Duration stepOneDuration = Duration.between(stepOneInitialAttemptTime, workflowCancelRequestDate);
+        Duration workflowDuration = Duration.between(state.getWorkflowStartDate(), workflowCancelRequestDate);
 
         mockery.replay();
 
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
 
         Assert.assertEquals(2, response.decisions().size());
@@ -2832,10 +3016,8 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
 
         String activityName = TaskNaming.activityName(workflowName, currentStep);
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - start1Event.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)).toMillis());
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
@@ -2844,23 +3026,34 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_completesWorkflowWhenLastStepSucceeds() throws JsonProcessingException {
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent start2Event = history.scheduleStepAttempt();
-        HistoryEvent close2Event = history.recordActivityResult(StepResult.success());
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Duration stepTwoDuration = Duration.ofMillis(100);
+        Instant stepTwoEndTime = clock.forward(stepTwoDuration);
+        history.recordActivityResult(StepResult.success());
+
+        // we move the clock a bit to be sure that the workflow close time is the step end time, not the current time
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
+
+        Duration workflowDuration = Duration.between(state.getWorkflowStartDate(), stepTwoEndTime);
 
         mockery.replay();
 
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, stepTwo, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.COMPLETE_WORKFLOW_EXECUTION, decision.decisionType());
@@ -2869,10 +3062,8 @@ public class DecisionTaskPollerTest {
         Assert.assertEquals(attrs, decision.completeWorkflowExecutionDecisionAttributes());
 
         String stepTwoActivityName = TaskNaming.activityName(workflowName, stepTwo);
-        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)).toMillis());
-        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - start2Event.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)).toMillis());
+        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
+        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(stepTwoActivityName)).longValue());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -2888,19 +3079,27 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflowWithFailureTransition.getGraph().getFirstStep();
         String activityName = TaskNaming.activityName(workflowWithFailureTransitionName, currentStep);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithFailureTransition, now);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithFailureTransition, clock);
 
-        HistoryEvent start1Event = history.scheduleStepAttempt();
-        HistoryEvent close1Event = history.recordActivityResult(StepResult.failure());
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Duration stepOneDuration = Duration.ofMillis(100);
+        Instant stepTwoEndTime = clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.failure());
+
+        // we move the clock a bit to be sure that the workflow close time is the step end time, not the current time
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
+
+        Duration workflowDuration = Duration.between(state.getWorkflowStartDate(), stepTwoEndTime);
 
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithFailureTransition, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithFailureTransition, null);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.FAIL_WORKFLOW_EXECUTION, decision.decisionType());
@@ -2909,10 +3108,8 @@ public class DecisionTaskPollerTest {
         Assert.assertTrue(decision.failWorkflowExecutionDecisionAttributes().reason().startsWith(activityName + " failed after"));
         Assert.assertNotNull("FailWorkflowExecutionDecision detail should not be null!", decision.failWorkflowExecutionDecisionAttributes().details());
 
-        Assert.assertEquals(close1Event.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowWithFailureTransitionName)).toMillis());
-        Assert.assertEquals(close1Event.eventTimestamp().toEpochMilli() - start1Event.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)).toMillis());
+        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowWithFailureTransitionName)));
+        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -2922,23 +3119,34 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_periodicWorkflowSchedulesDelayExitTimerWhenLastStepSucceeds() throws JsonProcessingException {
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(periodicWorkflow, now);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(periodicWorkflow, clock);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent start2Event = history.scheduleStepAttempt();
-        HistoryEvent close2Event = history.recordActivityResult(StepResult.success());
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Duration stepTwoDuration = Duration.ofMillis(100);
+        Instant stepTwoEndTime = clock.forward(stepTwoDuration);
+        history.recordActivityResult(StepResult.success());
+
+        // we move the clock a bit to be sure that the workflow close time is the step end time, not the current time
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
+
+        Duration workflowDuration = Duration.between(state.getWorkflowStartDate(), stepTwoEndTime);
 
         mockery.replay();
 
         WorkflowStep stepTwo = periodicWorkflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(periodicWorkflow, stepTwo, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicWorkflow, null);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
@@ -2949,10 +3157,8 @@ public class DecisionTaskPollerTest {
 
         // we want to see a workflow execution time metric emitted when the periodic workflow ends, before the delayed exit
         String stepTwoActivityName = TaskNaming.activityName(periodicWorkflowName, stepTwo);
-        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)).toMillis());
-        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - start2Event.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)).toMillis());
+        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)));
+        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(stepTwoActivityName)).longValue());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -2961,7 +3167,7 @@ public class DecisionTaskPollerTest {
 
         // the timer should be set to end such that the workflow will be run once per period;
         // so the actual delay scheduled should be within a few seconds of the remaining time.
-        long timeSinceWorkflowStart = now.toEpochMilli() - state.getWorkflowStartDate().toEpochMilli();
+        long timeSinceWorkflowStart = clock.millis() - state.getWorkflowStartDate().toEpochMilli();
         long expectedDelay = p.intervalUnits().toSeconds(p.runInterval()) - (timeSinceWorkflowStart/1000);
         long allowedDelta = 2;
         // start-to-fire timeout is in seconds
@@ -2975,23 +3181,31 @@ public class DecisionTaskPollerTest {
      */
     @Test
     public void decide_periodicWorkflowSchedulesDelayExitTimerWhenLastStepSucceeds_StepTookMoreThan30Days() throws JsonProcessingException {
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(periodicWorkflow, now.minus(Duration.ofDays(45)));
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(periodicWorkflow, clock);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent start2Event = history.scheduleStepAttempt();
-        HistoryEvent close2Event = history.recordActivityResult(StepResult.success());
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Duration stepTwoDuration = Duration.ofDays(45);
+        Instant stepTwoEndTime = clock.forward(stepTwoDuration);
+        history.recordActivityResult(StepResult.success());
 
         WorkflowState state = history.buildCurrentState();
+
+        Duration workflowDuration = Duration.between(state.getWorkflowStartDate(), stepTwoEndTime);
 
         mockery.replay();
 
         WorkflowStep stepTwo = periodicWorkflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(periodicWorkflow, stepTwo, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicWorkflow, null);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
@@ -3002,10 +3216,8 @@ public class DecisionTaskPollerTest {
 
         // we want to see a workflow execution time metric emitted when the periodic workflow ends, before the delayed exit
         String stepTwoActivityName = TaskNaming.activityName(periodicWorkflowName, stepTwo);
-        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - state.getWorkflowStartDate().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)).toMillis());
-        Assert.assertEquals(close2Event.eventTimestamp().toEpochMilli() - start2Event.eventTimestamp().toEpochMilli(),
-                            deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)).toMillis());
+        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)));
+        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)));
         Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(stepTwoActivityName)).longValue());
         Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
         Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
@@ -3017,17 +3229,28 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_periodicWorkflowContinuesAsNewWorkflowWhenDelayExitTimerFires() throws JsonProcessingException {
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(periodicWorkflow, now.minus(Duration.ofDays(45)));
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(periodicWorkflow, clock);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        history.startDelayExitTimer();
+        clock.forward(Duration.ofMillis(100));
+        HistoryEvent timerEvent = history.startDelayExitTimer();
+
+        long timerSeconds = Long.parseLong(timerEvent.timerStartedEventAttributes().startToFireTimeout());
+        clock.forward(Duration.ofSeconds(timerSeconds));
         history.closeDelayExitTimer(false);
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -3036,7 +3259,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep stepTwo = periodicWorkflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(periodicWorkflow, stepTwo, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicWorkflow, null);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.CONTINUE_AS_NEW_WORKFLOW_EXECUTION, decision.decisionType());
@@ -3061,17 +3284,28 @@ public class DecisionTaskPollerTest {
         Workflow periodicCustomTaskList = new TestPeriodicWorkflowCustomTaskList();
         String periodicCustomTaskListWorkflowName = TaskNaming.workflowName(periodicCustomTaskList);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(periodicCustomTaskList, now.minus(Duration.ofDays(45)));
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(periodicCustomTaskList, clock);
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        history.startDelayExitTimer();
+        clock.forward(Duration.ofMillis(100));
+        HistoryEvent timerEvent = history.startDelayExitTimer();
+
+        long timerSeconds = Long.parseLong(timerEvent.timerStartedEventAttributes().startToFireTimeout());
+        clock.forward(Duration.ofSeconds(timerSeconds));
         history.closeDelayExitTimer(false);
+
+        clock.forward(Duration.ofMillis(100));
 
         WorkflowState state = history.buildCurrentState();
 
@@ -3080,7 +3314,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep stepTwo = periodicCustomTaskList.getGraph().getNodes().get(TestStepTwo.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(periodicCustomTaskList, stepTwo, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); });
+                                                                                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicCustomTaskList, null);
         Decision decision = response.decisions().get(0);
         Assert.assertEquals(DecisionType.CONTINUE_AS_NEW_WORKFLOW_EXECUTION, decision.decisionType());

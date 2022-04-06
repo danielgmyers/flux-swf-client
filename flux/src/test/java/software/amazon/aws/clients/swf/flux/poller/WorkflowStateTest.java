@@ -31,6 +31,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import software.amazon.aws.clients.swf.flux.FluxCapacitorImpl;
@@ -49,6 +50,7 @@ import software.amazon.aws.clients.swf.flux.poller.timers.TimerData;
 import software.amazon.aws.clients.swf.flux.step.PartitionIdGeneratorResult;
 import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.step.StepResult;
+import software.amazon.aws.clients.swf.flux.util.ManualClock;
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
 import software.amazon.awssdk.services.swf.model.ActivityTaskScheduledEventAttributes;
 import software.amazon.awssdk.services.swf.model.ActivityType;
@@ -59,11 +61,18 @@ import software.amazon.awssdk.services.swf.model.PollForDecisionTaskResponse;
 
 public class WorkflowStateTest {
 
+    private ManualClock clock;
+
+    @Before
+    public void setup() {
+        clock = new ManualClock();
+    }
+
     @Test
     public void testBuild_ThrowsWithEmptyHistoryList() {
         try {
             Workflow workflow = new TestWorkflow();
-            WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, Instant.now());
+            WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock);
             PollForDecisionTaskResponse task = history.buildDecisionTask();
             WorkflowState.build(task.toBuilder().events(Collections.emptyList()).build());
             Assert.fail();
@@ -76,7 +85,7 @@ public class WorkflowStateTest {
     public void testBuild_ThrowsIfNoWorkflowStartedEvent() {
         try {
             Workflow workflow = new TestWorkflow();
-            WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, Instant.now());
+            WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock);
             history.scheduleStepAttempt();
             history.recordActivityResult(StepResult.success());
 
@@ -99,11 +108,11 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflow();
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -134,13 +143,19 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent endEvent = history.recordActivityResult(StepResult.success().withAttributes(output));
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Instant stepOneEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.success().withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -150,8 +165,8 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
-        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(endEvent.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
 
@@ -159,7 +174,7 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.getLatestPartitionStates(firstActivityName).isEmpty());
         Assert.assertEquals(1, ws.getLatestPartitionStates(firstActivityName).size());
 
-        verifyStepResult(ws, firstActivityName, null, 1, Collections.singletonList(startEvent.eventTimestamp()),
+        verifyStepResult(ws, firstActivityName, null, 1, 1, stepOneStartTime,
                          input, output, StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
     }
 
@@ -175,13 +190,18 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflowWithFailureTransition();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        HistoryEvent endEvent = history.recordActivityResult(StepResult.failure().withAttributes(output));
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Instant stepOneEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.failure().withAttributes(output));
+
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -191,8 +211,8 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
-        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(endEvent.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertEquals(StepResult.FAIL_RESULT_CODE, ws.getCurrentStepResultCode());
 
@@ -200,7 +220,7 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.getLatestPartitionStates(firstActivityName).isEmpty());
         Assert.assertEquals(1, ws.getLatestPartitionStates(firstActivityName).size());
 
-        verifyStepResult(ws, firstActivityName, null, 1, Collections.singletonList(startEvent.eventTimestamp()),
+        verifyStepResult(ws, firstActivityName, null, 1, 1, stepOneStartTime,
                          input, output, StepResult.ResultAction.COMPLETE, StepResult.FAIL_RESULT_CODE);
     }
 
@@ -216,14 +236,19 @@ public class WorkflowStateTest {
         Workflow workflow = new TestBranchingWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent startEvent = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Instant stepOneEndTime = clock.forward(Duration.ofMillis(100));
         String completionMessage = "Custom result!";
-        HistoryEvent endEvent = history.recordActivityResult(StepResult.complete(TestBranchingWorkflow.CUSTOM_RESULT, completionMessage).withAttributes(output));
+        history.recordActivityResult(StepResult.complete(TestBranchingWorkflow.CUSTOM_RESULT, completionMessage).withAttributes(output));
+
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -233,8 +258,8 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
-        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(endEvent.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertEquals(TestBranchingWorkflow.CUSTOM_RESULT, ws.getCurrentStepResultCode());
 
@@ -242,7 +267,7 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.getLatestPartitionStates(firstActivityName).isEmpty());
         Assert.assertEquals(1, ws.getLatestPartitionStates(firstActivityName).size());
 
-        verifyStepResult(ws, firstActivityName, null, 1, Collections.singletonList(startEvent.eventTimestamp()),
+        verifyStepResult(ws, firstActivityName, null, 1, 1, stepOneStartTime,
                          input, output, StepResult.ResultAction.COMPLETE, TestBranchingWorkflow.CUSTOM_RESULT, completionMessage);
     }
 
@@ -261,12 +286,17 @@ public class WorkflowStateTest {
         Workflow workflow = new TestBranchingWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent startEvent = history.scheduleStepAttempt();
-        String completionMessage = "Custom result!";
-        HistoryEvent endEvent = history.recordActivityResult(StepResult.complete(TestBranchingWorkflow.CUSTOM_RESULT, completionMessage).withAttributes(output));
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
+        String completionMessage = "Custom result!";
+        history.recordActivityResult(StepResult.complete(TestBranchingWorkflow.CUSTOM_RESULT, completionMessage).withAttributes(output));
+
+        Instant signalTime = clock.forward(Duration.ofMillis(100));
         // we don't use history.recordForcedResultSignal since it helpfully signals the second step of the workflow,
         // because the first step completed successfully.
         // note we use retry attempt 1 even though there isn't an open timer, because WorkflowState only respects signals with
@@ -274,11 +304,11 @@ public class WorkflowStateTest {
         ForceResultSignalData signal = new ForceResultSignalData();
         signal.setActivityId(TaskNaming.createActivityId(TestStepOne.class.getSimpleName(), 1, null));
         signal.setResultCode(StepResult.SUCCEED_RESULT_CODE);
-        HistoryEvent signalEvent = history.recordSignalEvent(signal);
+        history.recordSignalEvent(signal);
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -288,8 +318,8 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
-        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(signalEvent.eventTimestamp(), ws.getCurrentStepCompletionTime()); // the signal event's timestamp counts here
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(signalTime, ws.getCurrentStepCompletionTime()); // the signal event's timestamp counts here
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
 
@@ -299,7 +329,7 @@ public class WorkflowStateTest {
 
         // we evaluate the step result with the custom result code because the signal doesn't retroactively change the output
         // contents from the activity completion event.
-        verifyStepResult(ws, firstActivityName, null, 1, Collections.singletonList(startEvent.eventTimestamp()),
+        verifyStepResult(ws, firstActivityName, null, 1, 1, stepOneStartTime,
                          input, output, StepResult.ResultAction.COMPLETE, TestBranchingWorkflow.CUSTOM_RESULT, completionMessage);
     }
 
@@ -313,20 +343,26 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent startP1Event = history.scheduleStepAttempt("p1");
-        HistoryEvent startP2Event = history.scheduleStepAttempt("p2");
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+        history.scheduleStepAttempt("p2");
 
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.retry());
         history.recordActivityResult("p2", StepResult.retry());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -337,7 +373,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -345,10 +381,10 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.getLatestPartitionStates(partitionedStepName).isEmpty());
         Assert.assertEquals(2, ws.getLatestPartitionStates(partitionedStepName).size());
 
-        verifyStepResult(ws, partitionedStepName, "p1", 2, Collections.singletonList(startP1Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p1", 2, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.RETRY, null);
 
-        verifyStepResult(ws, partitionedStepName, "p2", 2, Collections.singletonList(startP2Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p2", 2, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.RETRY, null);
     }
 
@@ -362,20 +398,26 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent startP1Event = history.scheduleStepAttempt("p1");
-        HistoryEvent startP2Event = history.scheduleStepAttempt("p2");
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+        history.scheduleStepAttempt("p2");
 
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.success());
         history.recordActivityResult("p2", StepResult.retry());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -386,7 +428,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -394,10 +436,10 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.getLatestPartitionStates(partitionedStepName).isEmpty());
         Assert.assertEquals(2, ws.getLatestPartitionStates(partitionedStepName).size());
 
-        verifyStepResult(ws, partitionedStepName, "p1", 2, Collections.singletonList(startP1Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p1", 2, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
 
-        verifyStepResult(ws, partitionedStepName, "p2", 2, Collections.singletonList(startP2Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p2", 2, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.RETRY, null);
     }
 
@@ -411,20 +453,26 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent startP1Event = history.scheduleStepAttempt("p1");
-        HistoryEvent startP2Event = history.scheduleStepAttempt("p2");
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+        history.scheduleStepAttempt("p2");
 
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.failure());
         history.recordActivityResult("p2", StepResult.retry());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -435,7 +483,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -443,10 +491,10 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.getLatestPartitionStates(partitionedStepName).isEmpty());
         Assert.assertEquals(2, ws.getLatestPartitionStates(partitionedStepName).size());
 
-        verifyStepResult(ws, partitionedStepName, "p1", 2, Collections.singletonList(startP1Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p1", 2, 1, stepTwoStartTime,
                          input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.FAIL_RESULT_CODE);
 
-        verifyStepResult(ws, partitionedStepName, "p2", 2, Collections.singletonList(startP2Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p2", 2, 1, stepTwoStartTime,
                          input, Collections.emptyMap(), StepResult.ResultAction.RETRY, null);
     }
 
@@ -460,19 +508,25 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent startP1Event = history.scheduleStepAttempt("p1");
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
         history.recordScheduleAttemptFailed("p2");
 
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.success());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -483,7 +537,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -497,7 +551,7 @@ public class WorkflowStateTest {
         Assert.assertTrue(ws.getLatestPartitionStates(partitionedStepName).containsKey("p2"));
         Assert.assertNull(ws.getLatestPartitionStates(partitionedStepName).get("p2"));
 
-        verifyStepResult(ws, partitionedStepName, "p1", 2, Collections.singletonList(startP1Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p1", 2, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
     }
 
@@ -511,19 +565,24 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
         history.recordScheduleAttemptFailed("p1");
-        HistoryEvent startP2Event = history.scheduleStepAttempt("p2");
+        history.scheduleStepAttempt("p2");
 
         history.recordActivityResult("p2", StepResult.success());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -534,7 +593,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(startP2Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
@@ -548,7 +607,7 @@ public class WorkflowStateTest {
         Assert.assertTrue(ws.getLatestPartitionStates(partitionedStepName).containsKey("p2"));
         Assert.assertNotNull(ws.getLatestPartitionStates(partitionedStepName).get("p2"));
 
-        verifyStepResult(ws, partitionedStepName, "p2", 2, Collections.singletonList(startP2Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p2", 2, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
     }
 
@@ -563,17 +622,22 @@ public class WorkflowStateTest {
         String firstStepName = TaskNaming.activityName(workflow, TestStepOne.class);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent step1Start = history.scheduleStepAttempt();
-        HistoryEvent step1End = history.recordActivityResult(StepResult.success());
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Instant stepOneEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.success());
+
+        clock.forward(Duration.ofMillis(100));
         history.recordScheduleAttemptFailed("p1");
         history.recordScheduleAttemptFailed("p2");
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -583,8 +647,8 @@ public class WorkflowStateTest {
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstStepName, ws.getCurrentActivityName());
-        Assert.assertEquals(step1Start.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(step1End.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
 
@@ -609,20 +673,28 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent startP1Event = history.scheduleStepAttempt("p1");
-        HistoryEvent startP2Event = history.scheduleStepAttempt("p2");
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+        history.scheduleStepAttempt("p2");
 
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.success());
-        HistoryEvent closeP2Event = history.recordActivityResult("p2", StepResult.success());
+
+        Instant stepTwoEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult("p2", StepResult.success());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -633,8 +705,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(closeP2Event.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(partitionedStepName));
@@ -647,10 +719,10 @@ public class WorkflowStateTest {
         Assert.assertTrue(ws.getLatestPartitionStates(partitionedStepName).containsKey("p2"));
         Assert.assertNotNull(ws.getLatestPartitionStates(partitionedStepName).get("p2"));
 
-        verifyStepResult(ws, partitionedStepName, "p1", 2, Collections.singletonList(startP1Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p1", 2, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
 
-        verifyStepResult(ws, partitionedStepName, "p2", 2, Collections.singletonList(startP2Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p2", 2, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
     }
 
@@ -664,20 +736,28 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent startP1Event = history.scheduleStepAttempt("p1");
-        HistoryEvent startP2Event = history.scheduleStepAttempt("p2");
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+        history.scheduleStepAttempt("p2");
 
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.failure());
-        HistoryEvent closeP2Event = history.recordActivityResult("p2", StepResult.success());
+
+        Instant stepTwoEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult("p2", StepResult.success());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -688,8 +768,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.FAIL_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(startP1Event.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(closeP2Event.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(partitionedStepName));
@@ -702,10 +782,10 @@ public class WorkflowStateTest {
         Assert.assertTrue(ws.getLatestPartitionStates(partitionedStepName).containsKey("p2"));
         Assert.assertNotNull(ws.getLatestPartitionStates(partitionedStepName).get("p2"));
 
-        verifyStepResult(ws, partitionedStepName, "p1", 2, Collections.singletonList(startP1Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p1", 2, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.FAIL_RESULT_CODE);
 
-        verifyStepResult(ws, partitionedStepName, "p2", 2, Collections.singletonList(startP2Event.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p2", 2, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
     }
 
@@ -719,39 +799,64 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent p1Start1 = history.scheduleStepAttempt("p1");
-        HistoryEvent p2Start1 = history.scheduleStepAttempt("p2");
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+        history.scheduleStepAttempt("p2");
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.retry());
         history.recordActivityResult("p2", StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent p1Timer1 = history.startRetryTimer("p1", Duration.ofSeconds(10));
         HistoryEvent p2Timer1 = history.startRetryTimer("p2", Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(10));
         history.closeRetryTimer("p1", false);
         history.closeRetryTimer("p2", false);
 
-        HistoryEvent p1Start2 = history.scheduleStepAttempt("p1");
-        HistoryEvent p2Start2 = history.scheduleStepAttempt("p2");
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p2");
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.retry());
         history.recordActivityResult("p2", StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent p1Timer2 = history.startRetryTimer("p1", Duration.ofSeconds(10));
         HistoryEvent p2Timer2 = history.startRetryTimer("p2", Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(10));
         history.closeRetryTimer("p1", false);
         history.closeRetryTimer("p2", false);
 
-        HistoryEvent p1Start3 = history.scheduleStepAttempt("p1");
-        HistoryEvent p2Start3 = history.scheduleStepAttempt("p2");
+        Instant p1Attempt3Time = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+
+        Instant p2Attempt3Time = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p2");
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.success());
-        HistoryEvent p2End3 = history.recordActivityResult("p2", StepResult.success());
+
+        Instant stepTwoEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult("p2", StepResult.success());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertEquals(4, ws.getClosedTimers().size()); // two retries each for two partitions
@@ -766,8 +871,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(p1Start1.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(p2End3.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(2L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(partitionedStepName));
@@ -780,10 +885,10 @@ public class WorkflowStateTest {
         Assert.assertTrue(ws.getLatestPartitionStates(partitionedStepName).containsKey("p2"));
         Assert.assertNotNull(ws.getLatestPartitionStates(partitionedStepName).get("p2"));
 
-        verifyStepResult(ws, partitionedStepName, "p1", 2, Arrays.asList(p1Start1.eventTimestamp(), p1Start2.eventTimestamp(), p1Start3.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p1", 2, 3, p1Attempt3Time,
                          input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
 
-        verifyStepResult(ws, partitionedStepName, "p2", 2, Arrays.asList(p2Start1.eventTimestamp(), p2Start2.eventTimestamp(), p2Start3.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p2", 2, 3, p2Attempt3Time,
                          input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
     }
 
@@ -797,39 +902,62 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent p1Start1 = history.scheduleStepAttempt("p1");
-        HistoryEvent p2Start1 = history.scheduleStepAttempt("p2");
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+        history.scheduleStepAttempt("p2");
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.retry());
         history.recordActivityResult("p2", StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent p1Timer1 = history.startRetryTimer("p1", Duration.ofSeconds(10));
         HistoryEvent p2Timer1 = history.startRetryTimer("p2", Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(10));
         history.closeRetryTimer("p1", false);
         history.closeRetryTimer("p2", false);
 
-        HistoryEvent p1Start2 = history.scheduleStepAttempt("p1");
-        HistoryEvent p2Start2 = history.scheduleStepAttempt("p2");
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+        history.scheduleStepAttempt("p2");
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.retry());
         history.recordActivityResult("p2", StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent p1Timer2 = history.startRetryTimer("p1", Duration.ofSeconds(10));
         HistoryEvent p2Timer2 = history.startRetryTimer("p2", Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(10));
         history.closeRetryTimer("p1", false);
         history.closeRetryTimer("p2", false);
 
-        HistoryEvent p1Start3 = history.scheduleStepAttempt("p1");
-        HistoryEvent p2Start3 = history.scheduleStepAttempt("p2");
+        Instant p1Attempt3Time = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p1");
+
+        Instant p2Attempt3Time = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt("p2");
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult("p1", StepResult.success());
-        HistoryEvent p2End3 = history.recordActivityResult("p2", StepResult.failure());
+
+        Instant stepTwoEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult("p2", StepResult.failure());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertEquals(4, ws.getClosedTimers().size()); // two retries each for two partitions
@@ -845,8 +973,8 @@ public class WorkflowStateTest {
         Assert.assertEquals(partitionedStepName, ws.getCurrentActivityName());
         // the effectiveResultCode should be _fail as one of the partitions has failed
         Assert.assertEquals(StepResult.FAIL_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(p1Start1.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(p2End3.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(2L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(partitionedStepName));
@@ -859,10 +987,10 @@ public class WorkflowStateTest {
         Assert.assertTrue(ws.getLatestPartitionStates(partitionedStepName).containsKey("p2"));
         Assert.assertNotNull(ws.getLatestPartitionStates(partitionedStepName).get("p2"));
 
-        verifyStepResult(ws, partitionedStepName, "p1", 2, Arrays.asList(p1Start1.eventTimestamp(), p1Start2.eventTimestamp(), p1Start3.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p1", 2, 3, p1Attempt3Time,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
 
-        verifyStepResult(ws, partitionedStepName, "p2", 2, Arrays.asList(p2Start1.eventTimestamp(), p2Start2.eventTimestamp(), p2Start3.eventTimestamp()),
+        verifyStepResult(ws, partitionedStepName, "p2", 2, 3, p2Attempt3Time,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.FAIL_RESULT_CODE);
     }
 
@@ -874,13 +1002,18 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent startEvent = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityTimedOut();
+
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -891,14 +1024,14 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName).get(null));
 
-        verifyStepResult(ws, firstActivityName, null, 1, Collections.singletonList(startEvent.eventTimestamp()),
+        verifyStepResult(ws, firstActivityName, null, 1, 1, stepOneStartTime,
                          input, Collections.emptyMap(), StepResult.ResultAction.RETRY, null);
     }
 
@@ -910,13 +1043,18 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent startEvent = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityCanceled();
+
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -927,14 +1065,14 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(startEvent.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName).get(null));
 
-        verifyStepResult(ws, firstActivityName, null, 1, Collections.singletonList(startEvent.eventTimestamp()),
+        verifyStepResult(ws, firstActivityName, null, 1, 1, stepOneStartTime,
                          input, Collections.emptyMap(), StepResult.ResultAction.RETRY, null);
     }
 
@@ -946,34 +1084,54 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
-        history.recordActivityResult(StepResult.retry());
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
-        List<Instant> attemptStartTimes = new ArrayList<>();
-        attemptStartTimes.add(firstStart.eventTimestamp());
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.retry());
+        int attempts = 1;
+
+        clock.forward(Duration.ofMillis(100));
+        HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
 
         Set<String> closedTimers = new HashSet<>();
 
-        for (int i = 0; i < 1000; i++) {
-            HistoryEvent nextStart = history.scheduleStepAttempt();
-            attemptStartTimes.add(nextStart.eventTimestamp());
-            HistoryEvent nextClose = history.recordActivityResult(StepResult.retry());
+        clock.forward(Duration.ofSeconds(10));
+        history.closeRetryTimer(false);
+        closedTimers.add(timerStart.timerStartedEventAttributes().timerId());
 
-            HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
+        for (int i = 0; i < 1000; i++) {
+
+            clock.forward(Duration.ofMillis(100));
+            history.scheduleStepAttempt();
+
+            clock.forward(Duration.ofMillis(100));
+            history.recordActivityResult(StepResult.retry());
+
+            clock.forward(Duration.ofMillis(100));
+            timerStart = history.startRetryTimer(Duration.ofSeconds(10));
+
+            clock.forward(Duration.ofSeconds(10));
             history.closeRetryTimer(false);
             closedTimers.add(timerStart.timerStartedEventAttributes().timerId());
+
+            attempts++;
         }
 
 
-        HistoryEvent lastStart = history.scheduleStepAttempt();
-        attemptStartTimes.add(lastStart.eventTimestamp());
-        HistoryEvent lastClose = history.recordActivityResult(StepResult.success());
+        Instant stepOneLastAttemptTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+        attempts++;
+
+        Instant stepOneEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.success());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertEquals(closedTimers, ws.getClosedTimers().keySet());
@@ -984,14 +1142,14 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(lastClose.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(1001L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName).get(null));
 
-        verifyStepResult(ws, firstActivityName, null, 1, attemptStartTimes,
+        verifyStepResult(ws, firstActivityName, null, 1, attempts, stepOneLastAttemptTime,
                          input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
     }
 
@@ -1004,17 +1162,24 @@ public class WorkflowStateTest {
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
         String secondActivityName = TaskNaming.activityName(workflow, TestStepTwo.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent secondStart = history.scheduleStepAttempt();
-        HistoryEvent secondClose = history.recordActivityResult(StepResult.success());
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Instant stepTwoEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.success());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -1025,17 +1190,17 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(secondActivityName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(secondStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(secondClose.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName).get(null));
 
-        verifyStepResult(ws, firstActivityName, null, 1, Collections.singletonList(firstStart.eventTimestamp()),
+        verifyStepResult(ws, firstActivityName, null, 1, 1, stepOneStartTime,
                          input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
 
-        verifyStepResult(ws, secondActivityName, null, 1, Collections.singletonList(secondStart.eventTimestamp()),
+        verifyStepResult(ws, secondActivityName, null, 1, 1, stepTwoStartTime,
                          input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
     }
 
@@ -1047,16 +1212,21 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertEquals(1, ws.getOpenTimers().size());
@@ -1072,7 +1242,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, ws.getCurrentStepMaxRetryCount().longValue());
 
@@ -1088,17 +1258,24 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(10));
         HistoryEvent timerFired = history.closeRetryTimer(false);
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
 
@@ -1112,7 +1289,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, ws.getCurrentStepMaxRetryCount().longValue());
 
@@ -1129,17 +1306,24 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(3));
         HistoryEvent timerCancelled = history.closeRetryTimer(true);
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
 
@@ -1153,7 +1337,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, ws.getCurrentStepMaxRetryCount().longValue());
 
@@ -1169,20 +1353,28 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(3));
         HistoryEvent timerCancelled = history.closeRetryTimer(true);
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerRestart = history.startRetryTimer(Duration.ofSeconds(10));
         Assert.assertEquals(timerStart.timerStartedEventAttributes().timerId(), timerRestart.timerStartedEventAttributes().timerId());
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getOpenTimers().containsKey(timerRestart.timerStartedEventAttributes().timerId()));
@@ -1195,7 +1387,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, ws.getCurrentStepMaxRetryCount().longValue());
 
@@ -1211,20 +1403,30 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
-        HistoryEvent timerCancelled = history.closeRetryTimer(true);
 
-        HistoryEvent timerRestart = history.startRetryTimer(Duration.ofSeconds(10));
+        clock.forward(Duration.ofSeconds(3));
+        history.closeRetryTimer(true);
+
+        clock.forward(Duration.ofMillis(100));
+        history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(10));
         HistoryEvent timerFired = history.closeRetryTimer(false);
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
@@ -1238,7 +1440,7 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, ws.getCurrentStepMaxRetryCount().longValue());
 
@@ -1254,17 +1456,25 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(3));
         HistoryEvent signal = history.recordRetryNowSignal();
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1282,7 +1492,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1297,13 +1507,19 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofSeconds(3));
         Map<String, String> rawSignalData = new HashMap<>();
         rawSignalData.put("activityId", timerStart.timerStartedEventAttributes().timerId());
         rawSignalData.put("someIrrelevantOperationalField", "Signal Sent By jtkirk");
@@ -1311,7 +1527,7 @@ public class WorkflowStateTest {
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1329,7 +1545,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1344,20 +1560,26 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofSeconds(3));
         Map<String, String> rawSignalData = new HashMap<>();
         // intentionally not populating activity id
         history.recordSignalEvent(SignalType.RETRY_NOW.getFriendlyName(), new ObjectMapper().writeValueAsString(rawSignalData));
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().isEmpty());
@@ -1373,7 +1595,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1388,17 +1610,24 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(3));
         HistoryEvent signal = history.recordDelayRetrySignal(Duration.ofSeconds(142));
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1417,7 +1646,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1432,18 +1661,27 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(3));
         history.recordDelayRetrySignal(Duration.ofSeconds(142));
+
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent signal2 = history.recordScheduleDelayedRetrySignal(Duration.ofSeconds(142));
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1462,7 +1700,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1477,17 +1715,24 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
+
+        clock.forward(Duration.ofSeconds(3));
         HistoryEvent signal = history.recordForceResultSignal(StepResult.FAIL_RESULT_CODE);
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1506,7 +1751,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.FAIL_RESULT_CODE, ws.getCurrentStepResultCode());
         Assert.assertEquals(WorkflowState.FORCED_RESULT_MESSAGE, ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertEquals(signal.eventTimestamp(), ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1521,18 +1766,27 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
-        HistoryEvent signal = history.recordRetryNowSignal();
+
+        clock.forward(Duration.ofSeconds(3));
+        history.recordRetryNowSignal();
+
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent signal2 = history.recordRetryNowSignal(); // same signal, repeated
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().containsKey(timerStart.timerStartedEventAttributes().timerId()));
@@ -1551,7 +1805,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1566,20 +1820,26 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofMillis(100));
         Map<String, String> rawSignalData = new HashMap<>();
         rawSignalData.put("activityId", timerStart.timerStartedEventAttributes().timerId());
         history.recordSignalEvent("fake signal type", new ObjectMapper().writeValueAsString(rawSignalData));
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().isEmpty());
@@ -1595,7 +1855,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1610,18 +1870,24 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent firstStart = history.scheduleStepAttempt();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.retry());
 
+        clock.forward(Duration.ofMillis(100));
         HistoryEvent timerStart = history.startRetryTimer(Duration.ofSeconds(10));
 
+        clock.forward(Duration.ofMillis(100));
         history.recordSignalEvent("fake signal type", "this is not valid json");
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
 
         Assert.assertTrue(ws.getSignalsByActivityId().isEmpty());
@@ -1637,7 +1903,7 @@ public class WorkflowStateTest {
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
         Assert.assertNull(ws.getCurrentStepResultCode());
         Assert.assertNull(ws.getCurrentStepLastActivityCompletionMessage());
-        Assert.assertEquals(firstStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertNull(ws.getCurrentStepCompletionTime());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1651,19 +1917,21 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflow();
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent cancelEvent = history.recordCancelWorkflowExecutionRequest();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant cancelTime = clock.forward(Duration.ofMillis(100));
+        history.recordCancelWorkflowExecutionRequest();
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
 
         Assert.assertTrue(ws.isWorkflowCancelRequested());
-        Assert.assertEquals(cancelEvent.eventTimestamp(), ws.getWorkflowCancelRequestDate());
+        Assert.assertEquals(cancelTime, ws.getWorkflowCancelRequestDate());
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertNull(ws.getCurrentActivityName());
@@ -1684,26 +1952,28 @@ public class WorkflowStateTest {
         Workflow workflow = new TestWorkflow();
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
-        HistoryEvent stepStart = history.scheduleStepAttempt();
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
 
-        HistoryEvent cancelEvent = history.recordCancelWorkflowExecutionRequest();
+        Instant cancelTime = clock.forward(Duration.ofMillis(100));
+        history.recordCancelWorkflowExecutionRequest();
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
 
         Assert.assertTrue(ws.isWorkflowCancelRequested());
-        Assert.assertEquals(cancelEvent.eventTimestamp(), ws.getWorkflowCancelRequestDate());
+        Assert.assertEquals(cancelTime, ws.getWorkflowCancelRequestDate());
         Assert.assertFalse(ws.isWorkflowExecutionClosed());
 
         Assert.assertEquals(firstActivityName, ws.getCurrentActivityName());
-        Assert.assertEquals(stepStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepOneStartTime, ws.getCurrentStepFirstScheduledTime());
         Assert.assertEquals(0, (long)ws.getCurrentStepMaxRetryCount());
         Assert.assertNull(ws.getCurrentStepResultCode());
 
@@ -1718,20 +1988,24 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflow();
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
-        HistoryEvent cancelRequestEvent = history.recordCancelWorkflowExecutionRequest();
-        HistoryEvent cancelEvent = history.recordWorkflowCanceled();
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+
+        Instant cancelTime = clock.forward(Duration.ofMillis(100));
+        history.recordCancelWorkflowExecutionRequest();
+
+        clock.forward(Duration.ofMillis(100));
+        history.recordWorkflowCanceled();
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
 
         Assert.assertTrue(ws.isWorkflowCancelRequested());
-        Assert.assertEquals(cancelRequestEvent.eventTimestamp(), ws.getWorkflowCancelRequestDate());
+        Assert.assertEquals(cancelTime, ws.getWorkflowCancelRequestDate());
         Assert.assertTrue(ws.isWorkflowExecutionClosed());
 
         Assert.assertNull(ws.getCurrentActivityName());
@@ -1753,20 +2027,27 @@ public class WorkflowStateTest {
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
         String secondActivityName = TaskNaming.activityName(workflow, TestStepTwo.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
-        HistoryEvent stepOneStart = history.scheduleStepAttempt();
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent stepTwoStart = history.scheduleStepAttempt();
-        HistoryEvent stepTwoEnd = history.recordActivityResult(StepResult.success());
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
 
+        Instant stepTwoEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.success());
+
+        clock.forward(Duration.ofMillis(100));
         history.recordWorkflowCompleted();
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -1777,8 +2058,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(secondActivityName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(stepTwoStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(stepTwoEnd.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1787,10 +2068,10 @@ public class WorkflowStateTest {
         Assert.assertNotNull(ws.getLatestPartitionStates(secondActivityName));
         Assert.assertNotNull(ws.getLatestPartitionStates(secondActivityName).get(null));
 
-        verifyStepResult(ws, firstActivityName, null, 1, Collections.singletonList(stepOneStart.eventTimestamp()),
+        verifyStepResult(ws, firstActivityName, null, 1, 1, stepOneStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
 
-        verifyStepResult(ws, secondActivityName, null, 1, Collections.singletonList(stepTwoStart.eventTimestamp()),
+        verifyStepResult(ws, secondActivityName, null, 1, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
     }
 
@@ -1803,20 +2084,27 @@ public class WorkflowStateTest {
         String firstActivityName = TaskNaming.activityName(workflow, TestStepOne.class);
         String secondActivityName = TaskNaming.activityName(workflow, TestStepTwo.class);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
-        HistoryEvent stepOneStart = history.scheduleStepAttempt();
+        Instant stepOneStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
-        HistoryEvent stepTwoStart = history.scheduleStepAttempt();
-        HistoryEvent stepTwoEnd = history.recordActivityResult(StepResult.failure());
+        Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
 
+        Instant stepTwoEndTime = clock.forward(Duration.ofMillis(100));
+        history.recordActivityResult(StepResult.failure());
+
+        clock.forward(Duration.ofMillis(100));
         history.recordWorkflowFailed();
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -1827,8 +2115,8 @@ public class WorkflowStateTest {
 
         Assert.assertEquals(secondActivityName, ws.getCurrentActivityName());
         Assert.assertEquals(StepResult.FAIL_RESULT_CODE, ws.getCurrentStepResultCode());
-        Assert.assertEquals(stepTwoStart.eventTimestamp(), ws.getCurrentStepFirstScheduledTime());
-        Assert.assertEquals(stepTwoEnd.eventTimestamp(), ws.getCurrentStepCompletionTime());
+        Assert.assertEquals(stepTwoStartTime, ws.getCurrentStepFirstScheduledTime());
+        Assert.assertEquals(stepTwoEndTime, ws.getCurrentStepCompletionTime());
         Assert.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
 
         Assert.assertNotNull(ws.getLatestPartitionStates(firstActivityName));
@@ -1837,10 +2125,10 @@ public class WorkflowStateTest {
         Assert.assertNotNull(ws.getLatestPartitionStates(secondActivityName));
         Assert.assertNotNull(ws.getLatestPartitionStates(secondActivityName).get(null));
 
-        verifyStepResult(ws, firstActivityName, null, 1, Collections.singletonList(stepOneStart.eventTimestamp()),
+        verifyStepResult(ws, firstActivityName, null, 1, 1, stepOneStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE);
 
-        verifyStepResult(ws, secondActivityName, null, 1, Collections.singletonList(stepTwoStart.eventTimestamp()),
+        verifyStepResult(ws, secondActivityName, null, 1, 1, stepTwoStartTime,
                 input, Collections.emptyMap(), StepResult.ResultAction.COMPLETE, StepResult.FAIL_RESULT_CODE);
     }
 
@@ -1851,14 +2139,15 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflow();
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.recordWorkflowTerminated();
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -1884,14 +2173,15 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflow();
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now, input);
+        Instant workflowStartTime = clock.instant();
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
 
+        clock.forward(Duration.ofMillis(100));
         history.recordWorkflowTimedOut();
 
         WorkflowState ws = history.buildCurrentState();
 
-        Assert.assertEquals(now, ws.getWorkflowStartDate());
+        Assert.assertEquals(workflowStartTime, ws.getWorkflowStartDate());
         Assert.assertEquals(input, ws.getWorkflowInput());
         Assert.assertTrue(ws.getOpenTimers().isEmpty());
         Assert.assertTrue(ws.getClosedTimers().isEmpty());
@@ -1912,7 +2202,7 @@ public class WorkflowStateTest {
 
     @Test
     public void testGetStepData_WorkflowStartedEvent() {
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), Instant.now());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), clock);
         PollForDecisionTaskResponse task = history.buildDecisionTask();
 
         // the first event in the list is the most recent
@@ -1922,7 +2212,7 @@ public class WorkflowStateTest {
 
     @Test
     public void testGetStepData_ActivityScheduledEvent() {
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), Instant.now());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), clock);
         history.scheduleStepAttempt();
         PollForDecisionTaskResponse task = history.buildDecisionTask();
 
@@ -1933,7 +2223,7 @@ public class WorkflowStateTest {
 
     @Test
     public void testGetStepData_ActivityCompletedEvent() {
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), Instant.now());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), clock);
         history.scheduleStepAttempt();
         history.recordActivityResult(StepResult.success());
         PollForDecisionTaskResponse task = history.buildDecisionTask();
@@ -1945,7 +2235,7 @@ public class WorkflowStateTest {
 
     @Test
     public void testGetStepData_ActivityTimedOutEvent() {
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), Instant.now());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), clock);
         history.scheduleStepAttempt();
         history.recordActivityTimedOut();
         PollForDecisionTaskResponse task = history.buildDecisionTask();
@@ -1957,7 +2247,7 @@ public class WorkflowStateTest {
 
     @Test
     public void testGetStepData_ActivityFailedEvent() {
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), Instant.now());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), clock);
         history.scheduleStepAttempt();
         history.recordActivityResult(StepResult.retry());
         PollForDecisionTaskResponse task = history.buildDecisionTask();
@@ -1969,7 +2259,7 @@ public class WorkflowStateTest {
 
     @Test
     public void testGetStepData_ActivityFailedViaException() {
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), Instant.now());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), clock);
         history.scheduleStepAttempt();
         history.recordActivityResult(StepResult.retry(new RuntimeException()));
         PollForDecisionTaskResponse task = history.buildDecisionTask();
@@ -1996,7 +2286,7 @@ public class WorkflowStateTest {
 
     @Test
     public void testGetStepName_WorkflowStartedEvent() {
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), Instant.now());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(new TestWorkflow(), clock);
         PollForDecisionTaskResponse task = history.buildDecisionTask();
         // the first event in the list is the most recent
         Assert.assertNull(WorkflowState.getActivityName(task.events().get(0)));
@@ -2071,17 +2361,20 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), Collections.emptyMap());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, Collections.emptyMap());
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
+        clock.forward(Duration.ofMillis(100));
         PartitionIdGeneratorResult partitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(partitionIds);
 
         String stepName = TaskNaming.stepName(TestPartitionedStep.class);
-        history.recordPartitionMetadataMarkers(now, stepName, partitionIdGeneratorResult);
+        history.recordPartitionMetadataMarkers(clock.instant(), stepName, partitionIdGeneratorResult);
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2098,10 +2391,12 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), Collections.emptyMap());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, Collections.emptyMap());
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
         WorkflowState state = history.buildCurrentState();
@@ -2120,17 +2415,20 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), Collections.emptyMap());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, Collections.emptyMap());
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
+        clock.forward(Duration.ofMillis(100));
         PartitionIdGeneratorResult partitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(partitionIds);
 
         String stepName = TaskNaming.stepName(TestPartitionedStep.class);
-        history.recordPartitionMetadataMarkers(now, stepName, partitionIdGeneratorResult);
+        history.recordPartitionMetadataMarkers(clock.instant(), stepName, partitionIdGeneratorResult);
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2149,17 +2447,20 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), Collections.emptyMap());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, Collections.emptyMap());
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
+        clock.forward(Duration.ofMillis(100));
         PartitionIdGeneratorResult partitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(partitionIds);
 
         String stepName = TaskNaming.stepName(TestPartitionedStep.class);
-        List<HistoryEvent> markerEvents = history.recordPartitionMetadataMarkers(now, stepName, partitionIdGeneratorResult);
+        List<HistoryEvent> markerEvents = history.recordPartitionMetadataMarkers(clock.instant(), stepName, partitionIdGeneratorResult);
         Assert.assertTrue(markerEvents.size() > 1);
 
         WorkflowState state = history.buildCurrentState();
@@ -2179,17 +2480,20 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), Collections.emptyMap());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, Collections.emptyMap());
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
+        clock.forward(Duration.ofMillis(100));
         String stepName = TaskNaming.stepName(TestPartitionedStep.class);
         String metadataMarkerName = TaskNaming.partitionMetadataMarkerName(stepName, 0, 1);
 
         // this marker's content isn't valid so we should behave as if there is no marker
-        history.recordMarker(now, metadataMarkerName, "this is not valid json {");
+        history.recordMarker(clock.instant(), metadataMarkerName, "this is not valid json {");
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2206,23 +2510,26 @@ public class WorkflowStateTest {
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
 
-        Instant now = Instant.now();
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, now.minusSeconds(15), Collections.emptyMap());
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, Collections.emptyMap());
 
+        clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
+
+        clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
 
+        clock.forward(Duration.ofMillis(100));
         String stepName = TaskNaming.stepName(TestPartitionedStep.class);
         String metadataMarkerName = TaskNaming.partitionMetadataMarkerName(stepName, 0, 1);
 
         // this marker's content isn't valid, but we're going to add another valid marker afterward
-        history.recordMarker(now, metadataMarkerName, "this is not valid json {");
+        history.recordMarker(clock.instant(), metadataMarkerName, "this is not valid json {");
 
-
+        clock.forward(Duration.ofMillis(100));
         PartitionIdGeneratorResult partitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(partitionIds);
 
-        history.recordPartitionMetadataMarkers(now, stepName, partitionIdGeneratorResult);
+        history.recordPartitionMetadataMarkers(clock.instant(), stepName, partitionIdGeneratorResult);
 
         WorkflowState state = history.buildCurrentState();
 
@@ -2233,23 +2540,23 @@ public class WorkflowStateTest {
     }
 
     private void verifyStepResult(WorkflowState ws, String activityName, String partitionId, long partitionCount,
-                                  List<Instant> attemptStartTimes, Map<String, String> initialInput,
-                                  Map<String, String> finalOutput, StepResult.ResultAction finalResultAction, String finalResultCode) {
-        verifyStepResult(ws, activityName, partitionId, partitionCount, attemptStartTimes, initialInput, finalOutput, finalResultAction, finalResultCode, null);
+                                  int numAttempts, Instant latestAttemptStartTime, Map<String, String> initialInput,
+                                  Map<String, String> finalOutput, StepResult.ResultAction finalResultAction,
+                                  String finalResultCode) {
+        verifyStepResult(ws, activityName, partitionId, partitionCount, numAttempts, latestAttemptStartTime, initialInput,
+                         finalOutput, finalResultAction, finalResultCode, null);
     }
 
     private void verifyStepResult(WorkflowState ws, String activityName, String partitionId, long partitionCount,
-                                  List<Instant> attemptStartTimes, Map<String, String> initialInput,
-                                  Map<String, String> finalOutput, StepResult.ResultAction finalResultAction, String finalResultCode,
-                                  String finalCompletionMessage) {
+                                  int numAttempts, Instant latestAttemptStartTime, Map<String, String> initialInput,
+                                  Map<String, String> finalOutput, StepResult.ResultAction finalResultAction,
+                                  String finalResultCode, String finalCompletionMessage) {
         Assert.assertNotNull(ws.getLatestPartitionStates(activityName));
         Assert.assertNotNull(ws.getLatestPartitionStates(activityName).get(partitionId));
 
         PartitionState lastAttempt = ws.getLatestPartitionStates(activityName).get(partitionId);
 
-        int numAttempts = attemptStartTimes.size();
-
-        Assert.assertEquals(attemptStartTimes.get(numAttempts - 1), lastAttempt.getAttemptScheduledTime());
+        Assert.assertEquals(latestAttemptStartTime, lastAttempt.getAttemptScheduledTime());
         Map<String, String> attemptInput = new HashMap<>(initialInput);
         attemptInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(ws.getWorkflowId()));
         attemptInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(ws.getWorkflowRunId()));

@@ -22,7 +22,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +42,7 @@ import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.step.StepResult;
 import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
 import software.amazon.aws.clients.swf.flux.step.WorkflowStepUtil;
+import software.amazon.aws.clients.swf.flux.util.ManualClock;
 import software.amazon.aws.clients.swf.flux.wf.Periodic;
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphNode;
@@ -94,6 +94,8 @@ public class WorkflowHistoryBuilder {
 
     private final WorkflowType workflowType;
 
+    private final ManualClock clock;
+
     private WorkflowStep currentStep;
     private boolean currentStepIsPartitioned;
     private final Map<String, Long> currentStepPartitionRetryAttempt;
@@ -102,11 +104,14 @@ public class WorkflowHistoryBuilder {
     private final Map<String, StepResult> currentStepResults;
     private final Map<String, HistoryEvent> currentStepOpenTimers;
 
-    private WorkflowHistoryBuilder(Workflow workflow, Instant workflowStartTime,
+    private WorkflowHistoryBuilder(Workflow workflow, ManualClock clock,
                                    Map<String, String> input) {
         this.events = new ArrayList<>();
         this.workflow = workflow;
         this.eventIds = new EventIdVendor();
+
+        this.clock = clock;
+        Instant workflowStartTime = clock.instant();
 
         this.currentStepPartitionLastScheduledEvent = new HashMap<>();
         this.currentStepInput = new HashMap<>();
@@ -115,7 +120,7 @@ public class WorkflowHistoryBuilder {
         }
         currentStepInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(WORKFLOW_ID));
         currentStepInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(RUN_ID));
-        currentStepInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(Date.from(workflowStartTime)));
+        currentStepInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(workflowStartTime));
 
         currentStepPartitionRetryAttempt = new HashMap<>();
         this.currentStepResults = new HashMap<>();
@@ -140,13 +145,13 @@ public class WorkflowHistoryBuilder {
         prepareStep(workflow.getGraph().getFirstStep());
     }
 
-    public static WorkflowHistoryBuilder startWorkflow(Workflow workflow, Instant workflowStartTime) {
-        return startWorkflow(workflow, workflowStartTime, Collections.emptyMap());
+    public static WorkflowHistoryBuilder startWorkflow(Workflow workflow, ManualClock clockAtWorkflowStartTime) {
+        return startWorkflow(workflow, clockAtWorkflowStartTime, Collections.emptyMap());
     }
 
-    public static WorkflowHistoryBuilder startWorkflow(Workflow workflow, Instant workflowStartTime,
+    public static WorkflowHistoryBuilder startWorkflow(Workflow workflow, ManualClock clockAtWorkflowStartTime,
                                                        Map<String, String> input) {
-        return new WorkflowHistoryBuilder(workflow, workflowStartTime, input);
+        return new WorkflowHistoryBuilder(workflow, clockAtWorkflowStartTime, input);
     }
 
     public WorkflowState buildCurrentState() {
@@ -183,7 +188,7 @@ public class WorkflowHistoryBuilder {
             throw new IllegalStateException();
         }
 
-        HistoryEvent event = buildActivityScheduledEvent(Instant.now(), partitionId);
+        HistoryEvent event = buildActivityScheduledEvent(clock.instant(), partitionId);
         currentStepPartitionLastScheduledEvent.put(partitionId, event);
         events.add(event);
         return event;
@@ -208,7 +213,7 @@ public class WorkflowHistoryBuilder {
             throw new IllegalStateException();
         }
 
-        HistoryEvent event = buildScheduleActivityTaskFailedEvent(Instant.now(), partitionId);
+        HistoryEvent event = buildScheduleActivityTaskFailedEvent(clock.instant(), partitionId);
         events.add(event);
         return event;
     }
@@ -243,7 +248,7 @@ public class WorkflowHistoryBuilder {
                 throw new IllegalArgumentException();
             }
 
-            resultEvent = buildActivityFailedEvent(Instant.now(), result, scheduledEvent);
+            resultEvent = buildActivityFailedEvent(clock.instant(), result, scheduledEvent);
 
             long retryAttempt = currentStepPartitionRetryAttempt.get(partitionId);
             retryAttempt++;
@@ -262,7 +267,7 @@ public class WorkflowHistoryBuilder {
             outputAttrs.put(StepAttributes.RESULT_CODE, result.getResultCode());
             outputAttrs.put(StepAttributes.ACTIVITY_COMPLETION_MESSAGE, result.getMessage());
 
-            resultEvent = buildActivityCompletedEvent(Instant.now(), outputAttrs, scheduledEvent);
+            resultEvent = buildActivityCompletedEvent(clock.instant(), outputAttrs, scheduledEvent);
         }
 
         long completedPartitions = currentStepResults.values().stream().filter(r -> r.getAction() == StepResult.ResultAction.COMPLETE).count();
@@ -327,7 +332,7 @@ public class WorkflowHistoryBuilder {
                 .timeoutType(ActivityTaskTimeoutType.HEARTBEAT)
                 .build();
 
-        HistoryEvent event = HistoryEvent.builder().eventId(eventIds.next()).eventTimestamp(Instant.now())
+        HistoryEvent event = HistoryEvent.builder().eventId(eventIds.next()).eventTimestamp(clock.instant())
                 .eventType(EventType.ACTIVITY_TASK_TIMED_OUT).activityTaskTimedOutEventAttributes(attrs).build();
         events.add(event);
 
@@ -363,7 +368,7 @@ public class WorkflowHistoryBuilder {
         ActivityTaskCanceledEventAttributes attrs = ActivityTaskCanceledEventAttributes.builder()
                 .scheduledEventId(scheduledEvent.eventId()).build();
 
-        HistoryEvent event = HistoryEvent.builder().eventId(eventIds.next()).eventTimestamp(Instant.now())
+        HistoryEvent event = HistoryEvent.builder().eventId(eventIds.next()).eventTimestamp(clock.instant())
                 .eventType(EventType.ACTIVITY_TASK_CANCELED).activityTaskCanceledEventAttributes(attrs).build();
         events.add(event);
 
@@ -472,7 +477,7 @@ public class WorkflowHistoryBuilder {
         Periodic p = workflow.getClass().getAnnotation(Periodic.class);
 
         Duration timerDuration = Duration.ofSeconds(p.intervalUnits().toSeconds(p.runInterval()));
-        Duration workflowRuntime = Duration.between(events.get(0).eventTimestamp(), Instant.now());
+        Duration workflowRuntime = Duration.between(events.get(0).eventTimestamp(), clock.instant());
 
         timerDuration = timerDuration.minus(workflowRuntime);
         if (timerDuration.isZero() || timerDuration.isNegative()) {
@@ -497,25 +502,25 @@ public class WorkflowHistoryBuilder {
     }
 
     public HistoryEvent recordCancelWorkflowExecutionRequest() {
-        HistoryEvent event = buildWorkflowCancelRequestedEvent(Instant.now());
+        HistoryEvent event = buildWorkflowCancelRequestedEvent(clock.instant());
         events.add(event);
         return event;
     }
 
     public HistoryEvent recordWorkflowCanceled() {
-        HistoryEvent event = buildWorkflowCanceledEvent(Instant.now());
+        HistoryEvent event = buildWorkflowCanceledEvent(clock.instant());
         events.add(event);
         return event;
     }
 
     public HistoryEvent recordWorkflowTerminated() {
-        HistoryEvent event = buildWorkflowTerminatedEvent(Instant.now());
+        HistoryEvent event = buildWorkflowTerminatedEvent(clock.instant());
         events.add(event);
         return event;
     }
 
     public HistoryEvent recordWorkflowTimedOut() {
-        HistoryEvent event = buildWorkflowTimedOutEvent(Instant.now());
+        HistoryEvent event = buildWorkflowTimedOutEvent(clock.instant());
         events.add(event);
         return event;
     }
@@ -525,7 +530,7 @@ public class WorkflowHistoryBuilder {
             throw new IllegalStateException("Workflow is not finished yet!");
         }
 
-        HistoryEvent event = buildWorkflowCompletedEvent(Instant.now());
+        HistoryEvent event = buildWorkflowCompletedEvent(clock.instant());
         events.add(event);
         return event;
     }
@@ -535,19 +540,19 @@ public class WorkflowHistoryBuilder {
             throw new IllegalStateException("Workflow is not finished yet!");
         }
 
-        HistoryEvent event = buildWorkflowFailedEvent(Instant.now());
+        HistoryEvent event = buildWorkflowFailedEvent(clock.instant());
         events.add(event);
         return event;
     }
 
     public HistoryEvent recordSignalEvent(BaseSignalData signalData) throws JsonProcessingException {
-        HistoryEvent event = buildSignalEvent(Instant.now(), signalData);
+        HistoryEvent event = buildSignalEvent(clock.instant(), signalData);
         events.add(event);
         return event;
     }
 
     public HistoryEvent recordSignalEvent(String rawSignalType, String rawSignalData) {
-        HistoryEvent event = buildSignalEvent(Instant.now(), rawSignalType, rawSignalData);
+        HistoryEvent event = buildSignalEvent(clock.instant(), rawSignalType, rawSignalData);
         events.add(event);
         return event;
     }
@@ -713,14 +718,14 @@ public class WorkflowHistoryBuilder {
     private HistoryEvent buildTimerStartedEvent(String timerId, Duration retryDelay) {
         TimerStartedEventAttributes attrs = TimerStartedEventAttributes.builder().timerId(timerId)
                 .startToFireTimeout(Long.toString(retryDelay.getSeconds())).build();
-        return HistoryEvent.builder().eventId(eventIds.next()).eventTimestamp(Instant.now())
+        return HistoryEvent.builder().eventId(eventIds.next()).eventTimestamp(clock.instant())
                 .eventType(EventType.TIMER_STARTED).timerStartedEventAttributes(attrs).build();
     }
 
     private HistoryEvent buildTimerClosedEvent(String timerId, boolean cancelledTimer) {
         HistoryEvent timerStartEvent = currentStepOpenTimers.get(timerId);
 
-        HistoryEvent.Builder timerEvent = HistoryEvent.builder().eventId(eventIds.next()).eventTimestamp(Instant.now());
+        HistoryEvent.Builder timerEvent = HistoryEvent.builder().eventId(eventIds.next()).eventTimestamp(clock.instant());
 
         if(cancelledTimer) {
             TimerCanceledEventAttributes attrs = TimerCanceledEventAttributes.builder()
