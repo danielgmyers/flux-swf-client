@@ -263,7 +263,7 @@ final class WorkflowState {
                 // 2. If the retry attempt for this partition is zero, and this is the first time we've seen this partition id
                 //    (which will happen if only one attempt to schedule this partition was made, and it failed),
                 //    then we need to track that we've seen this partition id but have no metadata for it.
-                // See https://github.com/awslabs/flux-swf-client/issues/33 for details on why this is important.
+                // See https://github.com/danielgmyers/flux-swf-client/issues/33 for details on why this is important.
 
                 // We'll deal with this by treating it as if we know the partition id but have not yet scheduled it.
                 // We also have to extract the partition id from the activity id since it's not stored in the event data.

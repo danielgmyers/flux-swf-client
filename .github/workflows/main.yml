@@ -11,6 +11,16 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  CODEBUILD_EXECUTOR_IAM_ROLE: "arn:aws:iam::500609504579:role/github-build-runner"
+  CODEBUILD_EXECUTOR_SESSION_NAME: "github-build-runner"
+  CODEBUILD_PROJECT_NAME: "build-only"
+  AWS_REGION: "us-west-2"
+
+permissions:
+  id-token: write
+  contents: read
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -23,16 +33,16 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          role-to-assume: ${{ env.CODEBUILD_EXECUTOR_IAM_ROLE }}
+          role-session-name: ${{ env.CODEBUILD_EXECUTOR_SESSION_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Run CodeBuild
         uses: aws-actions/aws-codebuild-run-build@v1.0.3
         with:
-          project-name: flux-builds
+          project-name: ${{ env.CODEBUILD_PROJECT_NAME }}

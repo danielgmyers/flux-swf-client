@@ -2,7 +2,7 @@ Flux is a Java client library for SWF. This document provides basic code samples
 
 Flux is in production use by multiple public AWS services.
 
-![CodeBuild status badge](https://codebuild.us-west-2.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiZ2ZyUXlPTEpyeXNiZVVOc2FqOUZCdlBXMytKZE5wbXNCZGtIOWp4ODBUYWhTWjI2RmFETWpLT0ZCc1Jnd0tzaUtwT1NoSWwwVjlXanM1OUUrcitoQlg0PSIsIml2UGFyYW1ldGVyU3BlYyI6InVKZTBIQ2s2UHpPT3lrNTYiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=main)
+![CodeBuild status badge](https://codebuild.us-west-2.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiSlhGMTFDV3dRRXJCdUxSYzdLQ3R0QzZ2WjArSWN2ZkZtVFhUbzB3L2FUZnJBZDhMbzFXQzI1WkpRRWUzdkgvcko4MFJoc1RHRW5BVmJZc3dMeWRQKzlvPSIsIml2UGFyYW1ldGVyU3BlYyI6IjcxN0ZlaXI0M3ZPdXVabDciLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=main)
 
 Flux quick start guide
 ======================
