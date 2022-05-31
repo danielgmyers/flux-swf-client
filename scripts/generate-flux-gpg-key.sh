@@ -1,5 +1,5 @@
 #!/bin/bash
-set +e
+set -e
 
 if ! command -v aws &> /dev/null
 then
@@ -23,7 +23,7 @@ fi
 
 AWS_DEFAULT_REGION=us-west-2
 FLUX_REALNAME="Flux SWF Client"
-FLUX_EMAIL="aws-flux-swf-client-owners@amazon.com"
+FLUX_EMAIL="dan+flux@danielgmyers.com"
 
 TEMPDIR=$(mktemp -d)
 echo "Working in ${TEMPDIR}..."
@@ -64,17 +64,19 @@ FLUX_GPG_PUBLIC_KEY=$(gpg --homedir $TEMPDIR --armor --export $FLUX_GPG_KEY_ID)
 echo "Exporting private key..."
 FLUX_GPG_PRIVATE_KEY=$(gpg --homedir $TEMPDIR --batch --armor --pinentry-mode loopback --passphrase $FLUX_GPG_PASSPHRASE --export-secret-keys $FLUX_GPG_KEY_ID)
 
+# This assumes CreateSecret has already been done for each of these secrets. SecretsManager doesn't have an "upsert" operation.
+
 echo "Saving key id in secrets manager..."
-aws secretsmanager create-secret --name gpg-signing-key-id --secret-string "$FLUX_GPG_KEY_ID"
+aws secretsmanager put-secret-value --secret-id gpg-signing-key-id --secret-string "$FLUX_GPG_KEY_ID"
 
 echo "Saving passphrase in secrets manager..."
-aws secretsmanager create-secret --name gpg-signing-key-passphrase --secret-string "$FLUX_GPG_PASSPHRASE"
+aws secretsmanager put-secret-value --secret-id gpg-signing-key-passphrase --secret-string "$FLUX_GPG_PASSPHRASE"
 
 echo "Saving public key in secrets manager..."
-aws secretsmanager create-secret --name gpg-signing-key-public-key --secret-string "$FLUX_GPG_PUBLIC_KEY"
+aws secretsmanager put-secret-value --secret-id gpg-signing-key-public-key --secret-string "$FLUX_GPG_PUBLIC_KEY"
 
 echo "Saving private key in secrets manager..."
-aws secretsmanager create-secret --name gpg-signing-key-private-key --secret-string "$FLUX_GPG_PRIVATE_KEY"
+aws secretsmanager put-secret-value --secret-id gpg-signing-key-private-key --secret-string "$FLUX_GPG_PRIVATE_KEY"
 
 echo "Sending public key to keys.openpgp.org..."
 gpg --homedir $TEMPDIR --keyserver hkps://keys.openpgp.org --send-keys $FLUX_GPG_KEY_ID
