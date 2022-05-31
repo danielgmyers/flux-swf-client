@@ -3,18 +3,18 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>software.amazon.aws.clients.swf.flux</groupId>
+        <groupId>com.danielgmyers.flux.clients.swf</groupId>
         <artifactId>flux-swf-client-pom</artifactId>
         <version>2.0.7</version>
     </parent>
     <artifactId>flux-spring</artifactId>
     <name>Flux SWF Client Spring Helper</name>
     <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
-    <url>https://github.com/awslabs/flux-swf-client</url>
+    <url>https://github.com/danielgmyers/flux-swf-client</url>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
-            <url>https://aws.amazon.com/apache2.0</url>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -29,7 +29,7 @@
         <!-- flux internal dependencies -->
         <dependency>
             <artifactId>flux</artifactId>
-            <groupId>software.amazon.aws.clients.swf.flux</groupId>
+            <groupId>com.danielgmyers.flux.clients.swf</groupId>
             <version>${flux.version}</version>
             <optional>false</optional>
         </dependency>

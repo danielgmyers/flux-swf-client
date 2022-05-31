@@ -2,25 +2,25 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>software.amazon.aws.clients.swf.flux</groupId>
+    <groupId>com.danielgmyers.flux.clients.swf</groupId>
     <artifactId>flux-swf-client-pom</artifactId>
     <version>2.0.7</version>
     <packaging>pom</packaging>
     <name>Flux SWF Client POM</name>
     <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
-    <url>https://github.com/awslabs/flux-swf-client</url>
+    <url>https://github.com/danielgmyers/flux-swf-client</url>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
-            <url>https://aws.amazon.com/apache2.0</url>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
     <developers>
         <developer>
-            <id>amazonwebservices</id>
-            <organization>Amazon Web Services</organization>
-            <organizationUrl>https://aws.amazon.com</organizationUrl>
+            <id>danielgmyers</id>
+            <name>Dan Myers</name>
+            <url>https://github.com/danielgmyers</url>
             <roles>
                 <role>developer</role>
             </roles>
@@ -37,9 +37,9 @@
     </modules>
 
     <scm>
-        <connection>scm:git:https://github.com/awslabs/flux-swf-client.git</connection>
-        <developerConnection>scm:git:git@github.com:awslabs/flux-swf-client.git</developerConnection>
-        <url>https://github.com/awslabs/flux-swf-client</url>
+        <connection>scm:git:https://github.com/danielgmyers/flux-swf-client.git</connection>
+        <developerConnection>scm:git:git@github.com:danielgmyers/flux-swf-client.git</developerConnection>
+        <url>https://github.com/danielgmyers/flux-swf-client</url>
     </scm>
     <properties>
         <flux.version>${project.version}</flux.version>
@@ -206,7 +206,7 @@
                         <extensions>true</extensions>
                         <configuration>
                             <serverId>sonatype-nexus-staging</serverId>
-                            <nexusUrl>https://aws.oss.sonatype.org/</nexusUrl>
+                            <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
                             <autoReleaseAfterClose>${publishing.autoReleaseAfterClose}</autoReleaseAfterClose>
                         </configuration>
                     </plugin>
