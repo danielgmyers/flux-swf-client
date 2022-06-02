@@ -2,7 +2,9 @@ Flux is a Java client library for SWF. This document provides basic code samples
 
 Flux is in production use by multiple public AWS services.
 
-![CodeBuild status badge](https://codebuild.us-west-2.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiSlhGMTFDV3dRRXJCdUxSYzdLQ3R0QzZ2WjArSWN2ZkZtVFhUbzB3L2FUZnJBZDhMbzFXQzI1WkpRRWUzdkgvcko4MFJoc1RHRW5BVmJZc3dMeWRQKzlvPSIsIml2UGFyYW1ldGVyU3BlYyI6IjcxN0ZlaXI0M3ZPdXVabDciLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=main)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+
+[![CodeBuild status badge](https://codebuild.us-west-2.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiSlhGMTFDV3dRRXJCdUxSYzdLQ3R0QzZ2WjArSWN2ZkZtVFhUbzB3L2FUZnJBZDhMbzFXQzI1WkpRRWUzdkgvcko4MFJoc1RHRW5BVmJZc3dMeWRQKzlvPSIsIml2UGFyYW1ldGVyU3BlYyI6IjcxN0ZlaXI0M3ZPdXVabDciLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=main)](https://us-west-2.codebuild.aws.amazon.com/project/eyJlbmNyeXB0ZWREYXRhIjoiVWZneFloWkVYSzZJc0wvRzVGeU1CQnc3a29ML0RIRmxUa29Hb1I5QXIvRTQ5T2JQbENHOVF3Sy93clI4WVYrM285Q3ExMVdzeUpXdmdqYW14czM0dDhtb2RrOXhmejIyelUzNCIsIml2UGFyYW1ldGVyU3BlYyI6Im5BcS85b3UxdkpzQWlyNkIiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D)
 
 Flux quick start guide
 ======================
