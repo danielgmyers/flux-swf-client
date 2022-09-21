@@ -43,23 +43,23 @@
     </scm>
     <properties>
         <flux.version>${project.version}</flux.version>
-        <awssdk.version>2.17.100</awssdk.version>
-        <jackson.version>2.13.0</jackson.version>
-        <slf4j.version>1.7.32</slf4j.version>
+        <awssdk.version>2.17.276</awssdk.version>
+        <jackson.version>2.13.4</jackson.version>
+        <slf4j.version>1.7.36</slf4j.version>
 
         <junit.version>4.13.2</junit.version>
-        <junit5.version>5.7.2</junit5.version>
+        <junit5.version>5.9.0</junit5.version>
         <easymock.version>4.3</easymock.version>
 
-        <mavenplugin.compiler.version>3.8.1</mavenplugin.compiler.version>
-        <mavenplugin.checkstyle.version>3.1.2</mavenplugin.checkstyle.version>
+        <mavenplugin.compiler.version>3.10.1</mavenplugin.compiler.version>
+        <mavenplugin.checkstyle.version>3.2.0</mavenplugin.checkstyle.version>
         <mavenplugin.surefire.version>2.22.2</mavenplugin.surefire.version>
         <mavenplugin.source.version>3.2.1</mavenplugin.source.version>
-        <mavenplugin.javadoc.version>3.3.0</mavenplugin.javadoc.version>
+        <mavenplugin.javadoc.version>3.4.1</mavenplugin.javadoc.version>
         <mavenplugin.gpg.version>3.0.1</mavenplugin.gpg.version>
-        <mavenplugin.nexusstaging.version>1.6.8</mavenplugin.nexusstaging.version>
+        <mavenplugin.nexusstaging.version>1.6.13</mavenplugin.nexusstaging.version>
 
-        <checkstyle.version>8.45</checkstyle.version>
+        <checkstyle.version>8.45.1</checkstyle.version>
 
         <jre.version>1.8</jre.version>
     </properties>
