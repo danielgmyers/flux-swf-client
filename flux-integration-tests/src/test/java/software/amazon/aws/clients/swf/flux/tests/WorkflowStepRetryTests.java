@@ -3,9 +3,11 @@ package software.amazon.aws.clients.swf.flux.tests;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import software.amazon.aws.clients.swf.flux.step.Attribute;
@@ -17,6 +19,7 @@ import software.amazon.aws.clients.swf.flux.step.StepApply;
 import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.step.StepResult;
 import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Validates that the two ways a step can retry both result in retries and that workflows can still complete afterward.
@@ -36,7 +39,10 @@ public class WorkflowStepRetryTests extends WorkflowTestBase {
         String uuid = UUID.randomUUID().toString();
 
         executeWorkflow(WorkflowWithRetryingStep.class, uuid, Collections.emptyMap());
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(60));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(60));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
     }
 
     /**
@@ -47,7 +53,10 @@ public class WorkflowStepRetryTests extends WorkflowTestBase {
         String uuid = UUID.randomUUID().toString();
 
         executeWorkflow(WorkflowWithExceptionThrowingStep.class, uuid, Collections.emptyMap());
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(60));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(60));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
     }
 
     /**

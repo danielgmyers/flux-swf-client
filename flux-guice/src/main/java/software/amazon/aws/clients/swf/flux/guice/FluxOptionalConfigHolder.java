@@ -26,6 +26,7 @@ import com.google.inject.Inject;
  */
 public class FluxOptionalConfigHolder {
 
+    private Boolean automaticallyTagExecutionsWithTaskList = null;
     private Double exponentialBackoffBase = null;
     private String swfEndpoint = null;
     private Map<String, Integer> taskListBucketCounts = null;
@@ -34,6 +35,16 @@ public class FluxOptionalConfigHolder {
     private Map<String, Integer> taskListDeciderThreadCounts = null;
     private Map<String, Integer> taskListDeciderPollerThreadCounts = null;
     private Map<String, Integer> taskListPeriodicSubmitterThreadCounts = null;
+
+    public Boolean getAutomaticallyTagExecutionsWithTaskList() {
+        return automaticallyTagExecutionsWithTaskList;
+    }
+
+    @Inject(optional = true)
+    public void setAutomaticallyTagExecutionsWithTaskList(
+            @AutomaticallyTagExecutionsWithTaskList Boolean automaticallyTagExecutionsWithTaskList) {
+        this.automaticallyTagExecutionsWithTaskList = automaticallyTagExecutionsWithTaskList;
+    }
 
     public Double getExponentialBackoffBase() {
         return exponentialBackoffBase;

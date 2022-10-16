@@ -35,6 +35,7 @@ public class FluxCapacitorConfig {
     private String swfDomain;
     private ClientOverrideConfiguration clientOverrideConfiguration;
     private final Map<String, TaskListConfig> taskListConfigs = new HashMap<>();
+    private Boolean automaticallyTagExecutionsWithTaskList;
 
     public String getAwsRegion() {
         return awsRegion;
@@ -260,5 +261,18 @@ public class FluxCapacitorConfig {
                 getTaskListConfig(entry.getKey()).setPeriodicSubmitterThreadCount(entry.getValue());
             }
         }
+    }
+
+    /**
+     * Controls whether Flux automatically includes a workflow's task list name in the list of tags for new executions.
+     *
+     * This configuration value is optional; if not specified, this functionality will be enabled.
+     */
+    public void setAutomaticallyTagExecutionsWithTaskList(Boolean automaticallyTagExecutionsWithTaskList) {
+        this.automaticallyTagExecutionsWithTaskList = automaticallyTagExecutionsWithTaskList;
+    }
+
+    public Boolean getAutomaticallyTagExecutionsWithTaskList() {
+        return automaticallyTagExecutionsWithTaskList;
     }
 }

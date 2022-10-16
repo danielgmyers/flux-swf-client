@@ -3,6 +3,7 @@ package software.amazon.aws.clients.swf.flux.tests;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,6 +23,7 @@ import software.amazon.aws.clients.swf.flux.step.StepApply;
 import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.step.StepResult;
 import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Tests that validate Flux's signal support.
@@ -54,7 +56,10 @@ public class SignalTests extends WorkflowTestBase {
                                 String.format("{\"activityId\": \"%s\", \"resultCode\": \"%s\" }",
                                               String.format("%s_%s", AlwaysRetries.class.getSimpleName(), 2),
                                               RESULT_CODE_THAT_CLOSES_WORKFLOW));
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         // since we forced the workflow to close, it should have closed without running the step again.
         Assert.assertEquals(2, AlwaysRetries.getAttemptCount());
@@ -78,7 +83,10 @@ public class SignalTests extends WorkflowTestBase {
                                 String.format("{\"activityId\": \"%s\", \"resultCode\": \"%s\" }",
                                               String.format("%s_%s", SucceedWithCustomResultCode.class.getSimpleName(), 1),
                                               StepResult.SUCCEED_RESULT_CODE));
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         // since we forced the workflow to close, it should have closed without running the step again.
         Assert.assertEquals(1, SucceedWithCustomResultCode.getAttemptCount());
@@ -97,7 +105,10 @@ public class SignalTests extends WorkflowTestBase {
         Thread.sleep(40000);
         Assert.assertEquals(2, SucceedsOnRetryAttemptOne.getAttemptCount());
 
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(10));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(10));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         // It should have closed without running the step again.
         Assert.assertEquals(2, SucceedsOnRetryAttemptOne.getAttemptCount());
@@ -119,7 +130,10 @@ public class SignalTests extends WorkflowTestBase {
         Thread.sleep(10000);
         Assert.assertEquals(4, SucceedsOnRetryAttemptOne.getAttemptCount());
 
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(10));
+        info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(10));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         // It should have closed without running the step again.
         Assert.assertEquals(4, SucceedsOnRetryAttemptOne.getAttemptCount());
@@ -150,7 +164,10 @@ public class SignalTests extends WorkflowTestBase {
         Thread.sleep(30000);
         Assert.assertEquals(2, SucceedsOnRetryAttemptTwo.getAttemptCount());
 
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(120));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(120));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         // Since the workflow only ends after its second retry attempt (third step execution), there should be three attempts now.
         Assert.assertEquals(3, SucceedsOnRetryAttemptTwo.getAttemptCount());

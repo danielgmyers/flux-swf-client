@@ -58,6 +58,9 @@ public class BucketedTaskListTest extends WorkflowTestBase {
             executeWorkflow(BucketedHelloWorld.class, uuid, Collections.emptyMap());
             WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
 
+            // the execution tags should have the non-bucketed task list name
+            Assert.assertEquals(Collections.singleton(TASK_LIST_NAME), new HashSet<>(info.tagList()));
+
             GetWorkflowExecutionHistoryResponse response = getWorkflowExecutionHistory(uuid, info.execution().runId());
             Assert.assertTrue(response.hasEvents());
             String taskList = response.events().get(0).workflowExecutionStartedEventAttributes().taskList().name();
