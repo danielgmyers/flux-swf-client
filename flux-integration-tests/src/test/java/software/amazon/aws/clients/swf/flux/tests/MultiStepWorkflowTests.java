@@ -23,6 +23,7 @@ import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphBuilder;
 import software.amazon.aws.clients.swf.flux.step.StepApply;
 import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Tests that validate Flux's behavior for multi-step workflows.
@@ -47,7 +48,10 @@ public class MultiStepWorkflowTests extends WorkflowTestBase {
         EXECUTION_ORDER_BY_WORKFLOW_ID.put(uuid, Collections.synchronizedList(new LinkedList<>()));
 
         executeWorkflow(MultiStep.class, uuid, Collections.emptyMap());
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Assert.assertEquals(3, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
         Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
@@ -66,7 +70,10 @@ public class MultiStepWorkflowTests extends WorkflowTestBase {
         }
 
         for (String uuid : uuids) {
-            waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+            WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+
+            Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                                new HashSet<>(info.tagList()));
 
             Assert.assertEquals(3, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
             Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));

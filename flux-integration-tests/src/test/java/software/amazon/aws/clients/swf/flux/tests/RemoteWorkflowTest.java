@@ -65,6 +65,8 @@ public class RemoteWorkflowTest extends WorkflowTestBase {
         WorkflowStatusChecker.WorkflowStatus lastStatus = status.checkStatus();
         log.info("Received status " + lastStatus.toString() + " for requested remote workflow.");
 
+        // TODO -- check that the remote execution was tagged with the task list name.
+
         Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.IN_PROGRESS, status.checkStatus());
 
         terminateOpenWorkflowExecutions(status.getSwfClient());

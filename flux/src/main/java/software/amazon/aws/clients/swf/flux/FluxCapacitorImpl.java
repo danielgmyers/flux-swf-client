@@ -199,6 +199,13 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
         Workflow workflow = workflowsByName.get(workflowName);
 
+        Set<String> executionTags = new HashSet<>();
+        // if the auto-tagging config is not set, it's enabled by default
+        if (config.getAutomaticallyTagExecutionsWithTaskList() == null
+            || config.getAutomaticallyTagExecutionsWithTaskList()) {
+            executionTags.add(workflow.taskList());
+        }
+
         // nextInt generates a number between 0 (inclusive) and bucketCount (exclusive).
         // We want a number between 1 (inclusive) and bucketCount (inclusive), so we can just add one to the result.
         int bucket = 1 + RANDOM.nextInt(config.getTaskListConfig(workflow.taskList()).getBucketCount());
@@ -206,7 +213,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
         StartWorkflowExecutionRequest request = buildStartWorkflowRequest(workflowDomain, workflowName, workflowId,
                                                                           taskList, workflow.maxStartToCloseDuration(),
-                                                                          workflowInput);
+                                                                          workflowInput, executionTags);
 
         log.debug("Requesting new workflow execution for workflow {} with id {}", workflowName, workflowId);
 
@@ -318,7 +325,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     // visible for use by unit tests
     static StartWorkflowExecutionRequest buildStartWorkflowRequest(String workflowDomain, String workflowName,
                                                                    String workflowId, String taskList,
-                                                                   Duration startToCloseDuration, Map<String, ?> input) {
+                                                                   Duration startToCloseDuration, Map<String, ?> input,
+                                                                   Set<String> executionTags) {
         // yes, this means the input attributes are serialized into a string map, which is itself serialized.
         // this makes deserialization less confusing later because we can deserialize as a map of strings
         // and then deserialize each value as a specific type.
@@ -333,6 +341,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
                                             .input(rawInput)
                                             .taskStartToCloseTimeout(DEFAULT_DECISION_TASK_TIMEOUT)
                                             .executionStartToCloseTimeout(Long.toString(startToCloseDuration.getSeconds()))
+                                            .tagList(executionTags)
                                             .build();
     }
 
@@ -342,8 +351,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
      * @param swf    - The SWF client that should be used for all SWF API calls
      * @param config - Config data used to configure FluxCapacitor behavior.
      */
-    FluxCapacitorImpl(MetricRecorderFactory metricsFactory, SwfClient swf, FluxCapacitorConfig config,
-                      Clock clock) {
+    FluxCapacitorImpl(MetricRecorderFactory metricsFactory, SwfClient swf, FluxCapacitorConfig config, Clock clock) {
         this.metricsFactory = metricsFactory;
         this.swf = swf;
         this.config = config;

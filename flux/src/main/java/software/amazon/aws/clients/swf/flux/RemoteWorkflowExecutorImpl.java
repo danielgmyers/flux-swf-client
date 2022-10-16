@@ -17,7 +17,9 @@
 package software.amazon.aws.clients.swf.flux;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,10 +62,15 @@ public class RemoteWorkflowExecutorImpl implements RemoteWorkflowExecutor {
         }
 
         Workflow workflow = workflowsByName.get(workflowName);
+
+        Set<String> executionTags = new HashSet<>();
+        // TODO -- check if enabled
+        executionTags.add(workflow.taskList());
+
         StartWorkflowExecutionRequest request
                 = FluxCapacitorImpl.buildStartWorkflowRequest(workflowDomain, workflowName, workflowId,
                                                               workflow.taskList(), workflow.maxStartToCloseDuration(),
-                                                              workflowInput);
+                                                              workflowInput, executionTags);
 
         log.debug("Requesting new remote workflow execution for workflow {} with id {}", workflowName, workflowId);
 

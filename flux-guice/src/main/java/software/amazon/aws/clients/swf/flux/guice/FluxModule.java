@@ -104,6 +104,9 @@ public class FluxModule extends AbstractModule {
         if (configHolder.getExponentialBackoffBase() != null) {
             config.setExponentialBackoffBase(configHolder.getExponentialBackoffBase());
         }
+        if (configHolder.getAutomaticallyTagExecutionsWithTaskList() != null) {
+            config.setAutomaticallyTagExecutionsWithTaskList(configHolder.getAutomaticallyTagExecutionsWithTaskList());
+        }
         applyTaskListConfigData(config, configHolder.getTaskListBucketCounts(),
                                 TaskListConfig::setBucketCount);
         applyTaskListConfigData(config, configHolder.getTaskListActivityThreadCounts(),

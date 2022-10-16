@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraph;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphBuilder;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Tests that validate Flux's behavior for branching workflows.
@@ -48,7 +50,10 @@ public class BranchingWorkflowTests extends WorkflowTestBase {
         executeWorkflow(BranchingWorkflowSucceedFail.class, uuid,
 
                         buildInput(BRANCH_ATTRIBUTE_NAME, StepResult.SUCCEED_RESULT_CODE));
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Assert.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
         Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
@@ -59,7 +64,10 @@ public class BranchingWorkflowTests extends WorkflowTestBase {
 
         executeWorkflow(BranchingWorkflowSucceedFail.class, uuid,
                         buildInput(BRANCH_ATTRIBUTE_NAME, StepResult.FAIL_RESULT_CODE));
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+        info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Assert.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
         Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
@@ -72,7 +80,10 @@ public class BranchingWorkflowTests extends WorkflowTestBase {
         EXECUTION_ORDER_BY_WORKFLOW_ID.put(uuid, Collections.synchronizedList(new LinkedList<>()));
 
         executeWorkflow(BranchingWorkflowCustomCodes.class, uuid, buildInput(BRANCH_ATTRIBUTE_NAME, BRANCH_LEFT));
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Assert.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
         Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
@@ -82,7 +93,10 @@ public class BranchingWorkflowTests extends WorkflowTestBase {
         EXECUTION_ORDER_BY_WORKFLOW_ID.put(uuid, Collections.synchronizedList(new LinkedList<>()));
 
         executeWorkflow(BranchingWorkflowCustomCodes.class, uuid, buildInput(BRANCH_ATTRIBUTE_NAME, BRANCH_RIGHT));
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+        info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Assert.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
         Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));

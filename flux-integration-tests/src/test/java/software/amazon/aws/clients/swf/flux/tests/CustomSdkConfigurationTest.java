@@ -24,6 +24,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.interceptor.Context;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Given an SwfClient object, there's not actually a way to check its configuration.
@@ -74,13 +75,19 @@ public class CustomSdkConfigurationTest extends WorkflowTestBase {
         String uuid = UUID.randomUUID().toString();
 
         executeWorkflow(HelloWorld.class, uuid, Collections.emptyMap());
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Assert.assertTrue(StepOne.didExecute(uuid));
 
         uuid = UUID.randomUUID().toString();
         executeWorkflow(HelloWorld.class, uuid, Collections.emptyMap());
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
+        info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Assert.assertTrue(StepOne.didExecute(uuid));
     }

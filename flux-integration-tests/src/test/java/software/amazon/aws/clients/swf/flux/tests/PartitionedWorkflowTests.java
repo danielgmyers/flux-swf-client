@@ -25,6 +25,7 @@ import software.amazon.aws.clients.swf.flux.step.PartitionedWorkflowStep;
 import software.amazon.aws.clients.swf.flux.step.StepApply;
 import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Tests that validate Flux's behavior for partitioned workflows.
@@ -45,7 +46,10 @@ public class PartitionedWorkflowTests extends WorkflowTestBase {
     public void testPartitionedWorkflowStepExecutesAllPartitions() throws InterruptedException {
         String uuid = UUID.randomUUID().toString();
         executeWorkflow(PartitionedGreeting.class, uuid, Collections.emptyMap());
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(60));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(60));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Set<String> partitionIds = PartitionedStep.getGeneratedPartitionsByWorkflowId().get(uuid);
         Assert.assertEquals(partitionIds.size(), PartitionedStep.getExecutedPartitionsByWorkflowId().get(uuid).size());
@@ -65,7 +69,11 @@ public class PartitionedWorkflowTests extends WorkflowTestBase {
 
 
         for (String uuid : uuids) {
-            waitForWorkflowCompletion(uuid, Duration.ofSeconds(60));
+            WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(60));
+
+            Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                                new HashSet<>(info.tagList()));
+
             Set<String> partitionIds = PartitionedStep.getGeneratedPartitionsByWorkflowId().get(uuid);
             Assert.assertEquals(partitionIds.size(), PartitionedStep.getExecutedPartitionsByWorkflowId().get(uuid).size());
             for (String id : partitionIds) {

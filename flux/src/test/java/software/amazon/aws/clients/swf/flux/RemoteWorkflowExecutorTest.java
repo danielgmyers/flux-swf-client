@@ -121,10 +121,12 @@ public class RemoteWorkflowExecutorTest {
         expectStartWorkflowRequest(workflow, workflowId, input, null);
     }
 
-    private void expectStartWorkflowRequest(Workflow workflow, String workflowId, Map<String, Object> input, Exception exceptionToThrow) {
-        StartWorkflowExecutionRequest start = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN, TaskNaming.workflowName(workflow),
-                                                                                          workflowId, workflow.taskList(),
-                                                                                          workflow.maxStartToCloseDuration(), input);
+    private void expectStartWorkflowRequest(Workflow workflow, String workflowId, Map<String, Object> input,
+                                            Exception exceptionToThrow) {
+        StartWorkflowExecutionRequest start
+                = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN, TaskNaming.workflowName(workflow), workflowId,
+                                                              workflow.taskList(), workflow.maxStartToCloseDuration(),
+                                                              input, Collections.singleton(workflow.taskList()));
         if (exceptionToThrow == null) {
             StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
             EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);

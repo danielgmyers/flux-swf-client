@@ -17,6 +17,7 @@ import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraph;
 import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphBuilder;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Validates very basic workflow functionality.
@@ -36,13 +37,19 @@ public class BasicWorkflowTest extends WorkflowTestBase {
         String uuid = UUID.randomUUID().toString();
 
         executeWorkflow(HelloWorld.class, uuid, Collections.emptyMap());
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
+        WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Assert.assertTrue(StepOne.didExecute(uuid));
 
         uuid = UUID.randomUUID().toString();
         executeWorkflow(HelloWorld.class, uuid, Collections.emptyMap());
-        waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
+        info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
+
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Assert.assertTrue(StepOne.didExecute(uuid));
     }
