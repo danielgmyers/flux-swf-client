@@ -32,6 +32,7 @@ import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.services.swf.SwfClient;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * A stub FluxCapacitor implemention intended to be used by unit tests.
@@ -94,6 +95,11 @@ public class StubFluxCapacitor implements FluxCapacitor {
             @Override
             public WorkflowStatus checkStatus() {
                 return WorkflowStatus.UNKNOWN;
+            }
+
+            @Override
+            public WorkflowExecutionInfo getExecutionInfo() {
+                return null;
             }
 
             public SwfClient getSwfClient() {

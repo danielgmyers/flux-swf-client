@@ -76,6 +76,7 @@ import software.amazon.awssdk.services.swf.model.TaskList;
 import software.amazon.awssdk.services.swf.model.TypeAlreadyExistsException;
 import software.amazon.awssdk.services.swf.model.UnknownResourceException;
 import software.amazon.awssdk.services.swf.model.WorkflowExecutionAlreadyStartedException;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 import software.amazon.awssdk.services.swf.model.WorkflowType;
 
 /**
@@ -232,6 +233,11 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
                     return WorkflowStatus.UNKNOWN;
                 }
 
+                @Override
+                public WorkflowExecutionInfo getExecutionInfo() {
+                    return null;
+                }
+
                 public SwfClient getSwfClient() {
                     return swf;
                 }
@@ -260,7 +266,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
         if (swfEndpoint != null) {
             customSwf.endpointOverride(URI.create(swfEndpoint));
         }
-        return new RemoteWorkflowExecutorImpl(metricsFactory, workflowsByName, customSwf.build(), workflowDomain);
+        return new RemoteWorkflowExecutorImpl(metricsFactory, workflowsByName, customSwf.build(), config);
     }
 
     @Override
