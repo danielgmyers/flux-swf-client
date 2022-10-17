@@ -19,7 +19,7 @@ If you're using Spring, it is recommended to initialize your Workflow objects as
         which will be autowired into the FluxSpringInitializer bean.
     -->
 
-    <bean id="fluxFactory" class="software.amazon.aws.clients.swf.flux.spring.FluxSpringCreator" factory-method="createWithConfig">
+    <bean id="fluxFactory" class="com.danielgmyers.flux.clients.swf.spring.FluxSpringCreator" factory-method="createWithConfig">
         <constructor-arg ref="MetricRecorderFactory" />
         <constructor-arg ref="AWSCredentials" />
         <constructor-arg ref="swfRegion" />
@@ -27,7 +27,7 @@ If you're using Spring, it is recommended to initialize your Workflow objects as
         <constructor-arg ref="workflowDomain" />
     </bean>
     <bean id="fluxCapacitor" factory-bean="fluxFactory" factory-method="create" />
-    <bean id="fluxInitializer" class="software.amazon.aws.clients.swf.flux.spring.FluxSpringInitializer" />
+    <bean id="fluxInitializer" class="com.danielgmyers.flux.clients.swf.spring.FluxSpringInitializer" />
 </beans>
 ```
 
@@ -35,8 +35,8 @@ Similarly, you can use this config for your unit tests' spring context:
 
 ```xml
 <beans>
-    <bean id="fluxCapacitor" class="software.amazon.aws.clients.swf.flux.FluxCapacitorFactory" factory-method="createMock" />
-    <bean id="fluxInitializer" class="software.amazon.aws.clients.swf.flux.spring.FluxSpringInitializer" />
+    <bean id="fluxCapacitor" class="com.danielgmyers.flux.clients.swf.FluxCapacitorFactory" factory-method="createMock" />
+    <bean id="fluxInitializer" class="com.danielgmyers.flux.clients.swf.spring.FluxSpringInitializer" />
 </beans>
 ```
 
