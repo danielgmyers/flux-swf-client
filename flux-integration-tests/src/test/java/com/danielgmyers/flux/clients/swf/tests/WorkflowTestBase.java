@@ -14,12 +14,11 @@ import com.danielgmyers.flux.clients.swf.RemoteWorkflowExecutor;
 import com.danielgmyers.flux.clients.swf.TestConfig;
 import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -42,7 +41,7 @@ import software.amazon.awssdk.services.swf.paginators.ListOpenWorkflowExecutions
 /**
  * Shared initialization for the tests.
  */
-@Ignore
+@Disabled
 public abstract class WorkflowTestBase {
     private static final Logger log = LoggerFactory.getLogger(WorkflowTestBase.class);
 
@@ -67,7 +66,7 @@ public abstract class WorkflowTestBase {
     /**
      * Configures an SWF client and the FluxCapacitor.
      */
-    @Before
+    @BeforeEach
     public void setUpFluxCapacitor() {
         swfClient = createSwfClient(true);
 
@@ -116,7 +115,7 @@ public abstract class WorkflowTestBase {
     /**
      * Cleans up Flux.
      */
-    @After
+    @AfterEach
     public void cleanUpFluxCapacitor() throws InterruptedException {
         log.info("Shutting down Flux with domain " + getWorkflowDomain() + "...");
         capacitor.shutdown();

@@ -15,10 +15,10 @@ import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.interceptor.Context;
@@ -51,15 +51,14 @@ public class CustomSdkConfigurationTest extends WorkflowTestBase {
         config.setClientOverrideConfiguration(overrideConfig);
     }
 
-    @Before
+    @BeforeEach
     public void clearInterceptorCalled() {
         interceptorCalled = false;
     }
 
-    @After
+    @AfterEach
     public void verifyInterceptorCalled() {
-        Assert.assertTrue("If this fails, then FluxCapacitorConfig's ClientOverrideConfiguration was not wired properly.",
-                          interceptorCalled);
+        Assertions.assertTrue(interceptorCalled, "If this fails, then FluxCapacitorConfig's ClientOverrideConfiguration was not wired properly.");
     }
 
     @Override
@@ -77,19 +76,19 @@ public class CustomSdkConfigurationTest extends WorkflowTestBase {
         executeWorkflow(HelloWorld.class, uuid, Collections.emptyMap());
         WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                             new HashSet<>(info.tagList()));
 
-        Assert.assertTrue(StepOne.didExecute(uuid));
+        Assertions.assertTrue(StepOne.didExecute(uuid));
 
         uuid = UUID.randomUUID().toString();
         executeWorkflow(HelloWorld.class, uuid, Collections.emptyMap());
         info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                             new HashSet<>(info.tagList()));
 
-        Assert.assertTrue(StepOne.didExecute(uuid));
+        Assertions.assertTrue(StepOne.didExecute(uuid));
     }
 
     /**

@@ -19,8 +19,8 @@ import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,13 +47,13 @@ public class PartitionedWorkflowTests extends WorkflowTestBase {
         executeWorkflow(PartitionedGreeting.class, uuid, Collections.emptyMap());
         WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(60));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
-                            new HashSet<>(info.tagList()));
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                                new HashSet<>(info.tagList()));
 
         Set<String> partitionIds = PartitionedStep.getGeneratedPartitionsByWorkflowId().get(uuid);
-        Assert.assertEquals(partitionIds.size(), PartitionedStep.getExecutedPartitionsByWorkflowId().get(uuid).size());
+        Assertions.assertEquals(partitionIds.size(), PartitionedStep.getExecutedPartitionsByWorkflowId().get(uuid).size());
         for (String id : partitionIds) {
-            Assert.assertTrue(PartitionedStep.getExecutedPartitionsByWorkflowId().get(uuid).contains(id));
+            Assertions.assertTrue(PartitionedStep.getExecutedPartitionsByWorkflowId().get(uuid).contains(id));
         }
     }
 
@@ -70,13 +70,13 @@ public class PartitionedWorkflowTests extends WorkflowTestBase {
         for (String uuid : uuids) {
             WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(60));
 
-            Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+            Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                                 new HashSet<>(info.tagList()));
 
             Set<String> partitionIds = PartitionedStep.getGeneratedPartitionsByWorkflowId().get(uuid);
-            Assert.assertEquals(partitionIds.size(), PartitionedStep.getExecutedPartitionsByWorkflowId().get(uuid).size());
+            Assertions.assertEquals(partitionIds.size(), PartitionedStep.getExecutedPartitionsByWorkflowId().get(uuid).size());
             for (String id : partitionIds) {
-                Assert.assertTrue(PartitionedStep.getExecutedPartitionsByWorkflowId().get(uuid).contains(id));
+                Assertions.assertTrue(PartitionedStep.getExecutedPartitionsByWorkflowId().get(uuid).contains(id));
             }
         }
     }

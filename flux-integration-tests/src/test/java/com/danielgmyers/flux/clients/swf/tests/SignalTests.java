@@ -17,8 +17,8 @@ import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,11 +44,11 @@ public class SignalTests extends WorkflowTestBase {
         executeWorkflow(RequiresForcedResult.class, uuid, Collections.emptyMap());
         log.info("Sleeping for 6 seconds, there should be 1 attempt after this...");
         Thread.sleep(6000);
-        Assert.assertEquals(1, AlwaysRetries.getAttemptCount());
+        Assertions.assertEquals(1, AlwaysRetries.getAttemptCount());
 
         log.info("Sleeping for 20 seconds, there should be 1 more attempt after this...");
         Thread.sleep(20000);
-        Assert.assertEquals(2, AlwaysRetries.getAttemptCount());
+        Assertions.assertEquals(2, AlwaysRetries.getAttemptCount());
 
         // we need to know the activity name and the next attempt number (which is zero-based).
         signalWorkflowExecution(uuid, SignalType.FORCE_RESULT.getFriendlyName(),
@@ -57,11 +57,11 @@ public class SignalTests extends WorkflowTestBase {
                                               RESULT_CODE_THAT_CLOSES_WORKFLOW));
         WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                             new HashSet<>(info.tagList()));
 
         // since we forced the workflow to close, it should have closed without running the step again.
-        Assert.assertEquals(2, AlwaysRetries.getAttemptCount());
+        Assertions.assertEquals(2, AlwaysRetries.getAttemptCount());
     }
 
     @Test
@@ -70,7 +70,7 @@ public class SignalTests extends WorkflowTestBase {
         executeWorkflow(DoesNotHandleCustomResultCode.class, uuid, Collections.emptyMap());
         log.info("Sleeping for 6 seconds to give the step time to run...");
         Thread.sleep(6000);
-        Assert.assertEquals(1, SucceedWithCustomResultCode.getAttemptCount());
+        Assertions.assertEquals(1, SucceedWithCustomResultCode.getAttemptCount());
 
         // At this point, the workflow would have succeeded if it handled the custom result code.
         // Since it didn't, we need to override the result of the first step attempt, i.e. attempt 0.
@@ -84,11 +84,11 @@ public class SignalTests extends WorkflowTestBase {
                                               StepResult.SUCCEED_RESULT_CODE));
         WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                             new HashSet<>(info.tagList()));
 
         // since we forced the workflow to close, it should have closed without running the step again.
-        Assert.assertEquals(1, SucceedWithCustomResultCode.getAttemptCount());
+        Assertions.assertEquals(1, SucceedWithCustomResultCode.getAttemptCount());
     }
 
     @Test
@@ -98,19 +98,19 @@ public class SignalTests extends WorkflowTestBase {
         executeWorkflow(RetriesOnceWithLongRetryTime.class, uuid, Collections.emptyMap());
         log.info("Sleeping for 6 seconds, there should be 1 attempt after this...");
         Thread.sleep(6000);
-        Assert.assertEquals(1, SucceedsOnRetryAttemptOne.getAttemptCount());
+        Assertions.assertEquals(1, SucceedsOnRetryAttemptOne.getAttemptCount());
 
         log.info("Sleeping for 40 seconds, there should be 1 more attempt after this...");
         Thread.sleep(40000);
-        Assert.assertEquals(2, SucceedsOnRetryAttemptOne.getAttemptCount());
+        Assertions.assertEquals(2, SucceedsOnRetryAttemptOne.getAttemptCount());
 
         WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(10));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                             new HashSet<>(info.tagList()));
 
         // It should have closed without running the step again.
-        Assert.assertEquals(2, SucceedsOnRetryAttemptOne.getAttemptCount());
+        Assertions.assertEquals(2, SucceedsOnRetryAttemptOne.getAttemptCount());
 
         log.info("Running workflow with long retry time again...");
 
@@ -118,7 +118,7 @@ public class SignalTests extends WorkflowTestBase {
         executeWorkflow(RetriesOnceWithLongRetryTime.class, uuid, Collections.emptyMap());
         log.info("Sleeping for 6 seconds, there should be 1 more attempt after this...");
         Thread.sleep(6000);
-        Assert.assertEquals(3, SucceedsOnRetryAttemptOne.getAttemptCount());
+        Assertions.assertEquals(3, SucceedsOnRetryAttemptOne.getAttemptCount());
 
         // we need to know the activity name and the next attempt number (which is zero-based).
         signalWorkflowExecution(uuid, SignalType.RETRY_NOW.getFriendlyName(),
@@ -127,15 +127,15 @@ public class SignalTests extends WorkflowTestBase {
 
         log.info("Sleeping for 10 seconds, there should be 1 more attempt after this...");
         Thread.sleep(10000);
-        Assert.assertEquals(4, SucceedsOnRetryAttemptOne.getAttemptCount());
+        Assertions.assertEquals(4, SucceedsOnRetryAttemptOne.getAttemptCount());
 
         info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(10));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                             new HashSet<>(info.tagList()));
 
         // It should have closed without running the step again.
-        Assert.assertEquals(4, SucceedsOnRetryAttemptOne.getAttemptCount());
+        Assertions.assertEquals(4, SucceedsOnRetryAttemptOne.getAttemptCount());
     }
 
     @Test
@@ -144,7 +144,7 @@ public class SignalTests extends WorkflowTestBase {
         executeWorkflow(RetriesAFewTimes.class, uuid, Collections.emptyMap());
         log.info("Sleeping for 6 seconds, there should be 1 attempt after this...");
         Thread.sleep(6000);
-        Assert.assertEquals(1, SucceedsOnRetryAttemptTwo.getAttemptCount());
+        Assertions.assertEquals(1, SucceedsOnRetryAttemptTwo.getAttemptCount());
 
         // we need to know the activity name and the next attempt number (which is zero-based).
         signalWorkflowExecution(uuid, SignalType.DELAY_RETRY.getFriendlyName(),
@@ -157,19 +157,19 @@ public class SignalTests extends WorkflowTestBase {
 
         log.info("Sleeping for 16 seconds, there should not have been a second attempt after this...");
         Thread.sleep(16000);
-        Assert.assertEquals(1, SucceedsOnRetryAttemptTwo.getAttemptCount());
+        Assertions.assertEquals(1, SucceedsOnRetryAttemptTwo.getAttemptCount());
 
         log.info("Sleeping for another 30 seconds, there should have been a second attempt after this...");
         Thread.sleep(30000);
-        Assert.assertEquals(2, SucceedsOnRetryAttemptTwo.getAttemptCount());
+        Assertions.assertEquals(2, SucceedsOnRetryAttemptTwo.getAttemptCount());
 
         WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(120));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                             new HashSet<>(info.tagList()));
 
         // Since the workflow only ends after its second retry attempt (third step execution), there should be three attempts now.
-        Assert.assertEquals(3, SucceedsOnRetryAttemptTwo.getAttemptCount());
+        Assertions.assertEquals(3, SucceedsOnRetryAttemptTwo.getAttemptCount());
     }
 
     /**

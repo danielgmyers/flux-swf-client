@@ -29,8 +29,8 @@ import java.util.TreeMap;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class StepAttributesTest {
 
@@ -38,11 +38,11 @@ public class StepAttributesTest {
 
     @Test
     public void testNullEncoding() {
-        Assert.assertNull(StepAttributes.encode(null));
+        Assertions.assertNull(StepAttributes.encode(null));
         for (Class<?> t : StepAttributes.ALLOWED_TYPES) {
-            Assert.assertNull(StepAttributes.decode(t, null));
+            Assertions.assertNull(StepAttributes.decode(t, null));
         }
-        Assert.assertEquals(Collections.emptyMap(), StepAttributes.decode(Map.class, null));
+        Assertions.assertEquals(Collections.emptyMap(), StepAttributes.decode(Map.class, null));
     }
 
     @Test
@@ -50,12 +50,12 @@ public class StepAttributesTest {
         for (Class<?> t : StepAttributes.ALLOWED_TYPES) {
             if (t == String.class) {
                 // blank non-null strings get encoded as the string ""
-                Assert.assertEquals("\"\"", StepAttributes.encode(""));
+                Assertions.assertEquals("\"\"", StepAttributes.encode(""));
             } else {
-                Assert.assertNull(StepAttributes.decode(t, ""));
+                Assertions.assertNull(StepAttributes.decode(t, ""));
             }
         }
-        Assert.assertEquals(Collections.emptyMap(), StepAttributes.decode(Map.class, ""));
+        Assertions.assertEquals(Collections.emptyMap(), StepAttributes.decode(Map.class, ""));
     }
 
     @Test
@@ -65,10 +65,10 @@ public class StepAttributesTest {
         data.put("baz", "zap");
 
         String encoded = StepAttributes.encode(data);
-        Assert.assertEquals(MAPPER.writeValueAsString(data), encoded);
+        Assertions.assertEquals(MAPPER.writeValueAsString(data), encoded);
 
         Map<String, String> decoded = StepAttributes.decode(Map.class, encoded);
-        Assert.assertEquals(data, decoded);
+        Assertions.assertEquals(data, decoded);
     }
 
     @Test
@@ -81,20 +81,20 @@ public class StepAttributesTest {
         data.put("map", Collections.singletonMap("key", "value"));
 
         Map<String, String> encoded = StepAttributes.serializeMapValues(data);
-        Assert.assertEquals(data.keySet(), encoded.keySet());
+        Assertions.assertEquals(data.keySet(), encoded.keySet());
 
         for (Map.Entry<String, String> e : encoded.entrySet()) {
-            Assert.assertEquals(StepAttributes.encode(data.get(e.getKey())), e.getValue());
+            Assertions.assertEquals(StepAttributes.encode(data.get(e.getKey())), e.getValue());
         }
     }
 
     @Test
     public void testBooleanEncoding() {
         String encoded = StepAttributes.encode(true);
-        Assert.assertTrue(StepAttributes.decode(Boolean.class, encoded));
+        Assertions.assertTrue(StepAttributes.decode(Boolean.class, encoded));
 
         encoded = StepAttributes.encode(false);
-        Assert.assertFalse(StepAttributes.decode(Boolean.class, encoded));
+        Assertions.assertFalse(StepAttributes.decode(Boolean.class, encoded));
     }
 
     @Test
@@ -102,7 +102,7 @@ public class StepAttributesTest {
         Long data = 7L;
         String encoded = StepAttributes.encode(data);
 
-        Assert.assertEquals(data, StepAttributes.decode(Long.class, encoded));
+        Assertions.assertEquals(data, StepAttributes.decode(Long.class, encoded));
     }
 
     @Test
@@ -110,7 +110,7 @@ public class StepAttributesTest {
         String data = "hello world!";
         String encoded = StepAttributes.encode(data);
 
-        Assert.assertEquals(data, StepAttributes.decode(String.class, encoded));
+        Assertions.assertEquals(data, StepAttributes.decode(String.class, encoded));
     }
 
     @Test
@@ -122,29 +122,29 @@ public class StepAttributesTest {
         String instant_encoded = StepAttributes.encode(now);
 
         // we want these to both be encoded the same way
-        Assert.assertEquals(date_encoded, instant_encoded);
+        Assertions.assertEquals(date_encoded, instant_encoded);
 
         // we want the encoded form to be decodeable as either class
-        Assert.assertEquals(date, StepAttributes.decode(Date.class, date_encoded));
+        Assertions.assertEquals(date, StepAttributes.decode(Date.class, date_encoded));
 
         // the serialized form is truncated to millis, so we need to truncate our local object for comparison.
-        Assert.assertEquals(now.truncatedTo(ChronoUnit.MILLIS), StepAttributes.decode(Instant.class, date_encoded));
+        Assertions.assertEquals(now.truncatedTo(ChronoUnit.MILLIS), StepAttributes.decode(Instant.class, date_encoded));
     }
 
     @Test
     public void testIsValidAttributeClass() {
-        Assert.assertTrue(StepAttributes.isValidAttributeClass(Boolean.class));
-        Assert.assertTrue(StepAttributes.isValidAttributeClass(Long.class));
-        Assert.assertTrue(StepAttributes.isValidAttributeClass(Date.class));
-        Assert.assertTrue(StepAttributes.isValidAttributeClass(String.class));
-        Assert.assertTrue(StepAttributes.isValidAttributeClass(Instant.class));
-        Assert.assertTrue(StepAttributes.isValidAttributeClass(Map.class));
-        Assert.assertTrue(StepAttributes.isValidAttributeClass(HashMap.class));
-        Assert.assertTrue(StepAttributes.isValidAttributeClass(TreeMap.class));
+        Assertions.assertTrue(StepAttributes.isValidAttributeClass(Boolean.class));
+        Assertions.assertTrue(StepAttributes.isValidAttributeClass(Long.class));
+        Assertions.assertTrue(StepAttributes.isValidAttributeClass(Date.class));
+        Assertions.assertTrue(StepAttributes.isValidAttributeClass(String.class));
+        Assertions.assertTrue(StepAttributes.isValidAttributeClass(Instant.class));
+        Assertions.assertTrue(StepAttributes.isValidAttributeClass(Map.class));
+        Assertions.assertTrue(StepAttributes.isValidAttributeClass(HashMap.class));
+        Assertions.assertTrue(StepAttributes.isValidAttributeClass(TreeMap.class));
 
-        Assert.assertFalse(StepAttributes.isValidAttributeClass(Integer.class));
-        Assert.assertFalse(StepAttributes.isValidAttributeClass(Duration.class));
-        Assert.assertFalse(StepAttributes.isValidAttributeClass(Set.class));
-        Assert.assertFalse(StepAttributes.isValidAttributeClass(List.class));
+        Assertions.assertFalse(StepAttributes.isValidAttributeClass(Integer.class));
+        Assertions.assertFalse(StepAttributes.isValidAttributeClass(Duration.class));
+        Assertions.assertFalse(StepAttributes.isValidAttributeClass(Set.class));
+        Assertions.assertFalse(StepAttributes.isValidAttributeClass(List.class));
     }
 }

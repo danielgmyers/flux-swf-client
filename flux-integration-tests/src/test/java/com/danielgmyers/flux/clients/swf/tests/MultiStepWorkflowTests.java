@@ -17,8 +17,8 @@ import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,13 +49,13 @@ public class MultiStepWorkflowTests extends WorkflowTestBase {
         executeWorkflow(MultiStep.class, uuid, Collections.emptyMap());
         WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
-                            new HashSet<>(info.tagList()));
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                                new HashSet<>(info.tagList()));
 
-        Assert.assertEquals(3, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
-        Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
-        Assert.assertEquals(StepTwo.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
-        Assert.assertEquals(StepThree.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(2));
+        Assertions.assertEquals(3, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
+        Assertions.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
+        Assertions.assertEquals(StepTwo.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
+        Assertions.assertEquals(StepThree.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(2));
     }
 
     @Test
@@ -71,13 +71,13 @@ public class MultiStepWorkflowTests extends WorkflowTestBase {
         for (String uuid : uuids) {
             WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
 
-            Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+            Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                                 new HashSet<>(info.tagList()));
 
-            Assert.assertEquals(3, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
-            Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
-            Assert.assertEquals(StepTwo.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
-            Assert.assertEquals(StepThree.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(2));
+            Assertions.assertEquals(3, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
+            Assertions.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
+            Assertions.assertEquals(StepTwo.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
+            Assertions.assertEquals(StepThree.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(2));
         }
     }
 

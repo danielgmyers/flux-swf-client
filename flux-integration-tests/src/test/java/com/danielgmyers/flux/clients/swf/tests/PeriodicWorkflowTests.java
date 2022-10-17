@@ -11,8 +11,8 @@ import com.danielgmyers.flux.clients.swf.wf.Periodic;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,13 +34,13 @@ public class PeriodicWorkflowTests extends WorkflowTestBase {
     public void testPeriodicWorkflow() throws InterruptedException {
         log.info("Sleeping for 10 seconds. After this, the execution count should be 1.");
         Thread.sleep(10000);
-        Assert.assertEquals(1, Step.getExecutionCount());
+        Assertions.assertEquals(1, Step.getExecutionCount());
         log.info("Waiting for 20 seconds, should do 1 more execution in that time.");
         Thread.sleep(20000);
-        Assert.assertEquals(2, Step.getExecutionCount());
+        Assertions.assertEquals(2, Step.getExecutionCount());
         log.info("Waiting for 40 seconds, should do 2 more executions in that time.");
         Thread.sleep(40000);
-        Assert.assertEquals(4, Step.getExecutionCount());
+        Assertions.assertEquals(4, Step.getExecutionCount());
     }
 
     /**
