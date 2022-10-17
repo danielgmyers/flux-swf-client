@@ -23,6 +23,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -188,6 +189,12 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     @Override
     public WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType, String workflowId,
                                                  Map<String, Object> workflowInput) {
+        return executeWorkflow(workflowType, workflowId, workflowInput, Collections.emptySet());
+    }
+
+    @Override
+    public WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType, String workflowId,
+                                                 Map<String, Object> workflowInput, Set<String> executionTags) {
         if (workflowsByName.isEmpty()) {
             throw new WorkflowExecutionException("Flux has not yet been initialized, please call the initialize method first.");
         }
@@ -200,11 +207,11 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
         Workflow workflow = workflowsByName.get(workflowName);
 
-        Set<String> executionTags = new HashSet<>();
+        Set<String> actualExecutionTags = new HashSet<>(executionTags);
         // if the auto-tagging config is not set, it's enabled by default
         if (config.getAutomaticallyTagExecutionsWithTaskList() == null
             || config.getAutomaticallyTagExecutionsWithTaskList()) {
-            executionTags.add(workflow.taskList());
+            actualExecutionTags.add(workflow.taskList());
         }
 
         // nextInt generates a number between 0 (inclusive) and bucketCount (exclusive).
@@ -214,7 +221,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
         StartWorkflowExecutionRequest request = buildStartWorkflowRequest(workflowDomain, workflowName, workflowId,
                                                                           taskList, workflow.maxStartToCloseDuration(),
-                                                                          workflowInput, executionTags);
+                                                                          workflowInput, actualExecutionTags);
 
         log.debug("Requesting new workflow execution for workflow {} with id {}", workflowName, workflowId);
 
