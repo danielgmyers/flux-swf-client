@@ -20,39 +20,39 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.danielgmyers.flux.clients.swf.step.StepResult.ResultAction;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class StepResultTest {
 
     @Test
     public void testSuccessHasRightAction() {
-        Assert.assertEquals(ResultAction.COMPLETE, StepResult.success().getAction());
-        Assert.assertEquals(ResultAction.COMPLETE, StepResult.success("message").getAction());
+        Assertions.assertEquals(ResultAction.COMPLETE, StepResult.success().getAction());
+        Assertions.assertEquals(ResultAction.COMPLETE, StepResult.success("message").getAction());
     }
 
     @Test
     public void testRetryHasRightAction() {
-        Assert.assertEquals(ResultAction.RETRY, StepResult.retry().getAction());
-        Assert.assertEquals(ResultAction.RETRY, StepResult.retry("message").getAction());
+        Assertions.assertEquals(ResultAction.RETRY, StepResult.retry().getAction());
+        Assertions.assertEquals(ResultAction.RETRY, StepResult.retry("message").getAction());
     }
 
     @Test
     public void testFailureHasRightAction() {
-        Assert.assertEquals(ResultAction.COMPLETE, StepResult.failure().getAction());
-        Assert.assertEquals(ResultAction.COMPLETE, StepResult.failure("message").getAction());
+        Assertions.assertEquals(ResultAction.COMPLETE, StepResult.failure().getAction());
+        Assertions.assertEquals(ResultAction.COMPLETE, StepResult.failure("message").getAction());
     }
 
     @Test
     public void testCompleteHasRightAction() {
-        Assert.assertEquals(ResultAction.COMPLETE, StepResult.complete("customResultCode", "message").getAction());
+        Assertions.assertEquals(ResultAction.COMPLETE, StepResult.complete("customResultCode", "message").getAction());
     }
 
     @Test
     public void testDisallowRetryWithResultCode() {
         try {
             new StepResult(ResultAction.RETRY, "something", "message");
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException e) {
             // expected
         }
@@ -62,7 +62,7 @@ public class StepResultTest {
     public void testDisallowNullResultCodeForSuccess() {
         try {
             StepResult.complete(null, "message");
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException e) {
             // expected
         }
@@ -72,7 +72,7 @@ public class StepResultTest {
     public void testDisallowBlankResultCodeForSuccess() {
         try {
             StepResult.complete("", "message");
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException e) {
             // expected
         }
@@ -82,7 +82,7 @@ public class StepResultTest {
     public void testDisallowNullResultCodeForFailure() {
         try {
             StepResult.complete(null, "message");
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException e) {
             // expected
         }
@@ -92,7 +92,7 @@ public class StepResultTest {
     public void testDisallowBlankResultCodeForFailure() {
         try {
             StepResult.complete("", "message");
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException e) {
             // expected
         }
@@ -101,19 +101,19 @@ public class StepResultTest {
     @Test
     public void testAddAttribute() {
         StepResult r = StepResult.success();
-        Assert.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertTrue(r.getAttributes().isEmpty());
         r.addAttribute("foo", "bar");
-        Assert.assertFalse(r.getAttributes().isEmpty());
-        Assert.assertEquals("bar", r.getAttributes().get("foo"));
+        Assertions.assertFalse(r.getAttributes().isEmpty());
+        Assertions.assertEquals("bar", r.getAttributes().get("foo"));
     }
 
     @Test
     public void testWithAttribute() {
         StepResult r = StepResult.success();
-        Assert.assertTrue(r.getAttributes().isEmpty());
-        Assert.assertEquals(r, r.withAttribute("foo", "bar"));
-        Assert.assertFalse(r.getAttributes().isEmpty());
-        Assert.assertEquals("bar", r.getAttributes().get("foo"));
+        Assertions.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertEquals(r, r.withAttribute("foo", "bar"));
+        Assertions.assertFalse(r.getAttributes().isEmpty());
+        Assertions.assertEquals("bar", r.getAttributes().get("foo"));
     }
 
     @Test
@@ -122,36 +122,36 @@ public class StepResultTest {
         input.put("foo", "bar");
 
         StepResult r = StepResult.success();
-        Assert.assertTrue(r.getAttributes().isEmpty());
-        Assert.assertEquals(r, r.withAttributes(input));
-        Assert.assertFalse(r.getAttributes().isEmpty());
-        Assert.assertEquals("bar", r.getAttributes().get("foo"));
+        Assertions.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertEquals(r, r.withAttributes(input));
+        Assertions.assertFalse(r.getAttributes().isEmpty());
+        Assertions.assertEquals("bar", r.getAttributes().get("foo"));
     }
 
     @Test
     public void disallowAddAttributeForRetry() {
         StepResult r = StepResult.retry();
-        Assert.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertTrue(r.getAttributes().isEmpty());
         try {
             r.addAttribute("foo", "bar");
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException e) {
             // expected
         }
-        Assert.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertTrue(r.getAttributes().isEmpty());
     }
 
     @Test
     public void disallowWithAttributeForRetry() {
         StepResult r = StepResult.retry();
-        Assert.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertTrue(r.getAttributes().isEmpty());
         try {
             r.withAttribute("foo", "bar");
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException e) {
             // expected
         }
-        Assert.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertTrue(r.getAttributes().isEmpty());
     }
 
     @Test
@@ -160,20 +160,20 @@ public class StepResultTest {
         input.put("foo", "bar");
 
         StepResult r = StepResult.retry();
-        Assert.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertTrue(r.getAttributes().isEmpty());
         try {
             r.withAttributes(input);
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException e) {
             // expected
         }
-        Assert.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertTrue(r.getAttributes().isEmpty());
     }
 
     @Test
     public void allowWithAttributesForRetryIfMapNull() {
         StepResult r = StepResult.retry().withAttributes(null);
-        Assert.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertTrue(r.getAttributes().isEmpty());
     }
 
     @Test
@@ -181,49 +181,49 @@ public class StepResultTest {
         Map<String, String> input = new HashMap<>();
 
         StepResult r = StepResult.retry().withAttributes(input);
-        Assert.assertTrue(r.getAttributes().isEmpty());
+        Assertions.assertTrue(r.getAttributes().isEmpty());
     }
 
     @Test
     public void testEquals() {
-        Assert.assertEquals(StepResult.success(), StepResult.success());
-        Assert.assertNotEquals(StepResult.success(), StepResult.failure());
-        Assert.assertNotEquals(StepResult.success(), StepResult.retry());
+        Assertions.assertEquals(StepResult.success(), StepResult.success());
+        Assertions.assertNotEquals(StepResult.success(), StepResult.failure());
+        Assertions.assertNotEquals(StepResult.success(), StepResult.retry());
 
-        Assert.assertEquals(StepResult.failure(), StepResult.failure());
-        Assert.assertNotEquals(StepResult.failure(), StepResult.success());
-        Assert.assertNotEquals(StepResult.failure(), StepResult.retry());
+        Assertions.assertEquals(StepResult.failure(), StepResult.failure());
+        Assertions.assertNotEquals(StepResult.failure(), StepResult.success());
+        Assertions.assertNotEquals(StepResult.failure(), StepResult.retry());
 
-        Assert.assertEquals(StepResult.retry(), StepResult.retry());
-        Assert.assertNotEquals(StepResult.retry(), StepResult.success());
-        Assert.assertNotEquals(StepResult.retry(), StepResult.failure());
+        Assertions.assertEquals(StepResult.retry(), StepResult.retry());
+        Assertions.assertNotEquals(StepResult.retry(), StepResult.success());
+        Assertions.assertNotEquals(StepResult.retry(), StepResult.failure());
 
         // only difference here is the message
-        Assert.assertNotEquals(StepResult.success("some message"), StepResult.success("another message"));
+        Assertions.assertNotEquals(StepResult.success("some message"), StepResult.success("another message"));
 
         // only difference here is the result code
-        Assert.assertNotEquals(StepResult.complete("customResult", "some message"), StepResult.success("some message"));
+        Assertions.assertNotEquals(StepResult.complete("customResult", "some message"), StepResult.success("some message"));
     }
 
     @Test
     public void testHashCode() {
-        Assert.assertEquals(StepResult.success().hashCode(), StepResult.success().hashCode());
-        Assert.assertNotEquals(StepResult.success().hashCode(), StepResult.failure().hashCode());
-        Assert.assertNotEquals(StepResult.success().hashCode(), StepResult.retry().hashCode());
+        Assertions.assertEquals(StepResult.success().hashCode(), StepResult.success().hashCode());
+        Assertions.assertNotEquals(StepResult.success().hashCode(), StepResult.failure().hashCode());
+        Assertions.assertNotEquals(StepResult.success().hashCode(), StepResult.retry().hashCode());
 
-        Assert.assertEquals(StepResult.failure().hashCode(), StepResult.failure().hashCode());
-        Assert.assertNotEquals(StepResult.failure().hashCode(), StepResult.success().hashCode());
-        Assert.assertNotEquals(StepResult.failure().hashCode(), StepResult.retry().hashCode());
+        Assertions.assertEquals(StepResult.failure().hashCode(), StepResult.failure().hashCode());
+        Assertions.assertNotEquals(StepResult.failure().hashCode(), StepResult.success().hashCode());
+        Assertions.assertNotEquals(StepResult.failure().hashCode(), StepResult.retry().hashCode());
 
-        Assert.assertEquals(StepResult.retry().hashCode(), StepResult.retry().hashCode());
-        Assert.assertNotEquals(StepResult.retry().hashCode(), StepResult.success().hashCode());
-        Assert.assertNotEquals(StepResult.retry().hashCode(), StepResult.failure().hashCode());
+        Assertions.assertEquals(StepResult.retry().hashCode(), StepResult.retry().hashCode());
+        Assertions.assertNotEquals(StepResult.retry().hashCode(), StepResult.success().hashCode());
+        Assertions.assertNotEquals(StepResult.retry().hashCode(), StepResult.failure().hashCode());
 
         // only difference here is the message
-        Assert.assertNotEquals(StepResult.success("some message").hashCode(), StepResult.success("another message").hashCode());
+        Assertions.assertNotEquals(StepResult.success("some message").hashCode(), StepResult.success("another message").hashCode());
 
         // only difference here is the result code
-        Assert.assertNotEquals(StepResult.complete("customResult", "some message").hashCode(),
+        Assertions.assertNotEquals(StepResult.complete("customResult", "some message").hashCode(),
                                StepResult.success("some message").hashCode());
     }
 }

@@ -17,9 +17,9 @@ import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +39,7 @@ public class RemoteWorkflowTest extends WorkflowTestBase {
     /**
      * Ensures the workflow type is registered in the remote region.
      */
-    @Before
+    @BeforeEach
     public void setUpRemoteWorkflows() throws InterruptedException {
         // This is probably suboptimal but here all we're trying to do is ensure our workflows are registered in the remote region.
         FluxCapacitor remoteCapacitor = createFluxCapacitor(false, getWorkflowsForTest());
@@ -66,10 +66,10 @@ public class RemoteWorkflowTest extends WorkflowTestBase {
         log.info("Received status " + lastStatus.toString() + " for requested remote workflow.");
 
         WorkflowExecutionInfo info = status.getExecutionInfo();
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
-                            new HashSet<>(info.tagList()));
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                                new HashSet<>(info.tagList()));
 
-        Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.IN_PROGRESS, status.checkStatus());
+        Assertions.assertEquals(WorkflowStatusChecker.WorkflowStatus.IN_PROGRESS, status.checkStatus());
 
         terminateOpenWorkflowExecutions(status.getSwfClient());
     }

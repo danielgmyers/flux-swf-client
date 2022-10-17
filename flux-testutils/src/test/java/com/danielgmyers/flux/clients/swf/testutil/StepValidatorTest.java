@@ -23,8 +23,8 @@ import java.util.Map;
 import com.danielgmyers.flux.clients.swf.step.StepApply;
 import com.danielgmyers.flux.clients.swf.step.StepResult;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class StepValidatorTest {
 
@@ -36,7 +36,7 @@ public class StepValidatorTest {
         StepResult expected = StepResult.success();
         stub.setApplyResult(expected);
 
-        Assert.assertEquals(expected, StepValidator.succeeds(stub, input));
+        Assertions.assertEquals(expected, StepValidator.succeeds(stub, input));
     }
 
     @Test
@@ -49,7 +49,7 @@ public class StepValidatorTest {
 
         try {
             StepValidator.succeeds(stub, input);
-            Assert.fail();
+            Assertions.fail();
         } catch(RuntimeException e) {
             // expected
         }
@@ -63,9 +63,9 @@ public class StepValidatorTest {
 
         try {
             StepValidator.succeeds(stub, input);
-            Assert.fail();
+            Assertions.fail();
         } catch(RuntimeException e) {
-            Assert.assertEquals(t, e.getCause());
+            Assertions.assertEquals(t, e.getCause());
         }
     }
 
@@ -79,7 +79,7 @@ public class StepValidatorTest {
 
         try {
             StepValidator.succeeds(stub, input);
-            Assert.fail();
+            Assertions.fail();
         } catch(RuntimeException e) {
             // expected
         }
@@ -93,7 +93,7 @@ public class StepValidatorTest {
         StepResult expected = StepResult.retry();
         stub.setApplyResult(expected);
 
-        Assert.assertEquals(expected, StepValidator.retries(stub, input));
+        Assertions.assertEquals(expected, StepValidator.retries(stub, input));
     }
 
     @Test
@@ -106,7 +106,7 @@ public class StepValidatorTest {
 
         try {
             StepValidator.retries(stub, input);
-            Assert.fail();
+            Assertions.fail();
         } catch(RuntimeException e) {
             // expected
         }
@@ -122,7 +122,7 @@ public class StepValidatorTest {
 
         try {
             StepValidator.retries(stub, input);
-            Assert.fail();
+            Assertions.fail();
         } catch(RuntimeException e) {
             // expected
         }
@@ -136,7 +136,7 @@ public class StepValidatorTest {
         StepResult expected = StepResult.failure();
         stub.setApplyResult(expected);
 
-        Assert.assertEquals(expected, StepValidator.fails(stub, input));
+        Assertions.assertEquals(expected, StepValidator.fails(stub, input));
     }
 
     public static class StubStep implements WorkflowStep {

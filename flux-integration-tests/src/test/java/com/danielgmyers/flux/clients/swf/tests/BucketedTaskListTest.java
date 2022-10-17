@@ -17,8 +17,8 @@ import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,20 +59,20 @@ public class BucketedTaskListTest extends WorkflowTestBase {
             WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(15));
 
             // the execution tags should have the non-bucketed task list name
-            Assert.assertEquals(Collections.singleton(TASK_LIST_NAME), new HashSet<>(info.tagList()));
+            Assertions.assertEquals(Collections.singleton(TASK_LIST_NAME), new HashSet<>(info.tagList()));
 
             GetWorkflowExecutionHistoryResponse response = getWorkflowExecutionHistory(uuid, info.execution().runId());
-            Assert.assertTrue(response.hasEvents());
+            Assertions.assertTrue(response.hasEvents());
             String taskList = response.events().get(0).workflowExecutionStartedEventAttributes().taskList().name();
             assignedTaskLists.add(taskList);
             log.info("Workflow " + uuid + " ran on task list " + taskList);
 
-            Assert.assertTrue(StepOne.didExecute(uuid));
+            Assertions.assertTrue(StepOne.didExecute(uuid));
         }
 
         // It's technically possible for this to fail, if the random bucket number selection logic chooses bucket 1
         // for all ten executions. This is probably fine to live with.
-        Assert.assertTrue(assignedTaskLists.size() > 1);
+        Assertions.assertTrue(assignedTaskLists.size() > 1);
 
         log.info("Ran workflows on these " + assignedTaskLists.size() + " task lists: " + assignedTaskLists);
     }

@@ -18,8 +18,8 @@ import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,12 +52,12 @@ public class BranchingWorkflowTests extends WorkflowTestBase {
                         buildInput(BRANCH_ATTRIBUTE_NAME, StepResult.SUCCEED_RESULT_CODE));
         WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
-                            new HashSet<>(info.tagList()));
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                                new HashSet<>(info.tagList()));
 
-        Assert.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
-        Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
-        Assert.assertEquals(StepTwo.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
+        Assertions.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
+        Assertions.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
+        Assertions.assertEquals(StepTwo.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
 
         uuid = UUID.randomUUID().toString();
         EXECUTION_ORDER_BY_WORKFLOW_ID.put(uuid, Collections.synchronizedList(new LinkedList<>()));
@@ -66,12 +66,12 @@ public class BranchingWorkflowTests extends WorkflowTestBase {
                         buildInput(BRANCH_ATTRIBUTE_NAME, StepResult.FAIL_RESULT_CODE));
         info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                             new HashSet<>(info.tagList()));
 
-        Assert.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
-        Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
-        Assert.assertEquals(StepThree.class.getSimpleName(),EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
+        Assertions.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
+        Assertions.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
+        Assertions.assertEquals(StepThree.class.getSimpleName(),EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
     }
 
     @Test
@@ -82,12 +82,12 @@ public class BranchingWorkflowTests extends WorkflowTestBase {
         executeWorkflow(BranchingWorkflowCustomCodes.class, uuid, buildInput(BRANCH_ATTRIBUTE_NAME, BRANCH_LEFT));
         WorkflowExecutionInfo info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                             new HashSet<>(info.tagList()));
 
-        Assert.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
-        Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
-        Assert.assertEquals(StepTwo.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
+        Assertions.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
+        Assertions.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
+        Assertions.assertEquals(StepTwo.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
 
         uuid = UUID.randomUUID().toString();
         EXECUTION_ORDER_BY_WORKFLOW_ID.put(uuid, Collections.synchronizedList(new LinkedList<>()));
@@ -95,12 +95,12 @@ public class BranchingWorkflowTests extends WorkflowTestBase {
         executeWorkflow(BranchingWorkflowCustomCodes.class, uuid, buildInput(BRANCH_ATTRIBUTE_NAME, BRANCH_RIGHT));
         info = waitForWorkflowCompletion(uuid, Duration.ofSeconds(30));
 
-        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
                             new HashSet<>(info.tagList()));
 
-        Assert.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
-        Assert.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
-        Assert.assertEquals(StepThree.class.getSimpleName(),EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
+        Assertions.assertEquals(2, EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).size());
+        Assertions.assertEquals(StepOne.class.getSimpleName(), EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(0));
+        Assertions.assertEquals(StepThree.class.getSimpleName(),EXECUTION_ORDER_BY_WORKFLOW_ID.get(uuid).get(1));
     }
 
     private static <T> Map<String, T> buildInput(String key, T value) {
