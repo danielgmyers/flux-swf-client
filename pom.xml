@@ -61,7 +61,7 @@
 
         <checkstyle.version>8.45.1</checkstyle.version>
 
-        <jre.version>1.8</jre.version>
+        <jre.version>11</jre.version>
     </properties>
     <build>
         <plugins>
@@ -70,8 +70,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${mavenplugin.compiler.version}</version>
                 <configuration>
-                    <source>${jre.version}</source>
-                    <target>${jre.version}</target>
+                    <release>${jre.version}</release>
                     <encoding>UTF-8</encoding>
                     <forceJavacCompilerUse>true</forceJavacCompilerUse>
                 </configuration>
