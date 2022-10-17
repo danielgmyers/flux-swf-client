@@ -29,7 +29,6 @@ public class StepResultTest {
     public void testSuccessHasRightAction() {
         Assert.assertEquals(ResultAction.COMPLETE, StepResult.success().getAction());
         Assert.assertEquals(ResultAction.COMPLETE, StepResult.success("message").getAction());
-        Assert.assertEquals(ResultAction.COMPLETE, StepResult.success("customResultCode", "message").getAction());
     }
 
     @Test
@@ -42,7 +41,11 @@ public class StepResultTest {
     public void testFailureHasRightAction() {
         Assert.assertEquals(ResultAction.COMPLETE, StepResult.failure().getAction());
         Assert.assertEquals(ResultAction.COMPLETE, StepResult.failure("message").getAction());
-        Assert.assertEquals(ResultAction.COMPLETE, StepResult.failure("customResultCode", "message").getAction());
+    }
+
+    @Test
+    public void testCompleteHasRightAction() {
+        Assert.assertEquals(ResultAction.COMPLETE, StepResult.complete("customResultCode", "message").getAction());
     }
 
     @Test
@@ -58,7 +61,7 @@ public class StepResultTest {
     @Test
     public void testDisallowNullResultCodeForSuccess() {
         try {
-            StepResult.success(null, "message");
+            StepResult.complete(null, "message");
             Assert.fail();
         } catch (IllegalArgumentException e) {
             // expected
@@ -68,7 +71,7 @@ public class StepResultTest {
     @Test
     public void testDisallowBlankResultCodeForSuccess() {
         try {
-            StepResult.success("", "message");
+            StepResult.complete("", "message");
             Assert.fail();
         } catch (IllegalArgumentException e) {
             // expected
@@ -78,7 +81,7 @@ public class StepResultTest {
     @Test
     public void testDisallowNullResultCodeForFailure() {
         try {
-            StepResult.failure(null, "message");
+            StepResult.complete(null, "message");
             Assert.fail();
         } catch (IllegalArgumentException e) {
             // expected
@@ -88,7 +91,7 @@ public class StepResultTest {
     @Test
     public void testDisallowBlankResultCodeForFailure() {
         try {
-            StepResult.failure("", "message");
+            StepResult.complete("", "message");
             Assert.fail();
         } catch (IllegalArgumentException e) {
             // expected
@@ -199,7 +202,7 @@ public class StepResultTest {
         Assert.assertNotEquals(StepResult.success("some message"), StepResult.success("another message"));
 
         // only difference here is the result code
-        Assert.assertNotEquals(StepResult.success("customResult", "some message"), StepResult.success("some message"));
+        Assert.assertNotEquals(StepResult.complete("customResult", "some message"), StepResult.success("some message"));
     }
 
     @Test
@@ -220,7 +223,7 @@ public class StepResultTest {
         Assert.assertNotEquals(StepResult.success("some message").hashCode(), StepResult.success("another message").hashCode());
 
         // only difference here is the result code
-        Assert.assertNotEquals(StepResult.success("customResult", "some message").hashCode(),
+        Assert.assertNotEquals(StepResult.complete("customResult", "some message").hashCode(),
                                StepResult.success("some message").hashCode());
     }
 }

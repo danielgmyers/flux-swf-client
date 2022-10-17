@@ -184,7 +184,7 @@ public class BranchingWorkflowTests extends WorkflowTestBase {
             } else {
                 log.warn("Received execution for unrecognized workflow id " + workflowId + ", ignoring.");
             }
-            return StepResult.success(branch, "Returning specified branch: " + branch);
+            return StepResult.complete(branch, "Returning specified branch: " + branch);
         }
     }
 
