@@ -4,7 +4,7 @@ Library initialization with Guice
 
 You'll need a dependency on `flux-guice` to make use of this example config.
 
-First, add a `FluxModule` object to your injector, where "example.flux.workflows" is the package containing your workflows. FluxModule will automatically find any classes under that package (recursively) of type `software.amazon.aws.clients.swf.flux.wf.Workflow` and initialize them with the Guice injector as singletons. You can add `@Inject` to your Workflow class constructors and they will be initialized as expected.
+First, add a `FluxModule` object to your injector, where "example.flux.workflows" is the package containing your workflows. FluxModule will automatically find any classes under that package (recursively) of type `com.danielgmyers.flux.clients.swf.wf.Workflow` and initialize them with the Guice injector as singletons. You can add `@Inject` to your Workflow class constructors and they will be initialized as expected.
 
 ```java
 package example.flux;
@@ -13,8 +13,8 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Stage;
 
-import software.amazon.aws.clients.swf.flux.FluxCapacitor;
-import software.amazon.aws.clients.swf.flux.guice.FluxModule;
+import com.danielgmyers.flux.clients.swf.FluxCapacitor;
+import com.danielgmyers.flux.clients.swf.guice.FluxModule;
 import example.flux.MyApplicationModule;
 
 public class MyApplication {
@@ -50,10 +50,10 @@ import com.google.inject.Singleton;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.aws.clients.swf.flux.guice.SwfRegion;
-import software.amazon.aws.clients.swf.flux.guice.WorkflowDomain;
-import software.amazon.aws.clients.swf.flux.metrics.MetricRecorderFactory;
-import software.amazon.aws.clients.swf.flux.metrics.NoopMetricRecorderFactory;
+import com.danielgmyers.flux.clients.swf.guice.SwfRegion;
+import com.danielgmyers.flux.clients.swf.guice.WorkflowDomain;
+import com.danielgmyers.flux.clients.swf.metrics.MetricRecorderFactory;
+import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
 
 public class MyApplicationModule extends AbstractModule {
 

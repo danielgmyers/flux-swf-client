@@ -16,7 +16,7 @@ Prerequisites
 
 Flux uses the AWS SDK for Java v2.
 
-Flux uses a custom `MetricRecorder` interface to emit workflow metrics; if you do not want Flux to emit metrics, you may provide Flux with a `software.amazon.aws.clients.swf.flux.metrics.NoopMetricRecorderFactory` object. If you want a different metrics implementation, you will need to provide an alternate implementation of the `software.amazon.aws.clients.swf.flux.metrics.MetricRecorder` interface.
+Flux uses a custom `MetricRecorder` interface to emit workflow metrics; if you do not want Flux to emit metrics, you may provide Flux with a `com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory` object. If you want a different metrics implementation, you will need to provide an alternate implementation of the `com.danielgmyers.flux.clients.swf.metrics.MetricRecorder` interface.
 
 Writing a basic workflow
 ------------------------
@@ -26,8 +26,8 @@ We'll start by writing a pair of workflow steps. First up is Hello:
 ```java
 package example.flux;
 
-import software.amazon.aws.clients.swf.flux.step.StepApply;
-import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
+import com.danielgmyers.flux.clients.swf.step.StepApply;
+import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 
 public class Hello implements WorkflowStep {
     
@@ -40,7 +40,7 @@ public class Hello implements WorkflowStep {
 
 All workflow steps must implement the `WorkflowStep` interface. There are no methods that you are required to override; however, you must implement exactly *one* method that has the `@StepApply` annotation. This is the method Flux will execute when your workflow reaches this step.
 
-The return type of your `@StepApply` method may be of any type, or `void`; however, Flux implements special result handling logic if the return type is `software.amazon.aws.clients.swf.flux.step.StepResult`. This is the mechanism you use if you want to include additional attributes in your workflow metadata (for use by later steps) or if you want to return with a custom result code (e.g. for creating branches in your workflow logic).
+The return type of your `@StepApply` method may be of any type, or `void`; however, Flux implements special result handling logic if the return type is `com.danielgmyers.flux.clients.swf.step.StepResult`. This is the mechanism you use if you want to include additional attributes in your workflow metadata (for use by later steps) or if you want to return with a custom result code (e.g. for creating branches in your workflow logic).
 
 If the `@StepApply` method returns `StepResult.success()` or otherwise returns successfully, Flux will consider the workflow step to be completed. If the method throws an exception, Flux will schedule the step to be retried.
 
@@ -49,10 +49,10 @@ Now, let's implement the second step, `Goodbye`:
 ```java
 package example.flux;
 
-import software.amazon.aws.clients.swf.flux.step.Attribute;
-import software.amazon.aws.clients.swf.flux.step.StepApply;
-import software.amazon.aws.clients.swf.flux.step.StepResult;
-import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
+import com.danielgmyers.flux.clients.swf.step.Attribute;
+import com.danielgmyers.flux.clients.swf.step.StepApply;
+import com.danielgmyers.flux.clients.swf.step.StepResult;
+import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 
 public class Goodbye implements WorkflowStep {
     
@@ -77,7 +77,7 @@ Flux supports `@Attribute` parameters of any of the following types:
 - `Instant`
 - `Boolean`
 - `Map<String, String>`
-- `software.amazon.aws.clients.swf.flux.metrics.MetricRecorder`
+- `com.danielgmyers.flux.clients.swf.metrics.MetricRecorder`
 
 If more complex types are needed, it is recommended that you serialize the value into a `String` or a `Map<String, String>`.
 
@@ -88,9 +88,9 @@ Finally, we need to create the workflow itself:
 ```java
 package example.flux;
 
-import software.amazon.aws.clients.swf.flux.wf.Workflow;
-import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraph;
-import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphBuilder;
+import com.danielgmyers.flux.clients.swf.wf.Workflow;
+import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
+import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 
 // If you're using Spring, you should consider annotating this class with @Component for convenience.
 public class HelloGoodbye implements Workflow {
@@ -265,12 +265,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import software.amazon.aws.clients.swf.flux.FluxCapacitor;
-import software.amazon.aws.clients.swf.flux.FluxCapacitorConfig;
-import software.amazon.aws.clients.swf.flux.FluxCapacitorFactory;
-import software.amazon.aws.clients.swf.flux.metrics.MetricRecorderFactory;
-import software.amazon.aws.clients.swf.flux.metrics.NoopMetricRecorderFactory;
-import software.amazon.aws.clients.swf.flux.wf.Workflow;
+import com.danielgmyers.flux.clients.swf.FluxCapacitor;
+import com.danielgmyers.flux.clients.swf.FluxCapacitorConfig;
+import com.danielgmyers.flux.clients.swf.FluxCapacitorFactory;
+import com.danielgmyers.flux.clients.swf.metrics.MetricRecorderFactory;
+import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
+import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
@@ -315,8 +315,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
-import software.amazon.aws.clients.swf.flux.testutil.StepValidator;
+import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
+import com.danielgmyers.flux.clients.swf.testutil.StepValidator;
 
 import org.junit.Test;
 
@@ -355,8 +355,8 @@ package example.flux;
 import java.util.HashMap;
 import java.util.Map;
 
-import software.amazon.aws.clients.swf.flux.FluxCapacitorFactory;
-import software.amazon.aws.clients.swf.flux.testutil.StubFluxCapacitor;
+import com.danielgmyers.flux.clients.swf.FluxCapacitorFactory;
+import com.danielgmyers.flux.clients.swf.testutil.StubFluxCapacitor;
 
 import org.junit.Assert;
 import org.junit.Test;
