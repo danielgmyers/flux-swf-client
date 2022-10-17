@@ -66,9 +66,9 @@ import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkServiceException;
@@ -125,7 +125,7 @@ public class DecisionTaskPollerTest {
 
     private ManualClock clock;
 
-    @Before
+    @BeforeEach
     public void setup() {
         workflow = new TestWorkflow();
         workflowName = TaskNaming.workflowName(workflow);
@@ -197,11 +197,11 @@ public class DecisionTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
-        Assert.assertTrue(pollMetrics.isClosed());
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
+        Assertions.assertTrue(pollMetrics.isClosed());
 
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -214,12 +214,12 @@ public class DecisionTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
-        Assert.assertTrue(pollMetrics.isClosed());
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
+        Assertions.assertTrue(pollMetrics.isClosed());
 
-        Assert.assertFalse(deciderMetricsRequested);
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertFalse(deciderMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -233,12 +233,12 @@ public class DecisionTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
-        Assert.assertTrue(pollMetrics.isClosed());
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
+        Assertions.assertTrue(pollMetrics.isClosed());
 
-        Assert.assertFalse(deciderMetricsRequested);
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertFalse(deciderMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -261,12 +261,12 @@ public class DecisionTaskPollerTest {
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
 
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
-        Assert.assertTrue(pollMetrics.isClosed());
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
+        Assertions.assertTrue(pollMetrics.isClosed());
 
-        Assert.assertFalse(deciderMetricsRequested);
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertFalse(deciderMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -289,12 +289,12 @@ public class DecisionTaskPollerTest {
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
 
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
-        Assert.assertTrue(pollMetrics.isClosed());
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
+        Assertions.assertTrue(pollMetrics.isClosed());
 
-        Assert.assertFalse(deciderMetricsRequested);
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertFalse(deciderMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -318,12 +318,12 @@ public class DecisionTaskPollerTest {
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
 
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
-        Assert.assertTrue(pollMetrics.isClosed());
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertEquals(1, pollMetrics.getCounts().get(DecisionTaskPoller.NO_DECISION_TASK_TO_EXECUTE_METRIC_NAME).longValue());
+        Assertions.assertTrue(pollMetrics.isClosed());
 
-        Assert.assertFalse(deciderMetricsRequested);
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertFalse(deciderMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -341,17 +341,17 @@ public class DecisionTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
-        Assert.assertTrue(pollMetrics.isClosed());
-        Assert.assertTrue(deciderMetricsRequested);
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatDecisionTaskEventHistoryPageCountMetricName(workflowName)).longValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
-        Assert.assertTrue(deciderMetrics.isClosed());
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
+        Assertions.assertTrue(pollMetrics.isClosed());
+        Assertions.assertTrue(deciderMetricsRequested);
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatDecisionTaskEventHistoryPageCountMetricName(workflowName)).longValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertTrue(deciderMetrics.isClosed());
 
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -388,17 +388,17 @@ public class DecisionTaskPollerTest {
         pollerCustomTaskList.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + customTaskListName));
-        Assert.assertTrue(pollMetrics.isClosed());
-        Assert.assertTrue(deciderMetricsRequested);
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatDecisionTaskEventHistoryPageCountMetricName(workflowWithCustomTaskListName)).longValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
-        Assert.assertTrue(deciderMetrics.isClosed());
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECISION_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollMetrics.getDurations().get(DecisionTaskPoller.DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + customTaskListName));
+        Assertions.assertTrue(pollMetrics.isClosed());
+        Assertions.assertTrue(deciderMetricsRequested);
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatDecisionTaskEventHistoryPageCountMetricName(workflowWithCustomTaskListName)).longValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertTrue(deciderMetrics.isClosed());
 
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -422,7 +422,7 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, workflow.getGraph().getFirstStep());
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(activityInitialAttemptTime));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
@@ -434,14 +434,14 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, workflow.getGraph().getFirstStep(),
                                                                             input, activityId);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
         mockery.verify();
     }
 
     @Test
     public void decide_scheduleSecondStepWhenFirstStepSucceeds() throws JsonProcessingException {
-        Assert.assertTrue(workflow.getGraph().getNodes().size() > 1);
+        Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
 
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
@@ -472,7 +472,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         Map<String, String> expectedInput = new TreeMap<>();
         expectedInput.putAll(input);
@@ -488,20 +488,20 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
                                                                             expectedInput, activityId);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
         String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
     }
 
     @Test
     public void decide_recordMarkerAndRetryTimerIfUnknownResultCode() throws JsonProcessingException {
-        Assert.assertTrue(workflow.getGraph().getNodes().size() > 1);
+        Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
 
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
@@ -526,29 +526,29 @@ public class DecisionTaskPollerTest {
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
                                                                                  deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
 
-        Assert.assertEquals(2, response.decisions().size());
+        Assertions.assertEquals(2, response.decisions().size());
         Decision markerDecision = response.decisions().get(0);
         Decision timerDecision = response.decisions().get(1);
 
-        Assert.assertEquals(DecisionType.RECORD_MARKER, markerDecision.decisionType());
-        Assert.assertEquals(DecisionType.START_TIMER, timerDecision.decisionType());
+        Assertions.assertEquals(DecisionType.RECORD_MARKER, markerDecision.decisionType());
+        Assertions.assertEquals(DecisionType.START_TIMER, timerDecision.decisionType());
 
         StartTimerDecisionAttributes timerAttrs = timerDecision.startTimerDecisionAttributes();
-        Assert.assertEquals(DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_ID, timerAttrs.timerId());
-        Assert.assertEquals(Long.toString(DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_DELAY.getSeconds()),
+        Assertions.assertEquals(DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_ID, timerAttrs.timerId());
+        Assertions.assertEquals(Long.toString(DecisionTaskPoller.UNKNOWN_RESULT_RETRY_TIMER_DELAY.getSeconds()),
                             timerAttrs.startToFireTimeout());
 
         String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.UNKNOWN_RESULT_CODE_METRIC_BASE).longValue());
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowMetricName(workflowName)).longValue());
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowStepMetricName(activityName)).longValue());
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.UNKNOWN_RESULT_CODE_METRIC_BASE).longValue());
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowMetricName(workflowName)).longValue());
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowStepMetricName(activityName)).longValue());
 
         mockery.verify();
     }
 
     @Test
     public void decide_recordMarkerAndRetryTimerIfUnknownResultCode_DoNotCreateDuplicateTimer() throws JsonProcessingException {
-        Assert.assertTrue(workflow.getGraph().getNodes().size() > 1);
+        Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
 
         Map<String, String> input = new TreeMap<>();
         input.put("SomeInput", "Value");
@@ -577,22 +577,22 @@ public class DecisionTaskPollerTest {
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
                                                                                  deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
 
-        Assert.assertEquals(1, response.decisions().size());
+        Assertions.assertEquals(1, response.decisions().size());
         Decision markerDecision = response.decisions().get(0);
 
-        Assert.assertEquals(DecisionType.RECORD_MARKER, markerDecision.decisionType());
+        Assertions.assertEquals(DecisionType.RECORD_MARKER, markerDecision.decisionType());
 
         String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.UNKNOWN_RESULT_CODE_METRIC_BASE).longValue());
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowMetricName(workflowName)).longValue());
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowStepMetricName(activityName)).longValue());
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.UNKNOWN_RESULT_CODE_METRIC_BASE).longValue());
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowMetricName(workflowName)).longValue());
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatUnknownResultCodeWorkflowStepMetricName(activityName)).longValue());
 
         mockery.verify();
     }
 
     @Test
     public void decide_scheduleSecondStepWhenFirstStepSucceeds_PreviousScheduleAttemptFailed() throws JsonProcessingException {
-        Assert.assertTrue(workflow.getGraph().getNodes().size() > 1);
+        Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
         String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
 
         Map<String, String> input = new TreeMap<>();
@@ -627,7 +627,7 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
 
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         Map<String, String> expectedInput = new TreeMap<>();
         expectedInput.putAll(input);
@@ -644,19 +644,19 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
                 expectedInput, activityId);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
     }
 
     @Test
     public void decide_scheduleSecondStepWhenFirstStepResultCodeForcedBySignal() throws JsonProcessingException {
-        Assert.assertTrue(workflow.getGraph().getNodes().size() > 1);
+        Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
         String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
 
         Map<String, String> input = new TreeMap<>();
@@ -692,10 +692,10 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
         List<Decision> decisions = response.decisions();
 
-        Assert.assertEquals(1, decisions.size());
+        Assertions.assertEquals(1, decisions.size());
         Decision decision = decisions.get(0);
 
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         Map<String, String> expectedInput = new TreeMap<>(input);
 
@@ -709,15 +709,15 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
                                                                             expectedInput, activityId);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
         // if we scheduled the second step via force-result, then step one's execution time should be
         // from the beginning of its first attempt until the time of the force-result signal.
-        Assert.assertEquals(Duration.between(startEvent.eventTimestamp(), forceResultSignalTime),
+        Assertions.assertEquals(Duration.between(startEvent.eventTimestamp(), forceResultSignalTime),
                             deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
     }
@@ -761,32 +761,32 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, currentStep);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
-        Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertTrue(stepMetrics.isClosed());
 
         mockery.verify();
 
         // there should be two decisions in the response: a metadata marker, and a signal.
-        Assert.assertEquals(2, response.decisions().size());
-        Assert.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(0).decisionType());
+        Assertions.assertEquals(2, response.decisions().size());
+        Assertions.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(0).decisionType());
 
         PartitionIdGeneratorResult expectedPartitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
         PartitionMetadata expectedPartitionMetadata
                 = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
 
-        Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), 0, 1),
+        Assertions.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), 0, 1),
                             response.decisions().get(0).recordMarkerDecisionAttributes().markerName());
-        Assert.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
+        Assertions.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
                             response.decisions().get(0).recordMarkerDecisionAttributes().details());
 
         // second decision should always force a new decision
-        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
+        Assertions.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
     }
 
     @Test
@@ -832,32 +832,32 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, currentStep);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
-        Assert.assertEquals(failedPartitions.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertEquals(failedPartitions.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertTrue(stepMetrics.isClosed());
 
         mockery.verify();
 
         // there should be two decisions in the response: a metadata marker, and a signal.
-        Assert.assertEquals(2, response.decisions().size());
-        Assert.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(0).decisionType());
+        Assertions.assertEquals(2, response.decisions().size());
+        Assertions.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(0).decisionType());
 
         PartitionIdGeneratorResult expectedPartitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(failedPartitions));
         PartitionMetadata expectedPartitionMetadata
                 = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
 
-        Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), 0, 1),
+        Assertions.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), 0, 1),
                             response.decisions().get(0).recordMarkerDecisionAttributes().markerName());
-        Assert.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
+        Assertions.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
                             response.decisions().get(0).recordMarkerDecisionAttributes().details());
 
         // second decision should always force a new decision
-        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
+        Assertions.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
     }
 
     @Test
@@ -911,23 +911,23 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, currentStep);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
 
-        Assert.assertEquals(failedPartitions.size(), response.decisions().size());
+        Assertions.assertEquals(failedPartitions.size(), response.decisions().size());
         Set<String> remainingPartitionsToSchedule = new HashSet<>(failedPartitions);
         for (Decision decision : response.decisions()) {
             String partitionId = decision.scheduleActivityTaskDecisionAttributes().control();
-            Assert.assertNotNull(partitionId);
-            Assert.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
+            Assertions.assertNotNull(partitionId);
+            Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
-            Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+            Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
             Map<String, String> expectedInput = new TreeMap<>(input);
             expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
@@ -945,10 +945,10 @@ public class DecisionTaskPollerTest {
                                                                                 expectedInput, activityId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
-            Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+            Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
         }
 
-        Assert.assertTrue(remainingPartitionsToSchedule.isEmpty());
+        Assertions.assertTrue(remainingPartitionsToSchedule.isEmpty());
     }
 
     @Test
@@ -989,32 +989,32 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
-        Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertTrue(stepMetrics.isClosed());
 
         mockery.verify();
 
         // there should be two decisions in the response: a metadata marker, and a signal.
-        Assert.assertEquals(2, response.decisions().size());
-        Assert.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(0).decisionType());
+        Assertions.assertEquals(2, response.decisions().size());
+        Assertions.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(0).decisionType());
 
         PartitionIdGeneratorResult expectedPartitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
         PartitionMetadata expectedPartitionMetadata
                 = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
 
-        Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), 0, 1),
+        Assertions.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), 0, 1),
                             response.decisions().get(0).recordMarkerDecisionAttributes().markerName());
-        Assert.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
+        Assertions.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
                             response.decisions().get(0).recordMarkerDecisionAttributes().details());
 
         // second decision should always force a new decision
-        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
+        Assertions.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
     }
 
     @Test
@@ -1055,13 +1055,13 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
-        Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertTrue(stepMetrics.isClosed());
 
         mockery.verify();
 
@@ -1072,19 +1072,19 @@ public class DecisionTaskPollerTest {
         List<String> markerDetailsList = expectedPartitionMetadata.toMarkerDetailsList();
 
         // There should be two kinds of decisions in the response: metadata markers, and a signal.
-        Assert.assertEquals(1 + markerDetailsList.size(), response.decisions().size());
+        Assertions.assertEquals(1 + markerDetailsList.size(), response.decisions().size());
 
         for (int i = 0; i < markerDetailsList.size(); i++) {
-            Assert.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(i).decisionType());
+            Assertions.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(i).decisionType());
 
-            Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), i, markerDetailsList.size()),
+            Assertions.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), i, markerDetailsList.size()),
                                 response.decisions().get(i).recordMarkerDecisionAttributes().markerName());
-            Assert.assertEquals(markerDetailsList.get(i),
+            Assertions.assertEquals(markerDetailsList.get(i),
                                 response.decisions().get(i).recordMarkerDecisionAttributes().details());
         }
 
         // The last decision should always force a new decision
-        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(markerDetailsList.size()));
+        Assertions.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(markerDetailsList.size()));
     }
 
     @Test
@@ -1141,13 +1141,13 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
-        Assert.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertEquals(partitionIds.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertTrue(stepMetrics.isClosed());
 
         mockery.verify();
 
@@ -1158,19 +1158,19 @@ public class DecisionTaskPollerTest {
         List<String> expectedMarkerDetailsList = expectedPartitionMetadata.toMarkerDetailsList();
 
         // There should be two kinds of decisions in the response: metadata markers, and a signal.
-        Assert.assertEquals(1 + expectedMarkerDetailsList.size(), response.decisions().size());
+        Assertions.assertEquals(1 + expectedMarkerDetailsList.size(), response.decisions().size());
 
         for (int i = 0; i < expectedMarkerDetailsList.size(); i++) {
-            Assert.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(i).decisionType());
+            Assertions.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(i).decisionType());
 
-            Assert.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), i, expectedMarkerDetailsList.size()),
+            Assertions.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), i, expectedMarkerDetailsList.size()),
                                 response.decisions().get(i).recordMarkerDecisionAttributes().markerName());
-            Assert.assertEquals(expectedMarkerDetailsList.get(i),
+            Assertions.assertEquals(expectedMarkerDetailsList.get(i),
                                 response.decisions().get(i).recordMarkerDecisionAttributes().details());
         }
 
         // The last decision should always force a new decision
-        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(markerDetailsList.size()));
+        Assertions.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(markerDetailsList.size()));
     }
 
     @Test
@@ -1218,23 +1218,23 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
 
         String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
 
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
 
-        Assert.assertEquals(partitionIds.size(), response.decisions().size());
+        Assertions.assertEquals(partitionIds.size(), response.decisions().size());
         Set<String> remainingPartitionsToSchedule = new HashSet<>(partitionIds);
         for (Decision decision : response.decisions()) {
             String partitionId = decision.scheduleActivityTaskDecisionAttributes().control();
-            Assert.assertNotNull(partitionId);
-            Assert.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
+            Assertions.assertNotNull(partitionId);
+            Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
-            Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+            Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
             Map<String, String> expectedInput = new TreeMap<>(input);
             expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
@@ -1252,10 +1252,10 @@ public class DecisionTaskPollerTest {
                                                                                 expectedInput, activityId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
-            Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+            Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
         }
 
-        Assert.assertTrue(remainingPartitionsToSchedule.isEmpty());
+        Assertions.assertTrue(remainingPartitionsToSchedule.isEmpty());
     }
 
     @Test
@@ -1308,23 +1308,23 @@ public class DecisionTaskPollerTest {
 
         mockery.verify();
 
-        Assert.assertEquals(partitionIds.size(), response.decisions().size());
+        Assertions.assertEquals(partitionIds.size(), response.decisions().size());
         Set<String> remainingPartitionsToSchedule = new HashSet<>(partitionIds);
         for (Decision decision : response.decisions()) {
             String partitionId = decision.startTimerDecisionAttributes().control();
-            Assert.assertNotNull(partitionId);
-            Assert.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
+            Assertions.assertNotNull(partitionId);
+            Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
             String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
-            Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
+            Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
             // allow jitter will make the retry time inconsistent, but as long as it's within 2 seconds it's fine for this test
-            Assert.assertEquals(10, Long.parseLong(decision.startTimerDecisionAttributes().startToFireTimeout()), 2);
-            Assert.assertEquals(activityId, decision.startTimerDecisionAttributes().timerId());
+            Assertions.assertEquals(10, Long.parseLong(decision.startTimerDecisionAttributes().startToFireTimeout()), 2);
+            Assertions.assertEquals(activityId, decision.startTimerDecisionAttributes().timerId());
         }
 
-        Assert.assertTrue(remainingPartitionsToSchedule.isEmpty());
+        Assertions.assertTrue(remainingPartitionsToSchedule.isEmpty());
     }
 
     @Test
@@ -1382,23 +1382,23 @@ public class DecisionTaskPollerTest {
 
         mockery.verify();
 
-        Assert.assertEquals(retriedPartitions.size(), response.decisions().size());
+        Assertions.assertEquals(retriedPartitions.size(), response.decisions().size());
         Set<String> remainingPartitionsToSchedule = new HashSet<>(retriedPartitions);
         for (Decision decision : response.decisions()) {
             String partitionId = decision.startTimerDecisionAttributes().control();
-            Assert.assertNotNull(partitionId);
-            Assert.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
+            Assertions.assertNotNull(partitionId);
+            Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
             String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
-            Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
+            Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
             // allow jitter will make the retry time inconsistent, but as long as it's within 2 seconds it's fine for this test
-            Assert.assertEquals(10, Long.parseLong(decision.startTimerDecisionAttributes().startToFireTimeout()), 2);
-            Assert.assertEquals(activityId, decision.startTimerDecisionAttributes().timerId());
+            Assertions.assertEquals(10, Long.parseLong(decision.startTimerDecisionAttributes().startToFireTimeout()), 2);
+            Assertions.assertEquals(activityId, decision.startTimerDecisionAttributes().timerId());
         }
 
-        Assert.assertTrue(remainingPartitionsToSchedule.isEmpty());
+        Assertions.assertTrue(remainingPartitionsToSchedule.isEmpty());
     }
 
     @Test
@@ -1452,13 +1452,13 @@ public class DecisionTaskPollerTest {
 
         mockery.verify();
 
-        Assert.assertEquals(1, response.decisions().size());
+        Assertions.assertEquals(1, response.decisions().size());
         Decision decision = response.decisions().get(0);
 
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         String partitionId = decision.scheduleActivityTaskDecisionAttributes().control();
-        Assert.assertEquals(failedPartition, partitionId);
+        Assertions.assertEquals(failedPartition, partitionId);
 
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
@@ -1476,7 +1476,7 @@ public class DecisionTaskPollerTest {
                 expectedInput, activityId);
         attrs = attrs.toBuilder().control(partitionId).build();
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
     }
 
     @Test
@@ -1535,23 +1535,23 @@ public class DecisionTaskPollerTest {
 
         mockery.verify();
 
-        Assert.assertEquals(retriedPartitions.size(), response.decisions().size());
+        Assertions.assertEquals(retriedPartitions.size(), response.decisions().size());
         Set<String> remainingPartitionsToSchedule = new HashSet<>(retriedPartitions);
         for (Decision decision : response.decisions()) {
             String partitionId = decision.startTimerDecisionAttributes().control();
-            Assert.assertNotNull(partitionId);
-            Assert.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
+            Assertions.assertNotNull(partitionId);
+            Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
             String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
-            Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
+            Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
             // allow jitter will make the retry time inconsistent, but as long as it's within 2 seconds it's fine for this test
-            Assert.assertEquals(10, Long.parseLong(decision.startTimerDecisionAttributes().startToFireTimeout()), 2);
-            Assert.assertEquals(activityId, decision.startTimerDecisionAttributes().timerId());
+            Assertions.assertEquals(10, Long.parseLong(decision.startTimerDecisionAttributes().startToFireTimeout()), 2);
+            Assertions.assertEquals(activityId, decision.startTimerDecisionAttributes().timerId());
         }
 
-        Assert.assertTrue(remainingPartitionsToSchedule.isEmpty());
+        Assertions.assertTrue(remainingPartitionsToSchedule.isEmpty());
     }
 
     @Test
@@ -1609,15 +1609,15 @@ public class DecisionTaskPollerTest {
 
         mockery.verify();
 
-        Assert.assertEquals(partitionIds.size(), response.decisions().size());
+        Assertions.assertEquals(partitionIds.size(), response.decisions().size());
         Set<String> remainingPartitionsToSchedule = new HashSet<>(partitionIds);
         for (Decision decision : response.decisions()) {
             String partitionId = decision.scheduleActivityTaskDecisionAttributes().control();
-            Assert.assertNotNull(partitionId);
-            Assert.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
+            Assertions.assertNotNull(partitionId);
+            Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
-            Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+            Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
             Map<String, String> expectedInput = new TreeMap<>(input);
             expectedInput.putAll(output);
@@ -1636,10 +1636,10 @@ public class DecisionTaskPollerTest {
                     expectedInput, activityId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
-            Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+            Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
         }
 
-        Assert.assertTrue(remainingPartitionsToSchedule.isEmpty());
+        Assertions.assertTrue(remainingPartitionsToSchedule.isEmpty());
     }
 
     @Test
@@ -1691,11 +1691,11 @@ public class DecisionTaskPollerTest {
         WorkflowStep stepThree = workflowWithPartitionedStep.getGraph().getNodes().get(TestStepHasOptionalInputAttribute.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepThree);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         String partitionedStepName = TaskNaming.activityName(workflowWithPartitionedStepName, partitionedStep);
-        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
+        Assertions.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
 
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.putAll(output);
@@ -1709,14 +1709,14 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepThree,
                 expectedInput, activityId);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
         mockery.verify();
     }
 
     @Test
     public void decide_scheduleSecondStepWhenFirstStepSucceeds_FirstStepHadMultipleAttempts() throws JsonProcessingException {
-        Assert.assertTrue(workflow.getGraph().getNodes().size() > 1);
+        Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
         String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
 
         Map<String, String> input = new TreeMap<>();
@@ -1765,7 +1765,7 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
 
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.putAll(output);
@@ -1780,12 +1780,12 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
                                                                             expectedInput, activityId);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
-        Assert.assertEquals(stepOneTotalDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(5, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(stepOneTotalDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(5, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
     }
@@ -1806,9 +1806,9 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflowWithCustomHeartbeatTimeout, workflowWithCustomHeartbeatTimeout.getGraph().getFirstStep());
 
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Long.toString(workflowWithCustomHeartbeatTimeout.getGraph().getFirstStep().activityTaskHeartbeatTimeout().getSeconds()),
                 decision.scheduleActivityTaskDecisionAttributes().heartbeatTimeout());
 
@@ -1841,16 +1841,16 @@ public class DecisionTaskPollerTest {
 
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
+        Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
         String activityId = TaskNaming.createActivityId(currentStep, 1, null);
         long delayInSeconds = RetryUtils.calculateRetryBackoffInSeconds(workflow.getGraph().getFirstStep(), 1,
                                                                         FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
         StartTimerDecisionAttributes attrs = DecisionTaskPoller.buildStartTimerDecisionAttrs(activityId, delayInSeconds, null);
 
-        Assert.assertEquals(attrs.timerId(), decision.startTimerDecisionAttributes().timerId());
-        Assert.assertNotNull(decision.startTimerDecisionAttributes().startToFireTimeout());
-        Assert.assertTrue(0 < Integer.parseInt(decision.startTimerDecisionAttributes().startToFireTimeout()));
+        Assertions.assertEquals(attrs.timerId(), decision.startTimerDecisionAttributes().timerId());
+        Assertions.assertNotNull(decision.startTimerDecisionAttributes().startToFireTimeout());
+        Assertions.assertTrue(0 < Integer.parseInt(decision.startTimerDecisionAttributes().startToFireTimeout()));
 
         mockery.verify();
     }
@@ -1878,7 +1878,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
@@ -1890,7 +1890,7 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, workflow.getGraph().getFirstStep(),
                 input, activityId);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
         mockery.verify();
     }
@@ -1926,7 +1926,7 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> stepMetrics, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
@@ -1939,7 +1939,7 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, workflow.getGraph().getFirstStep(),
                                                                             input, activityId);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
         mockery.verify();
     }
@@ -1974,15 +1974,15 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         List<Decision> decisions = response.decisions();
-        Assert.assertEquals(2, decisions.size());
+        Assertions.assertEquals(2, decisions.size());
 
         // first decision should be to cancel the current timer
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 1, null);
-        Assert.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(0).decisionType());
-        Assert.assertEquals(CancelTimerDecisionAttributes.builder().timerId(activityId).build(), decisions.get(0).cancelTimerDecisionAttributes());
+        Assertions.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(0).decisionType());
+        Assertions.assertEquals(CancelTimerDecisionAttributes.builder().timerId(activityId).build(), decisions.get(0).cancelTimerDecisionAttributes());
 
         // second decision should always force a new decision
-        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
+        Assertions.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
 
         mockery.verify();
     }
@@ -2013,16 +2013,16 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
+        Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
         long delayInSeconds = RetryUtils.calculateRetryBackoffInSeconds(workflow.getGraph().getFirstStep(), 1,
                                                                         FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 1, null);
         StartTimerDecisionAttributes attrs = DecisionTaskPoller.buildStartTimerDecisionAttrs(activityId, delayInSeconds, null);
 
-        Assert.assertEquals(attrs.timerId(), decision.startTimerDecisionAttributes().timerId());
-        Assert.assertNotNull(decision.startTimerDecisionAttributes().startToFireTimeout());
-        Assert.assertTrue(0 < Integer.parseInt(decision.startTimerDecisionAttributes().startToFireTimeout()));
+        Assertions.assertEquals(attrs.timerId(), decision.startTimerDecisionAttributes().timerId());
+        Assertions.assertNotNull(decision.startTimerDecisionAttributes().startToFireTimeout());
+        Assertions.assertTrue(0 < Integer.parseInt(decision.startTimerDecisionAttributes().startToFireTimeout()));
 
         mockery.verify();
     }
@@ -2060,7 +2060,7 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
@@ -2071,7 +2071,7 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
                                                                             TaskNaming.createActivityId(currentStep, 1, null));
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
         mockery.verify();
     }
@@ -2106,19 +2106,19 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         List<Decision> decisions = response.decisions();
-        Assert.assertEquals(2, decisions.size());
+        Assertions.assertEquals(2, decisions.size());
 
         // first decision should be to cancel the current timer
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 1, null);
-        Assert.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(0).decisionType());
-        Assert.assertEquals(CancelTimerDecisionAttributes.builder().timerId(activityId).build(), decisions.get(0).cancelTimerDecisionAttributes());
+        Assertions.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(0).decisionType());
+        Assertions.assertEquals(CancelTimerDecisionAttributes.builder().timerId(activityId).build(), decisions.get(0).cancelTimerDecisionAttributes());
 
         // second decision should to send the workflow a ScheduleDelayedRetry signal.
-        Assert.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, decisions.get(1).decisionType());
+        Assertions.assertEquals(DecisionType.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION, decisions.get(1).decisionType());
         DelayRetrySignalData signalData = new DelayRetrySignalData();
         signalData.setActivityId(activityId);
         signalData.setDelayInSeconds(142);
-        Assert.assertEquals(DecisionTaskPoller.buildScheduleRetrySignalAttrs(state, signalData),
+        Assertions.assertEquals(DecisionTaskPoller.buildScheduleRetrySignalAttrs(state, signalData),
                             decisions.get(1).signalExternalWorkflowExecutionDecisionAttributes());
 
         mockery.verify();
@@ -2151,16 +2151,16 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
+        Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 1, null);
         long delayInSeconds = RetryUtils.calculateRetryBackoffInSeconds(workflow.getGraph().getFirstStep(), 1,
                                                                         FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
         StartTimerDecisionAttributes attrs = DecisionTaskPoller.buildStartTimerDecisionAttrs(activityId, delayInSeconds, null);
 
-        Assert.assertEquals(attrs.timerId(), decision.startTimerDecisionAttributes().timerId());
-        Assert.assertNotNull(decision.startTimerDecisionAttributes().startToFireTimeout());
-        Assert.assertTrue(0 < Integer.parseInt(decision.startTimerDecisionAttributes().startToFireTimeout()));
+        Assertions.assertEquals(attrs.timerId(), decision.startTimerDecisionAttributes().timerId());
+        Assertions.assertNotNull(decision.startTimerDecisionAttributes().startToFireTimeout());
+        Assertions.assertTrue(0 < Integer.parseInt(decision.startTimerDecisionAttributes().startToFireTimeout()));
 
         mockery.verify();
     }
@@ -2201,7 +2201,7 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
@@ -2212,7 +2212,7 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
                                                                             TaskNaming.createActivityId(currentStep, 1, null));
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
         mockery.verify();
     }
@@ -2253,14 +2253,14 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
+        Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 1, null);
         StartTimerDecisionAttributes attrs = DecisionTaskPoller.buildStartTimerDecisionAttrs(activityId, 142, null);
 
-        Assert.assertEquals(attrs.timerId(), decision.startTimerDecisionAttributes().timerId());
-        Assert.assertNotNull(decision.startTimerDecisionAttributes().startToFireTimeout());
-        Assert.assertTrue(0 < Integer.parseInt(decision.startTimerDecisionAttributes().startToFireTimeout()));
+        Assertions.assertEquals(attrs.timerId(), decision.startTimerDecisionAttributes().timerId());
+        Assertions.assertNotNull(decision.startTimerDecisionAttributes().startToFireTimeout());
+        Assertions.assertTrue(0 < Integer.parseInt(decision.startTimerDecisionAttributes().startToFireTimeout()));
 
         mockery.verify();
     }
@@ -2294,7 +2294,7 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         List<Decision> decisions = response.decisions();
-        Assert.assertTrue(decisions.toString(), decisions.isEmpty());
+        Assertions.assertTrue(decisions.isEmpty(), decisions.toString());
 
         mockery.verify();
     }
@@ -2342,7 +2342,7 @@ public class DecisionTaskPollerTest {
 
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
@@ -2355,7 +2355,7 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, workflow.getGraph().getFirstStep(),
                                                                             input, activityIdSecondAttempt);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
     }
 
@@ -2412,15 +2412,15 @@ public class DecisionTaskPollerTest {
         List<Decision> decisions = response.decisions();
         mockery.verify();
 
-        Assert.assertEquals(2, decisions.size());
+        Assertions.assertEquals(2, decisions.size());
 
         // first decision should be to cancel the current timer
-        Assert.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(0).decisionType());
-        Assert.assertEquals(CancelTimerDecisionAttributes.builder().timerId(timerEvent.timerStartedEventAttributes().timerId()).build(),
+        Assertions.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(0).decisionType());
+        Assertions.assertEquals(CancelTimerDecisionAttributes.builder().timerId(timerEvent.timerStartedEventAttributes().timerId()).build(),
                             decisions.get(0).cancelTimerDecisionAttributes());
 
         // second decision should always force a new decision
-        Assert.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
+        Assertions.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
     }
 
     @Test
@@ -2481,13 +2481,13 @@ public class DecisionTaskPollerTest {
         List<Decision> decisions = response.decisions();
         mockery.verify();
 
-        Assert.assertEquals(1, decisions.size());
+        Assertions.assertEquals(1, decisions.size());
         Decision decision = decisions.get(0);
 
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
+        Assertions.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
 
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.putAll(output);
@@ -2501,7 +2501,7 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, nextStep.getStep(),
                                                                             expectedInput, activityId);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
     }
 
     @Test
@@ -2573,14 +2573,14 @@ public class DecisionTaskPollerTest {
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, nextStep.getStep());
         mockery.verify();
 
-        Assert.assertEquals(1, response.decisions().size());
+        Assertions.assertEquals(1, response.decisions().size());
 
         Decision decision = response.decisions().get(0);
 
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
-        Assert.assertEquals(2, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
+        Assertions.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
+        Assertions.assertEquals(2, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
 
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.putAll(output);
@@ -2594,7 +2594,7 @@ public class DecisionTaskPollerTest {
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, nextStep.getStep(),
                 expectedInput, activityId);
 
-        Assert.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
     }
 
     @Test
@@ -2651,8 +2651,8 @@ public class DecisionTaskPollerTest {
         mockery.verify();
 
         // only decision should be to cancel the current timer
-        Assert.assertEquals(DecisionType.CANCEL_TIMER, decision.decisionType());
-        Assert.assertEquals(CancelTimerDecisionAttributes.builder().timerId(timer2Event.timerStartedEventAttributes().timerId()).build(),
+        Assertions.assertEquals(DecisionType.CANCEL_TIMER, decision.decisionType());
+        Assertions.assertEquals(CancelTimerDecisionAttributes.builder().timerId(timer2Event.timerStartedEventAttributes().timerId()).build(),
                             decision.cancelTimerDecisionAttributes());
 
         // no other decisions, because we're still waiting to retry the other partition.
@@ -2710,23 +2710,23 @@ public class DecisionTaskPollerTest {
         List<Decision> decisions = response.decisions();
         mockery.verify();
 
-        Assert.assertEquals(2, decisions.size());
+        Assertions.assertEquals(2, decisions.size());
 
         // first decision should be to schedule the retry timer for partition p1
-        Assert.assertEquals(DecisionType.START_TIMER, decisions.get(0).decisionType());
+        Assertions.assertEquals(DecisionType.START_TIMER, decisions.get(0).decisionType());
 
         String activityP1Id = TaskNaming.createActivityId(partitionedStep, 1, partitionToReschedule);
         long delayInSeconds = RetryUtils.calculateRetryBackoffInSeconds(partitionedStep, 1,
                                                                         FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
         StartTimerDecisionAttributes attrs = DecisionTaskPoller.buildStartTimerDecisionAttrs(activityP1Id, delayInSeconds, null);
 
-        Assert.assertEquals(attrs.timerId(), decisions.get(0).startTimerDecisionAttributes().timerId());
-        Assert.assertNotNull(decisions.get(0).startTimerDecisionAttributes().startToFireTimeout());
-        Assert.assertTrue(0 < Integer.parseInt(decisions.get(0).startTimerDecisionAttributes().startToFireTimeout()));
+        Assertions.assertEquals(attrs.timerId(), decisions.get(0).startTimerDecisionAttributes().timerId());
+        Assertions.assertNotNull(decisions.get(0).startTimerDecisionAttributes().startToFireTimeout());
+        Assertions.assertTrue(0 < Integer.parseInt(decisions.get(0).startTimerDecisionAttributes().startToFireTimeout()));
 
         // second decision should be to cancel the p2 timer
-        Assert.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(1).decisionType());
-        Assert.assertEquals(CancelTimerDecisionAttributes.builder().timerId(timer2Event.timerStartedEventAttributes().timerId()).build(),
+        Assertions.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(1).decisionType());
+        Assertions.assertEquals(CancelTimerDecisionAttributes.builder().timerId(timer2Event.timerStartedEventAttributes().timerId()).build(),
                             decisions.get(1).cancelTimerDecisionAttributes());
     }
 
@@ -2785,10 +2785,10 @@ public class DecisionTaskPollerTest {
         List<Decision> decisions = response.decisions();
         mockery.verify();
 
-        Assert.assertEquals(2, decisions.size());
+        Assertions.assertEquals(2, decisions.size());
 
         // first decision should be to reschedule partition p1
-        Assert.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decisions.get(0).decisionType());
+        Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decisions.get(0).decisionType());
 
         Map<String, String> expectedInput = new TreeMap<>(input);
         expectedInput.putAll(output);
@@ -2806,11 +2806,11 @@ public class DecisionTaskPollerTest {
                                                                             expectedInput, activityId);
         attrs = attrs.toBuilder().control(partitionToReschedule).build();
 
-        Assert.assertEquals(attrs, decisions.get(0).scheduleActivityTaskDecisionAttributes());
+        Assertions.assertEquals(attrs, decisions.get(0).scheduleActivityTaskDecisionAttributes());
 
         // second decision should be to cancel the p2 timer
-        Assert.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(1).decisionType());
-        Assert.assertEquals(CancelTimerDecisionAttributes.builder().timerId(timer2Event.timerStartedEventAttributes().timerId()).build(),
+        Assertions.assertEquals(DecisionType.CANCEL_TIMER, decisions.get(1).decisionType());
+        Assertions.assertEquals(CancelTimerDecisionAttributes.builder().timerId(timer2Event.timerStartedEventAttributes().timerId()).build(),
                             decisions.get(1).cancelTimerDecisionAttributes());
     }
 
@@ -2837,24 +2837,24 @@ public class DecisionTaskPollerTest {
 
         mockery.replay();
 
-        Assert.assertEquals(TaskNaming.activityName(workflow, TestStepOne.class), state.getCurrentActivityName());
+        Assertions.assertEquals(TaskNaming.activityName(workflow, TestStepOne.class), state.getCurrentActivityName());
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
                                                                                  FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.CANCEL_WORKFLOW_EXECUTION, decision.decisionType());
+        Assertions.assertEquals(DecisionType.CANCEL_WORKFLOW_EXECUTION, decision.decisionType());
 
         CancelWorkflowExecutionDecisionAttributes attrs = CancelWorkflowExecutionDecisionAttributes.builder().build();
-        Assert.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
 
         WorkflowStep stepOne = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         String stepOneActivityName = TaskNaming.activityName(workflowName, stepOne);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)));
-        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)));
+        Assertions.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
     }
@@ -2885,25 +2885,25 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
 
-        Assert.assertEquals(2, response.decisions().size());
+        Assertions.assertEquals(2, response.decisions().size());
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.REQUEST_CANCEL_ACTIVITY_TASK, decision.decisionType());
+        Assertions.assertEquals(DecisionType.REQUEST_CANCEL_ACTIVITY_TASK, decision.decisionType());
 
         RequestCancelActivityTaskDecisionAttributes activityAttrs = RequestCancelActivityTaskDecisionAttributes.builder()
                 .activityId(TaskNaming.createActivityId(stepOne, 0, null)).build();
-        Assert.assertEquals(activityAttrs, decision.requestCancelActivityTaskDecisionAttributes());
+        Assertions.assertEquals(activityAttrs, decision.requestCancelActivityTaskDecisionAttributes());
 
         decision = response.decisions().get(1);
-        Assert.assertEquals(DecisionType.CANCEL_WORKFLOW_EXECUTION, decision.decisionType());
+        Assertions.assertEquals(DecisionType.CANCEL_WORKFLOW_EXECUTION, decision.decisionType());
 
         CancelWorkflowExecutionDecisionAttributes attrs = CancelWorkflowExecutionDecisionAttributes.builder().build();
-        Assert.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
 
         String stepOneActivityName = TaskNaming.activityName(workflowName, stepOne);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)));
-        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)));
+        Assertions.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
     }
@@ -2940,26 +2940,26 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
 
-        Assert.assertEquals(2, response.decisions().size());
+        Assertions.assertEquals(2, response.decisions().size());
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.CANCEL_TIMER, decision.decisionType());
+        Assertions.assertEquals(DecisionType.CANCEL_TIMER, decision.decisionType());
 
         CancelTimerDecisionAttributes timerAttrs = CancelTimerDecisionAttributes.builder()
                 .timerId(timer1Event.timerStartedEventAttributes().timerId())
                 .build();
-        Assert.assertEquals(timerAttrs, decision.cancelTimerDecisionAttributes());
+        Assertions.assertEquals(timerAttrs, decision.cancelTimerDecisionAttributes());
 
         decision = response.decisions().get(1);
-        Assert.assertEquals(DecisionType.CANCEL_WORKFLOW_EXECUTION, decision.decisionType());
+        Assertions.assertEquals(DecisionType.CANCEL_WORKFLOW_EXECUTION, decision.decisionType());
 
         CancelWorkflowExecutionDecisionAttributes attrs = CancelWorkflowExecutionDecisionAttributes.builder().build();
-        Assert.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
 
         String stepOneActivityName = TaskNaming.activityName(workflowName, stepOne);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)));
-        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepOneActivityName)));
+        Assertions.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
     }
@@ -2999,26 +2999,26 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
 
-        Assert.assertEquals(2, response.decisions().size());
+        Assertions.assertEquals(2, response.decisions().size());
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.CANCEL_TIMER, decision.decisionType());
+        Assertions.assertEquals(DecisionType.CANCEL_TIMER, decision.decisionType());
 
         CancelTimerDecisionAttributes timerAttrs = CancelTimerDecisionAttributes.builder()
                 .timerId(timer1Event.timerStartedEventAttributes().timerId())
                 .build();
-        Assert.assertEquals(timerAttrs, decision.cancelTimerDecisionAttributes());
+        Assertions.assertEquals(timerAttrs, decision.cancelTimerDecisionAttributes());
 
         decision = response.decisions().get(1);
-        Assert.assertEquals(DecisionType.CANCEL_WORKFLOW_EXECUTION, decision.decisionType());
+        Assertions.assertEquals(DecisionType.CANCEL_WORKFLOW_EXECUTION, decision.decisionType());
 
         CancelWorkflowExecutionDecisionAttributes attrs = CancelWorkflowExecutionDecisionAttributes.builder().build();
-        Assert.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.cancelWorkflowExecutionDecisionAttributes());
 
         String activityName = TaskNaming.activityName(workflowName, currentStep);
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
     }
@@ -3055,17 +3055,17 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.COMPLETE_WORKFLOW_EXECUTION, decision.decisionType());
+        Assertions.assertEquals(DecisionType.COMPLETE_WORKFLOW_EXECUTION, decision.decisionType());
 
         CompleteWorkflowExecutionDecisionAttributes attrs = CompleteWorkflowExecutionDecisionAttributes.builder().build();
-        Assert.assertEquals(attrs, decision.completeWorkflowExecutionDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.completeWorkflowExecutionDecisionAttributes());
 
         String stepTwoActivityName = TaskNaming.activityName(workflowName, stepTwo);
-        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
-        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(stepTwoActivityName)).longValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowName)));
+        Assertions.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(stepTwoActivityName)).longValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
     }
@@ -3101,17 +3101,17 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithFailureTransition, null);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.FAIL_WORKFLOW_EXECUTION, decision.decisionType());
+        Assertions.assertEquals(DecisionType.FAIL_WORKFLOW_EXECUTION, decision.decisionType());
 
-        Assert.assertNotNull(decision.failWorkflowExecutionDecisionAttributes().reason());
-        Assert.assertTrue(decision.failWorkflowExecutionDecisionAttributes().reason().startsWith(activityName + " failed after"));
-        Assert.assertNotNull("FailWorkflowExecutionDecision detail should not be null!", decision.failWorkflowExecutionDecisionAttributes().details());
+        Assertions.assertNotNull(decision.failWorkflowExecutionDecisionAttributes().reason());
+        Assertions.assertTrue(decision.failWorkflowExecutionDecisionAttributes().reason().startsWith(activityName + " failed after"));
+        Assertions.assertNotNull("FailWorkflowExecutionDecision detail should not be null!", decision.failWorkflowExecutionDecisionAttributes().details());
 
-        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowWithFailureTransitionName)));
-        Assert.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowWithFailureTransitionName)));
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         mockery.verify();
     }
@@ -3148,19 +3148,19 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicWorkflow, null);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
+        Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
-        Assert.assertEquals(DecisionTaskPoller.DELAY_EXIT_TIMER_ID, decision.startTimerDecisionAttributes().timerId());
+        Assertions.assertEquals(DecisionTaskPoller.DELAY_EXIT_TIMER_ID, decision.startTimerDecisionAttributes().timerId());
 
         mockery.verify();
 
         // we want to see a workflow execution time metric emitted when the periodic workflow ends, before the delayed exit
         String stepTwoActivityName = TaskNaming.activityName(periodicWorkflowName, stepTwo);
-        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)));
-        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(stepTwoActivityName)).longValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)));
+        Assertions.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(stepTwoActivityName)).longValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         Periodic p = periodicWorkflow.getClass().getAnnotation(Periodic.class);
 
@@ -3171,7 +3171,7 @@ public class DecisionTaskPollerTest {
         long allowedDelta = 2;
         // start-to-fire timeout is in seconds
         long actualDelay = Integer.parseInt(decision.startTimerDecisionAttributes().startToFireTimeout());
-        Assert.assertEquals(expectedDelay, actualDelay, allowedDelta);
+        Assertions.assertEquals(expectedDelay, actualDelay, allowedDelta);
     }
 
     /**
@@ -3207,23 +3207,23 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicWorkflow, null);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.START_TIMER, decision.decisionType());
+        Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
-        Assert.assertEquals(DecisionTaskPoller.DELAY_EXIT_TIMER_ID, decision.startTimerDecisionAttributes().timerId());
+        Assertions.assertEquals(DecisionTaskPoller.DELAY_EXIT_TIMER_ID, decision.startTimerDecisionAttributes().timerId());
 
         mockery.verify();
 
         // we want to see a workflow execution time metric emitted when the periodic workflow ends, before the delayed exit
         String stepTwoActivityName = TaskNaming.activityName(periodicWorkflowName, stepTwo);
-        Assert.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)));
-        Assert.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)));
-        Assert.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(stepTwoActivityName)).longValue());
-        Assert.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assert.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+        Assertions.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)));
+        Assertions.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(stepTwoActivityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(stepTwoActivityName)).longValue());
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
 
         // the timer should be set to 1 second since the workflow ran for 45 days and our minimum delay time is 1 second.
         long actualDelay = Integer.parseInt(decision.startTimerDecisionAttributes().startToFireTimeout());
-        Assert.assertEquals(1.0, actualDelay, 0.0);
+        Assertions.assertEquals(1.0, actualDelay, 0.0);
     }
 
     @Test
@@ -3261,7 +3261,7 @@ public class DecisionTaskPollerTest {
                 deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicWorkflow, null);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.CONTINUE_AS_NEW_WORKFLOW_EXECUTION, decision.decisionType());
+        Assertions.assertEquals(DecisionType.CONTINUE_AS_NEW_WORKFLOW_EXECUTION, decision.decisionType());
 
         ContinueAsNewWorkflowExecutionDecisionAttributes attrs = ContinueAsNewWorkflowExecutionDecisionAttributes.builder()
                 .childPolicy(ChildPolicy.TERMINATE)
@@ -3270,10 +3270,10 @@ public class DecisionTaskPollerTest {
                 .executionStartToCloseTimeout(Long.toString(periodicWorkflow.maxStartToCloseDuration().getSeconds()))
                 .taskList(TaskList.builder().name(periodicWorkflow.taskList()).build())
                 .build();
-        Assert.assertEquals(attrs, decision.continueAsNewWorkflowExecutionDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.continueAsNewWorkflowExecutionDecisionAttributes());
 
         // we do *not* want to see a workflow execution time metric emitted after the delayed exit ends
-        Assert.assertFalse(deciderMetrics.getDurations().containsKey(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)));
+        Assertions.assertFalse(deciderMetrics.getDurations().containsKey(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicWorkflowName)));
 
         mockery.verify();
     }
@@ -3316,7 +3316,7 @@ public class DecisionTaskPollerTest {
                                                                                  deciderMetrics, (o) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicCustomTaskList, null);
         Decision decision = response.decisions().get(0);
-        Assert.assertEquals(DecisionType.CONTINUE_AS_NEW_WORKFLOW_EXECUTION, decision.decisionType());
+        Assertions.assertEquals(DecisionType.CONTINUE_AS_NEW_WORKFLOW_EXECUTION, decision.decisionType());
 
         ContinueAsNewWorkflowExecutionDecisionAttributes attrs = ContinueAsNewWorkflowExecutionDecisionAttributes.builder()
                 .childPolicy(ChildPolicy.TERMINATE)
@@ -3325,10 +3325,10 @@ public class DecisionTaskPollerTest {
                 .executionStartToCloseTimeout(Long.toString(periodicCustomTaskList.maxStartToCloseDuration().getSeconds()))
                 .taskList(TaskList.builder().name(periodicCustomTaskList.taskList()).build())
                 .build();
-        Assert.assertEquals(attrs, decision.continueAsNewWorkflowExecutionDecisionAttributes());
+        Assertions.assertEquals(attrs, decision.continueAsNewWorkflowExecutionDecisionAttributes());
 
         // we do *not* want to see a workflow execution time metric emitted after the delayed exit ends
-        Assert.assertFalse(deciderMetrics.getDurations().containsKey(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicCustomTaskListWorkflowName)));
+        Assertions.assertFalse(deciderMetrics.getDurations().containsKey(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(periodicCustomTaskListWorkflowName)));
 
         mockery.verify();
     }
@@ -3336,9 +3336,9 @@ public class DecisionTaskPollerTest {
     @Test
     public void findNextStep_FindsFirstStepWhenNoCurrentStep() {
         NextStepSelection selection = DecisionTaskPoller.findNextStep(workflow, null, null);
-        Assert.assertFalse(selection.workflowShouldClose());
-        Assert.assertEquals(workflow.getGraph().getFirstStep(), selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertFalse(selection.workflowShouldClose());
+        Assertions.assertEquals(workflow.getGraph().getFirstStep(), selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -3346,9 +3346,9 @@ public class DecisionTaskPollerTest {
         WorkflowStep stepOne = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(workflow, stepOne, StepResult.SUCCEED_RESULT_CODE);
-        Assert.assertFalse(selection.workflowShouldClose());
-        Assert.assertEquals(stepTwo, selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertFalse(selection.workflowShouldClose());
+        Assertions.assertEquals(stepTwo, selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -3358,9 +3358,9 @@ public class DecisionTaskPollerTest {
         WorkflowStep stepOne = branchingWorkflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep stepTwo = branchingWorkflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(branchingWorkflow, stepOne, StepResult.SUCCEED_RESULT_CODE);
-        Assert.assertFalse(selection.workflowShouldClose());
-        Assert.assertEquals(stepTwo, selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertFalse(selection.workflowShouldClose());
+        Assertions.assertEquals(stepTwo, selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -3370,18 +3370,18 @@ public class DecisionTaskPollerTest {
         WorkflowStep stepOne = branchingWorkflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep branchStep = branchingWorkflow.getGraph().getNodes().get(TestBranchStep.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(branchingWorkflow, stepOne, TestBranchingWorkflow.CUSTOM_RESULT);
-        Assert.assertFalse(selection.workflowShouldClose());
-        Assert.assertEquals(branchStep, selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertFalse(selection.workflowShouldClose());
+        Assertions.assertEquals(branchStep, selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
     public void findNextStep_NoNextStepWhenCurrentStepIsLast() {
         WorkflowStep secondStep = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(workflow, secondStep, StepResult.SUCCEED_RESULT_CODE);
-        Assert.assertTrue(selection.workflowShouldClose());
-        Assert.assertNull(selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertTrue(selection.workflowShouldClose());
+        Assertions.assertNull(selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -3390,9 +3390,9 @@ public class DecisionTaskPollerTest {
         WorkflowStep stepOne = always.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepOne, StepResult.SUCCEED_RESULT_CODE);
-        Assert.assertFalse(selection.workflowShouldClose());
-        Assert.assertEquals(stepTwo, selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertFalse(selection.workflowShouldClose());
+        Assertions.assertEquals(stepTwo, selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -3401,9 +3401,9 @@ public class DecisionTaskPollerTest {
         WorkflowStep stepOne = always.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepOne, StepResult.FAIL_RESULT_CODE);
-        Assert.assertFalse(selection.workflowShouldClose());
-        Assert.assertEquals(stepTwo, selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertFalse(selection.workflowShouldClose());
+        Assertions.assertEquals(stepTwo, selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -3412,9 +3412,9 @@ public class DecisionTaskPollerTest {
         WorkflowStep stepOne = always.getGraph().getNodes().get(TestStepOne.class).getStep();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepOne, "some-random-custom-code");
-        Assert.assertFalse(selection.workflowShouldClose());
-        Assert.assertEquals(stepTwo, selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertFalse(selection.workflowShouldClose());
+        Assertions.assertEquals(stepTwo, selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -3422,9 +3422,9 @@ public class DecisionTaskPollerTest {
         TestWorkflowWithAlwaysTransition always = new TestWorkflowWithAlwaysTransition();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepTwo, StepResult.SUCCEED_RESULT_CODE);
-        Assert.assertTrue(selection.workflowShouldClose());
-        Assert.assertNull(selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertTrue(selection.workflowShouldClose());
+        Assertions.assertNull(selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -3432,9 +3432,9 @@ public class DecisionTaskPollerTest {
         TestWorkflowWithAlwaysTransition always = new TestWorkflowWithAlwaysTransition();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepTwo, StepResult.FAIL_RESULT_CODE);
-        Assert.assertTrue(selection.workflowShouldClose());
-        Assert.assertNull(selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertTrue(selection.workflowShouldClose());
+        Assertions.assertNull(selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -3442,9 +3442,9 @@ public class DecisionTaskPollerTest {
         TestWorkflowWithAlwaysTransition always = new TestWorkflowWithAlwaysTransition();
         WorkflowStep stepTwo = always.getGraph().getNodes().get(TestStepTwo.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(always, stepTwo, "some-random-custom-code");
-        Assert.assertTrue(selection.workflowShouldClose());
-        Assert.assertNull(selection.getNextStep());
-        Assert.assertFalse(selection.isNextStepUnknown());
+        Assertions.assertTrue(selection.workflowShouldClose());
+        Assertions.assertNull(selection.getNextStep());
+        Assertions.assertFalse(selection.isNextStepUnknown());
     }
 
     @Test
@@ -3452,9 +3452,9 @@ public class DecisionTaskPollerTest {
         TestWorkflowDoesntHandleCustomResultCode wf = new TestWorkflowDoesntHandleCustomResultCode();
         WorkflowStep stepOne = wf.getGraph().getNodes().get(TestStepReturnsCustomResultCode.class).getStep();
         NextStepSelection selection = DecisionTaskPoller.findNextStep(wf, stepOne, TestStepReturnsCustomResultCode.RESULT_CODE);
-        Assert.assertFalse(selection.workflowShouldClose());
-        Assert.assertNull(selection.getNextStep());
-        Assert.assertTrue(selection.isNextStepUnknown());
+        Assertions.assertFalse(selection.workflowShouldClose());
+        Assertions.assertNull(selection.getNextStep());
+        Assertions.assertTrue(selection.isNextStepUnknown());
     }
 
     private void expectPoll(PollForDecisionTaskResponse taskToReturn) {
@@ -3475,7 +3475,7 @@ public class DecisionTaskPollerTest {
         };
 
         // since jitterPercent is 0 and the initial retry delay is 300, the first retry should use 300 seconds
-        Assert.assertEquals(300, RetryUtils.calculateRetryBackoffInSeconds(step, 1, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+        Assertions.assertEquals(300, RetryUtils.calculateRetryBackoffInSeconds(step, 1, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
     }
 
     @Test
@@ -3486,7 +3486,7 @@ public class DecisionTaskPollerTest {
         };
 
         // since jitterPercent is 0 and the max retry delay is 20, the 10000th retry should use 20 seconds
-        Assert.assertEquals(20, RetryUtils.calculateRetryBackoffInSeconds(step, 10000, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+        Assertions.assertEquals(20, RetryUtils.calculateRetryBackoffInSeconds(step, 10000, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
     }
 
     @Test
@@ -3498,14 +3498,14 @@ public class DecisionTaskPollerTest {
 
         // since jitterPercent is 0 the first 6 retries should use 10 seconds, then attempt 7 should use 12 seconds (10 * (1.25 ^ 1)),
         // and attempt 8 should use 15 seconds (10 * (1.25 ^ 2))
-        Assert.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 1, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
-        Assert.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 2, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
-        Assert.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 3, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
-        Assert.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 4, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
-        Assert.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 5, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
-        Assert.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 6, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
-        Assert.assertEquals(12, RetryUtils.calculateRetryBackoffInSeconds(step, 7, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
-        Assert.assertEquals(15, RetryUtils.calculateRetryBackoffInSeconds(step, 8, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+        Assertions.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 1, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+        Assertions.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 2, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+        Assertions.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 3, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+        Assertions.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 4, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+        Assertions.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 5, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+        Assertions.assertEquals(10, RetryUtils.calculateRetryBackoffInSeconds(step, 6, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+        Assertions.assertEquals(12, RetryUtils.calculateRetryBackoffInSeconds(step, 7, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+        Assertions.assertEquals(15, RetryUtils.calculateRetryBackoffInSeconds(step, 8, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
     }
     @Test
     public void testCalculateRetryBackoff_RespectsDefaultJitterPercent() {
@@ -3517,7 +3517,7 @@ public class DecisionTaskPollerTest {
         // the default jitter percent is 10, so we should see no retry times < 90 or > 110
         for (int attempt = 1; attempt <= 1000; attempt++) {
             long calculatedTime = RetryUtils.calculateRetryBackoffInSeconds(step, attempt, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
-            Assert.assertTrue(calculatedTime >= 90 && calculatedTime <= 110);
+            Assertions.assertTrue(calculatedTime >= 90 && calculatedTime <= 110);
         }
     }
 
@@ -3535,12 +3535,12 @@ public class DecisionTaskPollerTest {
         // given the jitter percent of 90 and 1000 attempts.
         for (int attempt = 1; attempt <= 1000; attempt++) {
             long calculatedTime = RetryUtils.calculateRetryBackoffInSeconds(step, attempt, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
-            Assert.assertTrue(calculatedTime >= 10 && calculatedTime <= 190);
+            Assertions.assertTrue(calculatedTime >= 10 && calculatedTime <= 190);
             if (calculatedTime < 90 || calculatedTime > 110) {
                 foundLargerJitter = true;
             }
         }
-        Assert.assertTrue(foundLargerJitter);
+        Assertions.assertTrue(foundLargerJitter);
     }
 
     @Test
@@ -3552,10 +3552,10 @@ public class DecisionTaskPollerTest {
 
         // since jitterPercent is 0 and the initial retry delay is 300, the first 27 retries should use 300 seconds
         for (int attempt = 1; attempt <= 27; attempt++) {
-            Assert.assertEquals(300, RetryUtils.calculateRetryBackoffInSeconds(step, attempt, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
+            Assertions.assertEquals(300, RetryUtils.calculateRetryBackoffInSeconds(step, attempt, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE));
         }
         // the 28th retry should delay longer than 300 seconds
-        Assert.assertTrue(RetryUtils.calculateRetryBackoffInSeconds(step, 28, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE) > 300);
+        Assertions.assertTrue(RetryUtils.calculateRetryBackoffInSeconds(step, 28, FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE) > 300);
     }
 
     @Test
@@ -3565,38 +3565,38 @@ public class DecisionTaskPollerTest {
         Decision expected = Decision.builder().decisionType(DecisionType.START_TIMER)
                 .startTimerDecisionAttributes(expectedAttrs).build();
 
-        Assert.assertEquals(expected, DecisionTaskPoller.decisionToForceNewDecision());
+        Assertions.assertEquals(expected, DecisionTaskPoller.decisionToForceNewDecision());
     }
 
     private void validateExecutionContext(String executionContext, Workflow workflow, WorkflowStep expectedNextStep) {
         if (expectedNextStep == null) {
             if (workflow.getClass().isAnnotationPresent(Periodic.class)) {
-                Assert.assertNotNull(executionContext);
+                Assertions.assertNotNull(executionContext);
                 Map<String, String> decodedExecutionContext = StepAttributes.decode(Map.class, executionContext);
-                Assert.assertNotNull(decodedExecutionContext);
-                Assert.assertEquals(1, decodedExecutionContext.size());
-                Assert.assertEquals(DecisionTaskPoller.DELAY_EXIT_TIMER_ID, StepAttributes.decode(String.class, decodedExecutionContext.get(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_NAME)));
+                Assertions.assertNotNull(decodedExecutionContext);
+                Assertions.assertEquals(1, decodedExecutionContext.size());
+                Assertions.assertEquals(DecisionTaskPoller.DELAY_EXIT_TIMER_ID, StepAttributes.decode(String.class, decodedExecutionContext.get(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_NAME)));
             } else {
-                Assert.assertNull(executionContext);
+                Assertions.assertNull(executionContext);
             }
         } else {
-            Assert.assertNotNull(executionContext);
+            Assertions.assertNotNull(executionContext);
             Map<String, String> decodedExecutionContext = StepAttributes.decode(Map.class, executionContext);
-            Assert.assertNotNull(decodedExecutionContext);
-            Assert.assertEquals(2, decodedExecutionContext.size());
-            Assert.assertEquals(expectedNextStep.getClass().getSimpleName(), StepAttributes.decode(String.class, decodedExecutionContext.get(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_NAME)));
+            Assertions.assertNotNull(decodedExecutionContext);
+            Assertions.assertEquals(2, decodedExecutionContext.size());
+            Assertions.assertEquals(expectedNextStep.getClass().getSimpleName(), StepAttributes.decode(String.class, decodedExecutionContext.get(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_NAME)));
 
             String encodedResultCodes = decodedExecutionContext.get(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_RESULT_CODES);
-            Assert.assertNotNull(encodedResultCodes);
+            Assertions.assertNotNull(encodedResultCodes);
             Map<String, String> decodedResultCodeMap = StepAttributes.decode(Map.class, encodedResultCodes);
-            Assert.assertNotNull(decodedResultCodeMap);
-            Assert.assertEquals(workflow.getGraph().getNodes().get(expectedNextStep.getClass()).getNextStepsByResultCode().size(), decodedResultCodeMap.size());
+            Assertions.assertNotNull(decodedResultCodeMap);
+            Assertions.assertEquals(workflow.getGraph().getNodes().get(expectedNextStep.getClass()).getNextStepsByResultCode().size(), decodedResultCodeMap.size());
             for (Map.Entry<String, WorkflowGraphNode> resultCodes : workflow.getGraph().getNodes().get(expectedNextStep.getClass()).getNextStepsByResultCode().entrySet()) {
-                Assert.assertTrue(decodedResultCodeMap.containsKey(resultCodes.getKey()));
+                Assertions.assertTrue(decodedResultCodeMap.containsKey(resultCodes.getKey()));
                 if (resultCodes.getValue() == null) {
-                    Assert.assertEquals(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_RESULT_WORKFLOW_ENDS, decodedResultCodeMap.get(resultCodes.getKey()));
+                    Assertions.assertEquals(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_RESULT_WORKFLOW_ENDS, decodedResultCodeMap.get(resultCodes.getKey()));
                 } else {
-                    Assert.assertEquals(resultCodes.getValue().getStep().getClass().getSimpleName(), decodedResultCodeMap.get(resultCodes.getKey()));
+                    Assertions.assertEquals(resultCodes.getValue().getStep().getClass().getSimpleName(), decodedResultCodeMap.get(resultCodes.getKey()));
                 }
             }
         }

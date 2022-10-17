@@ -27,7 +27,7 @@ import com.danielgmyers.flux.clients.swf.step.PartitionIdGeneratorResult;
 import com.danielgmyers.flux.clients.swf.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.clients.swf.step.StepApply;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 public class TestPartitionedStepUsesPartitionIdGeneratorResult implements PartitionedWorkflowStep {
 
@@ -44,9 +44,9 @@ public class TestPartitionedStepUsesPartitionIdGeneratorResult implements Partit
     public void apply(@Attribute(StepAttributes.PARTITION_ID) String partitionId,
                       @Attribute(StepAttributes.PARTITION_COUNT) Long partitionCount,
                       @Attribute(PARTITION_ID_GENERATOR_RESULT_ATTRIBUTE) String generatorAttribute) {
-        Assert.assertNotNull(partitionId);
-        Assert.assertEquals(partitionIds.size(), partitionCount.longValue());
-        Assert.assertEquals(PARTITION_ID_GENERATOR_RESULT_ATTRIBUTE_VALUE, generatorAttribute);
+        Assertions.assertNotNull(partitionId);
+        Assertions.assertEquals(partitionIds.size(), partitionCount.longValue());
+        Assertions.assertEquals(PARTITION_ID_GENERATOR_RESULT_ATTRIBUTE_VALUE, generatorAttribute);
     }
 
     @PartitionIdGenerator

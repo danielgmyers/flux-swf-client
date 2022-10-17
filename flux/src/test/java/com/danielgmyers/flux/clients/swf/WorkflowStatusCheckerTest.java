@@ -18,9 +18,9 @@ package com.danielgmyers.flux.clients.swf;
 
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import software.amazon.awssdk.services.swf.SwfClient;
 import software.amazon.awssdk.services.swf.model.CloseStatus;
@@ -41,7 +41,7 @@ public class WorkflowStatusCheckerTest {
     private SwfClient swf;
     private WorkflowStatusChecker wsc;
 
-    @Before
+    @BeforeEach
     public void setup() {
         mockery = EasyMock.createControl();
         swf = mockery.createMock(SwfClient.class);
@@ -52,7 +52,7 @@ public class WorkflowStatusCheckerTest {
     public void testWorkflowUnknownWhenWorkflowExecutionNotFound() {
         EasyMock.expect(swf.describeWorkflowExecution(buildDescribeRequest())).andThrow(UnknownResourceException.builder().build());
         mockery.replay();
-        Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.UNKNOWN, wsc.checkStatus());
+        Assertions.assertEquals(WorkflowStatusChecker.WorkflowStatus.UNKNOWN, wsc.checkStatus());
         mockery.verify();
     }
 
@@ -60,7 +60,7 @@ public class WorkflowStatusCheckerTest {
     public void testWorkflowInProgress() {
         expectDescribeStatus(ExecutionStatus.OPEN, null);
         mockery.replay();
-        Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.IN_PROGRESS, wsc.checkStatus());
+        Assertions.assertEquals(WorkflowStatusChecker.WorkflowStatus.IN_PROGRESS, wsc.checkStatus());
         mockery.verify();
     }
 
@@ -68,7 +68,7 @@ public class WorkflowStatusCheckerTest {
     public void testWorkflowCompleted() {
         expectDescribeStatus(ExecutionStatus.CLOSED, CloseStatus.COMPLETED);
         mockery.replay();
-        Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.COMPLETED, wsc.checkStatus());
+        Assertions.assertEquals(WorkflowStatusChecker.WorkflowStatus.COMPLETED, wsc.checkStatus());
         mockery.verify();
     }
 
@@ -76,7 +76,7 @@ public class WorkflowStatusCheckerTest {
     public void testWorkflowCompleted_ContinuedAsNew() {
         expectDescribeStatus(ExecutionStatus.CLOSED, CloseStatus.CONTINUED_AS_NEW);
         mockery.replay();
-        Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.COMPLETED, wsc.checkStatus());
+        Assertions.assertEquals(WorkflowStatusChecker.WorkflowStatus.COMPLETED, wsc.checkStatus());
         mockery.verify();
     }
 
@@ -84,7 +84,7 @@ public class WorkflowStatusCheckerTest {
     public void testWorkflowCanceled() {
         expectDescribeStatus(ExecutionStatus.CLOSED, CloseStatus.CANCELED);
         mockery.replay();
-        Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.CANCELED, wsc.checkStatus());
+        Assertions.assertEquals(WorkflowStatusChecker.WorkflowStatus.CANCELED, wsc.checkStatus());
         mockery.verify();
     }
 
@@ -92,7 +92,7 @@ public class WorkflowStatusCheckerTest {
     public void testWorkflowFailed() {
         expectDescribeStatus(ExecutionStatus.CLOSED, CloseStatus.FAILED);
         mockery.replay();
-        Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.FAILED, wsc.checkStatus());
+        Assertions.assertEquals(WorkflowStatusChecker.WorkflowStatus.FAILED, wsc.checkStatus());
         mockery.verify();
     }
 
@@ -100,7 +100,7 @@ public class WorkflowStatusCheckerTest {
     public void testWorkflowTimedOut() {
         expectDescribeStatus(ExecutionStatus.CLOSED, CloseStatus.TIMED_OUT);
         mockery.replay();
-        Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.TIMED_OUT, wsc.checkStatus());
+        Assertions.assertEquals(WorkflowStatusChecker.WorkflowStatus.TIMED_OUT, wsc.checkStatus());
         mockery.verify();
     }
 
@@ -108,7 +108,7 @@ public class WorkflowStatusCheckerTest {
     public void testWorkflowTerminated() {
         expectDescribeStatus(ExecutionStatus.CLOSED, CloseStatus.TERMINATED);
         mockery.replay();
-        Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.TERMINATED, wsc.checkStatus());
+        Assertions.assertEquals(WorkflowStatusChecker.WorkflowStatus.TERMINATED, wsc.checkStatus());
         mockery.verify();
     }
 

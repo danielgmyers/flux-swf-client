@@ -31,9 +31,8 @@ import com.danielgmyers.flux.clients.swf.IdUtils;
 import com.danielgmyers.flux.clients.swf.step.PartitionIdGeneratorResult;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import org.junit.Assert;
-import org.junit.Test;
-
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class PartitionMetadataTest {
 
@@ -47,9 +46,9 @@ public class PartitionMetadataTest {
         PartitionIdGeneratorResult genResult = PartitionIdGeneratorResult.create(partitionIds);
         PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(genResult);
 
-        Assert.assertEquals(partitionIds, metadata.getPartitionIds());
+        Assertions.assertEquals(partitionIds, metadata.getPartitionIds());
 
-        Assert.assertEquals(Collections.emptyMap(), metadata.getEncodedAdditionalAttributes());
+        Assertions.assertEquals(Collections.emptyMap(), metadata.getEncodedAdditionalAttributes());
     }
 
     @Test
@@ -69,10 +68,10 @@ public class PartitionMetadataTest {
         PartitionIdGeneratorResult genResult = PartitionIdGeneratorResult.create(partitionIds).withAttributes(attributes);
         PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(genResult);
 
-        Assert.assertEquals(partitionIds, metadata.getPartitionIds());
+        Assertions.assertEquals(partitionIds, metadata.getPartitionIds());
 
         Map<String, String> encodedAttributes = StepAttributes.serializeMapValues(attributes);
-        Assert.assertEquals(encodedAttributes, metadata.getEncodedAdditionalAttributes());
+        Assertions.assertEquals(encodedAttributes, metadata.getEncodedAdditionalAttributes());
     }
 
     @Test
@@ -96,8 +95,8 @@ public class PartitionMetadataTest {
                               + "}";
 
         List<String> detailsList = metadata.toMarkerDetailsList();
-        Assert.assertEquals(1, detailsList.size());
-        Assert.assertEquals(expectedJson, detailsList.get(0));
+        Assertions.assertEquals(1, detailsList.size());
+        Assertions.assertEquals(expectedJson, detailsList.get(0));
     }
 
     @Test
@@ -144,36 +143,36 @@ public class PartitionMetadataTest {
         while (iter.hasNext()) {
             page4.add(iter.next());
         }
-        Assert.assertEquals(68, page4.size());
+        Assertions.assertEquals(68, page4.size());
 
         String expectedJson1 = "{\"partitionIds\":[\""
                                + String.join("\",\"", page1)
                                + "\"],"
                                + "\"encodedAdditionalAttributes\":"
                                + "{\"number\":\"42\",\"string\":\"\\\"some words here\\\"\",\"yes\":\"true\"}}";
-        Assert.assertTrue(32768 > expectedJson1.length());
+        Assertions.assertTrue(32768 > expectedJson1.length());
 
         String expectedJson2 = "{\"partitionIds\":[\""
                                + String.join("\",\"", page2)
                                + "\"],\"encodedAdditionalAttributes\":{}}";
-        Assert.assertTrue(32768 > expectedJson2.length());
+        Assertions.assertTrue(32768 > expectedJson2.length());
 
         String expectedJson3 = "{\"partitionIds\":[\""
                                + String.join("\",\"", page3)
                                + "\"],\"encodedAdditionalAttributes\":{}}";
-        Assert.assertTrue(32768 > expectedJson3.length());
+        Assertions.assertTrue(32768 > expectedJson3.length());
 
         String expectedJson4 = "{\"partitionIds\":[\""
                                + String.join("\",\"", page4)
                                + "\"],\"encodedAdditionalAttributes\":{}}";
-        Assert.assertTrue(32768 > expectedJson4.length());
+        Assertions.assertTrue(32768 > expectedJson4.length());
 
         List<String> detailsList = metadata.toMarkerDetailsList();
-        Assert.assertEquals(4, detailsList.size());
-        Assert.assertEquals(expectedJson1, detailsList.get(0));
-        Assert.assertEquals(expectedJson2, detailsList.get(1));
-        Assert.assertEquals(expectedJson3, detailsList.get(2));
-        Assert.assertEquals(expectedJson4, detailsList.get(3));
+        Assertions.assertEquals(4, detailsList.size());
+        Assertions.assertEquals(expectedJson1, detailsList.get(0));
+        Assertions.assertEquals(expectedJson2, detailsList.get(1));
+        Assertions.assertEquals(expectedJson3, detailsList.get(2));
+        Assertions.assertEquals(expectedJson4, detailsList.get(3));
     }
 
     @Test
@@ -196,14 +195,14 @@ public class PartitionMetadataTest {
 
         Map<String, String> encodedAttributes = StepAttributes.serializeMapValues(attributes);
 
-        Assert.assertEquals(partitionIds, metadata.getPartitionIds());
-        Assert.assertEquals(encodedAttributes, metadata.getEncodedAdditionalAttributes());
+        Assertions.assertEquals(partitionIds, metadata.getPartitionIds());
+        Assertions.assertEquals(encodedAttributes, metadata.getEncodedAdditionalAttributes());
     }
 
     @Test
     public void testFromMarkerDetailsList_InvalidMarker() throws JsonProcessingException {
         String inputJson = "this is not valid json {";
-        Assert.assertNull(PartitionMetadata.fromMarkerDetailsList(Collections.singletonList(inputJson)));
+        Assertions.assertNull(PartitionMetadata.fromMarkerDetailsList(Collections.singletonList(inputJson)));
     }
 
     @Test
@@ -243,7 +242,7 @@ public class PartitionMetadataTest {
         while (iter.hasNext()) {
             page4.add(iter.next());
         }
-        Assert.assertEquals(68, page4.size());
+        Assertions.assertEquals(68, page4.size());
 
         String inputJson1 = "{\"partitionIds\":[\""
                             + String.join("\",\"", page1)
@@ -271,8 +270,8 @@ public class PartitionMetadataTest {
         attributes.put("yes", true);
         Map<String, String> encodedAttributes = StepAttributes.serializeMapValues(attributes);
 
-        Assert.assertEquals(partitionIds, metadata.getPartitionIds());
-        Assert.assertEquals(encodedAttributes, metadata.getEncodedAdditionalAttributes());
+        Assertions.assertEquals(partitionIds, metadata.getPartitionIds());
+        Assertions.assertEquals(encodedAttributes, metadata.getEncodedAdditionalAttributes());
     }
 
     @Test
@@ -312,7 +311,7 @@ public class PartitionMetadataTest {
         while (iter.hasNext()) {
             page4.add(iter.next());
         }
-        Assert.assertEquals(68, page4.size());
+        Assertions.assertEquals(68, page4.size());
 
         String inputJson1 = "{\"partitionIds\":[\""
                             + String.join("\",\"", page1)
@@ -342,7 +341,7 @@ public class PartitionMetadataTest {
         attributes.put("yes", true);
         Map<String, String> encodedAttributes = StepAttributes.serializeMapValues(attributes);
 
-        Assert.assertEquals(partitionIds, metadata.getPartitionIds());
-        Assert.assertEquals(encodedAttributes, metadata.getEncodedAdditionalAttributes());
+        Assertions.assertEquals(partitionIds, metadata.getPartitionIds());
+        Assertions.assertEquals(encodedAttributes, metadata.getEncodedAdditionalAttributes());
     }
 }

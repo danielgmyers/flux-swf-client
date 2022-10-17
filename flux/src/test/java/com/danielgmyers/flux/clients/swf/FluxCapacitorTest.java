@@ -42,9 +42,9 @@ import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphNode;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.services.swf.SwfClient;
@@ -84,7 +84,7 @@ public class FluxCapacitorTest {
     private FluxCapacitorImpl fc;
     private FluxCapacitorConfig config;
 
-    @Before
+    @BeforeEach
     public void setup() {
         workflow = new TestWorkflow();
         workflowName = TaskNaming.workflowName(workflow);
@@ -174,7 +174,7 @@ public class FluxCapacitorTest {
         Workflow workflowCustomTaskList = new TestWorkflowCustomTaskList();
         String workflowCustomTaskListName = TaskNaming.workflowName(workflowCustomTaskList);
 
-        Assert.assertNotEquals(Workflow.DEFAULT_TASK_LIST_NAME, workflowCustomTaskList.taskList());
+        Assertions.assertNotEquals(Workflow.DEFAULT_TASK_LIST_NAME, workflowCustomTaskList.taskList());
 
         FluxCapacitorConfig config  = new FluxCapacitorConfig();
         config.setSwfDomain(DOMAIN);
@@ -205,7 +205,7 @@ public class FluxCapacitorTest {
         Workflow workflowCustomTaskList = new TestWorkflowCustomTaskList();
         String workflowCustomTaskListName = TaskNaming.workflowName(workflowCustomTaskList);
 
-        Assert.assertNotEquals(Workflow.DEFAULT_TASK_LIST_NAME, workflowCustomTaskList.taskList());
+        Assertions.assertNotEquals(Workflow.DEFAULT_TASK_LIST_NAME, workflowCustomTaskList.taskList());
 
         FluxCapacitorConfig config  = new FluxCapacitorConfig();
         config.setSwfDomain(DOMAIN);
@@ -237,7 +237,7 @@ public class FluxCapacitorTest {
         Workflow workflowCustomTaskList = new TestWorkflowCustomTaskList();
         String workflowCustomTaskListName = TaskNaming.workflowName(workflowCustomTaskList);
 
-        Assert.assertNotEquals(Workflow.DEFAULT_TASK_LIST_NAME, workflowCustomTaskList.taskList());
+        Assertions.assertNotEquals(Workflow.DEFAULT_TASK_LIST_NAME, workflowCustomTaskList.taskList());
 
         TaskListConfig taskListConfig = new TaskListConfig();
         taskListConfig.setBucketCount(10);
@@ -266,7 +266,7 @@ public class FluxCapacitorTest {
         // strictly speaking, since bucket 1 is the original, number-less name, this doesn't prove we used the bucket count.
         // however since it's random, we can't fail the test if we didn't use a numbered bucket.
         String actualTaskListName = capturedStart.getValue().taskList().name();
-        Assert.assertTrue(bucketedTaskListNames.contains(actualTaskListName));
+        Assertions.assertTrue(bucketedTaskListNames.contains(actualTaskListName));
 
         // We always use the original task list name, not the bucketed name, for the execution tag
         Set<String> executionTags = Collections.singleton(workflowCustomTaskList.taskList());
@@ -279,7 +279,7 @@ public class FluxCapacitorTest {
                                                               Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT,
                                                               input,
                                                               executionTags);
-        Assert.assertEquals(expectedStart, capturedStart.getValue());
+        Assertions.assertEquals(expectedStart, capturedStart.getValue());
 
         mockery.verify();
     }
@@ -289,7 +289,7 @@ public class FluxCapacitorTest {
         Workflow customWorkflow = new TestWorkflowCustomStartToCloseDuration();
         String customWorkflowName = TaskNaming.workflowName(customWorkflow);
 
-        Assert.assertNotEquals(Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT, customWorkflow.maxStartToCloseDuration());
+        Assertions.assertNotEquals(Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT, customWorkflow.maxStartToCloseDuration());
 
         FluxCapacitorConfig config  = new FluxCapacitorConfig();
         config.setSwfDomain(DOMAIN);
@@ -335,7 +335,7 @@ public class FluxCapacitorTest {
         for (Entry<String, ?> entry : input.entrySet()) {
             decodedExpectedInput.put(entry.getKey(), StepAttributes.encode(entry.getValue()));
         }
-        Assert.assertEquals(StepAttributes.encode(decodedExpectedInput), start.input());
+        Assertions.assertEquals(StepAttributes.encode(decodedExpectedInput), start.input());
 
         StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
         EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);
@@ -381,7 +381,7 @@ public class FluxCapacitorTest {
         mockery.replay();
         try {
             fcNoWorkflows.executeWorkflow(TestWorkflow.class, workflowId, input);
-            Assert.fail();
+            Assertions.fail();
         } catch(WorkflowExecutionException e) {
             // expected
         }
@@ -400,7 +400,7 @@ public class FluxCapacitorTest {
         mockery.replay();
         try {
             fcNoWorkflows.executeWorkflow(TestWorkflow.class, workflowId, input);
-            Assert.fail();
+            Assertions.fail();
         } catch(WorkflowExecutionException e) {
             // expected
         }
@@ -426,11 +426,11 @@ public class FluxCapacitorTest {
         mockery.replay();
         try {
             fc.executeWorkflow(TestWorkflow.class, workflowId, input);
-            Assert.fail();
+            Assertions.fail();
         } catch(WorkflowExecutionException e) {
             // expected
             // make sure the cause was wrapped properly
-            Assert.assertEquals(IllegalStateException.class, e.getCause().getClass());
+            Assertions.assertEquals(IllegalStateException.class, e.getCause().getClass());
         }
         mockery.verify();
     }
@@ -559,11 +559,11 @@ public class FluxCapacitorTest {
     @Test
     public void testHostnameShortener() {
         String base = "ec2-123-45-67-89.us-west-2";
-        Assert.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".ec2.amazonaws.com"));
-        Assert.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".ec2.amazonaws.com.cn"));
-        Assert.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".compute.amazonaws.com"));
-        Assert.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".compute.amazonaws.com.cn"));
-        Assert.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".compute.internal"));
+        Assertions.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".ec2.amazonaws.com"));
+        Assertions.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".ec2.amazonaws.com.cn"));
+        Assertions.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".compute.amazonaws.com"));
+        Assertions.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".compute.amazonaws.com.cn"));
+        Assertions.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".compute.internal"));
     }
 
     private void expectDescribeWorkflows(boolean shouldExist) {
@@ -607,12 +607,12 @@ public class FluxCapacitorTest {
 
     @Test
     public void testIsPeriodic_FalseForNormalWorkflow() {
-        Assert.assertFalse(FluxCapacitorImpl.isPeriodicWorkflow(new TestWorkflow()));
+        Assertions.assertFalse(FluxCapacitorImpl.isPeriodicWorkflow(new TestWorkflow()));
     }
 
     @Test
     public void testIsPeriodic_TrueForPeriodicWorkflow() {
-        Assert.assertTrue(FluxCapacitorImpl.isPeriodicWorkflow(new TestPeriodicWorkflow()));
+        Assertions.assertTrue(FluxCapacitorImpl.isPeriodicWorkflow(new TestPeriodicWorkflow()));
     }
 
     private static class InheritsPeriodicAnnotation extends TestPeriodicWorkflow {
@@ -621,6 +621,6 @@ public class FluxCapacitorTest {
 
     @Test
     public void testIsPeriodic_TrueForChildClassOfPeriodicWorkflowClass() {
-        Assert.assertTrue(FluxCapacitorImpl.isPeriodicWorkflow(new InheritsPeriodicAnnotation()));
+        Assertions.assertTrue(FluxCapacitorImpl.isPeriodicWorkflow(new InheritsPeriodicAnnotation()));
     }
 }
