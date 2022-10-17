@@ -21,9 +21,9 @@ import org.slf4j.LoggerFactory;
 
 import software.amazon.awssdk.services.swf.SwfClient;
 import software.amazon.awssdk.services.swf.model.DescribeWorkflowExecutionRequest;
-import software.amazon.awssdk.services.swf.model.DescribeWorkflowExecutionResponse;
 import software.amazon.awssdk.services.swf.model.ExecutionStatus;
 import software.amazon.awssdk.services.swf.model.WorkflowExecution;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Implements the WorkflowStatusChecker interface.
@@ -50,43 +50,49 @@ public class WorkflowStatusCheckerImpl implements WorkflowStatusChecker {
 
     @Override
     public WorkflowStatus checkStatus() {
+        WorkflowExecutionInfo executionInfo = getExecutionInfo();
+
+        if (executionInfo == null) {
+            return WorkflowStatus.UNKNOWN;
+        } else if (ExecutionStatus.OPEN == executionInfo.executionStatus()) {
+            return WorkflowStatus.IN_PROGRESS;
+        }
+
+        switch (executionInfo.closeStatus()) {
+            case FAILED:
+                return WorkflowStatus.FAILED;
+            case CANCELED:
+                return WorkflowStatus.CANCELED;
+            case TERMINATED:
+                return WorkflowStatus.TERMINATED;
+            case TIMED_OUT:
+                return WorkflowStatus.TIMED_OUT;
+            case COMPLETED:
+            case CONTINUED_AS_NEW:
+            case UNKNOWN_TO_SDK_VERSION: // we'll treat this as completed since we don't know what else to do.
+            default:
+                return WorkflowStatus.COMPLETED;
+        }
+    }
+
+    @Override
+    public WorkflowExecutionInfo getExecutionInfo() {
         WorkflowExecution execution = WorkflowExecution.builder().workflowId(workflowId).runId(runId).build();
 
         DescribeWorkflowExecutionRequest request
                 = DescribeWorkflowExecutionRequest.builder()
-                                                    .domain(workflowDomain)
-                                                    .execution(execution)
-                                                    .build();
+                .domain(workflowDomain)
+                .execution(execution)
+                .build();
 
         try {
-            DescribeWorkflowExecutionResponse detail = swf.describeWorkflowExecution(request);
-            // first check if it's still running
-            if (ExecutionStatus.OPEN == detail.executionInfo().executionStatus()) {
-                return WorkflowStatus.IN_PROGRESS;
-            }
-
-            switch (detail.executionInfo().closeStatus()) {
-                case FAILED:
-                    return WorkflowStatus.FAILED;
-                case CANCELED:
-                    return WorkflowStatus.CANCELED;
-                case TERMINATED:
-                    return WorkflowStatus.TERMINATED;
-                case TIMED_OUT:
-                    return WorkflowStatus.TIMED_OUT;
-                case COMPLETED:
-                case CONTINUED_AS_NEW:
-                case UNKNOWN_TO_SDK_VERSION: // we'll treat this as completed since we don't know what else to do.
-                default:
-                    return WorkflowStatus.COMPLETED;
-            }
+            return swf.describeWorkflowExecution(request).executionInfo();
         } catch (Exception e) {
             log.info("Error retrieving workflow status", e);
         }
 
         log.info("Unable to determine workflow status for remote workflow (id: {}, run id: {})", workflowId, runId);
-
-        return WorkflowStatus.UNKNOWN;
+        return null;
     }
 
     @Override

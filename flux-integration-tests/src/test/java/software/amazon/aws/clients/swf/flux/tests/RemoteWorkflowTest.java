@@ -24,6 +24,7 @@ import software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphBuilder;
 import software.amazon.aws.clients.swf.flux.step.StepApply;
 import software.amazon.aws.clients.swf.flux.step.StepAttributes;
 import software.amazon.aws.clients.swf.flux.step.WorkflowStep;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Validates we can run workflows against a remote region.
@@ -65,7 +66,9 @@ public class RemoteWorkflowTest extends WorkflowTestBase {
         WorkflowStatusChecker.WorkflowStatus lastStatus = status.checkStatus();
         log.info("Received status " + lastStatus.toString() + " for requested remote workflow.");
 
-        // TODO -- check that the remote execution was tagged with the task list name.
+        WorkflowExecutionInfo info = status.getExecutionInfo();
+        Assert.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
+                            new HashSet<>(info.tagList()));
 
         Assert.assertEquals(WorkflowStatusChecker.WorkflowStatus.IN_PROGRESS, status.checkStatus());
 

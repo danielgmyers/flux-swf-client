@@ -19,6 +19,7 @@ package software.amazon.aws.clients.swf.flux;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
@@ -38,13 +39,12 @@ import software.amazon.awssdk.services.swf.model.WorkflowExecutionAlreadyStarted
 
 public class RemoteWorkflowExecutorTest {
 
-    private static final String DOMAIN = "test";
-
     private IMocksControl mockery;
     private SwfClient swf;
     private RemoteWorkflowExecutorImpl rwe;
 
     private Workflow workflow;
+    private FluxCapacitorConfig config;
 
     @Before
     public void setup() {
@@ -56,7 +56,10 @@ public class RemoteWorkflowExecutorTest {
         Map<String, Workflow> workflowsByName = new HashMap<>();
         workflowsByName.put(TaskNaming.workflowName(workflow), workflow);
 
-        rwe = new RemoteWorkflowExecutorImpl(new NoopMetricRecorderFactory(), workflowsByName, swf, DOMAIN);
+        config = new FluxCapacitorConfig();
+        config.setSwfDomain("test");
+
+        rwe = new RemoteWorkflowExecutorImpl(new NoopMetricRecorderFactory(), workflowsByName, swf, config);
     }
 
     @Test
@@ -64,7 +67,23 @@ public class RemoteWorkflowExecutorTest {
         String workflowId = "my-workflow-id";
         Map<String, Object> input = Collections.emptyMap();
 
-        expectStartWorkflowRequest(workflow, workflowId, input);
+        Set<String> executionTags = Collections.singleton(workflow.taskList());
+
+        expectStartWorkflowRequest(workflow, workflowId, input, executionTags);
+
+        mockery.replay();
+        rwe.executeWorkflow(TestWorkflow.class, workflowId, input);
+        mockery.verify();
+    }
+
+    @Test
+    public void testExecuteWorkflow_respectsAutoTagConfig() {
+        String workflowId = "my-workflow-id";
+        Map<String, Object> input = Collections.emptyMap();
+
+        config.setAutomaticallyTagExecutionsWithTaskList(false);
+
+        expectStartWorkflowRequest(workflow, workflowId, input, Collections.emptySet());
 
         mockery.replay();
         rwe.executeWorkflow(TestWorkflow.class, workflowId, input);
@@ -76,7 +95,10 @@ public class RemoteWorkflowExecutorTest {
         String workflowId = "my-workflow-id";
         Map<String, Object> input = Collections.emptyMap();
 
-        expectStartWorkflowRequest(workflow, workflowId, input, WorkflowExecutionAlreadyStartedException.builder().build());
+        Set<String> executionTags = Collections.singleton(workflow.taskList());
+
+        expectStartWorkflowRequest(workflow, workflowId, input, executionTags,
+                                   WorkflowExecutionAlreadyStartedException.builder().build());
 
         mockery.replay();
         rwe.executeWorkflow(TestWorkflow.class, workflowId, input);
@@ -103,7 +125,9 @@ public class RemoteWorkflowExecutorTest {
         String workflowId = "my-workflow-id";
         Map<String, Object> input = Collections.emptyMap();
 
-        expectStartWorkflowRequest(workflow, workflowId, input, new IllegalStateException("some-error"));
+        Set<String> executionTags = Collections.singleton(workflow.taskList());
+
+        expectStartWorkflowRequest(workflow, workflowId, input, executionTags, new IllegalStateException("some-error"));
 
         mockery.replay();
         try {
@@ -117,16 +141,17 @@ public class RemoteWorkflowExecutorTest {
         mockery.verify();
     }
 
-    private void expectStartWorkflowRequest(Workflow workflow, String workflowId, Map<String, Object> input) {
-        expectStartWorkflowRequest(workflow, workflowId, input, null);
+    private void expectStartWorkflowRequest(Workflow workflow, String workflowId, Map<String, Object> input,
+                                            Set<String> executionTags) {
+        expectStartWorkflowRequest(workflow, workflowId, input, executionTags,null);
     }
 
     private void expectStartWorkflowRequest(Workflow workflow, String workflowId, Map<String, Object> input,
-                                            Exception exceptionToThrow) {
+                                            Set<String> executionTags, Exception exceptionToThrow) {
         StartWorkflowExecutionRequest start
-                = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN, TaskNaming.workflowName(workflow), workflowId,
-                                                              workflow.taskList(), workflow.maxStartToCloseDuration(),
-                                                              input, Collections.singleton(workflow.taskList()));
+                = FluxCapacitorImpl.buildStartWorkflowRequest(config.getSwfDomain(), TaskNaming.workflowName(workflow),
+                                                              workflowId, workflow.taskList(),
+                                                              workflow.maxStartToCloseDuration(), input, executionTags);
         if (exceptionToThrow == null) {
             StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
             EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);

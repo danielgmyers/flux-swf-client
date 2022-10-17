@@ -17,6 +17,7 @@
 package software.amazon.aws.clients.swf.flux;
 
 import software.amazon.awssdk.services.swf.SwfClient;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Allows checking the status of a workflow execution. Obtained from a FluxCapacitor or RemoteWorkflowExecutor.
@@ -30,8 +31,15 @@ public interface WorkflowStatusChecker {
 
     /**
      * Queries SWF to determine the status of the associated workflow execution.
+     * Returns WorkflowStatus.UNKNOWN if the status could not be retrieved.
      */
     WorkflowStatus checkStatus();
+
+    /**
+     * Queries SWF to retrieve the current WorkflowExecutionInfo for the associated execution.
+     * May return null if the execution info could not be retrieved.
+     */
+    WorkflowExecutionInfo getExecutionInfo();
 
     /**
      * Useful primarily in integration tests, this allows the raw SWF client to be retrieved from the status checker.
