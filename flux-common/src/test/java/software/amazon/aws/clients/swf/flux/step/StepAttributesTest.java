@@ -18,6 +18,7 @@ package software.amazon.aws.clients.swf.flux.step;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -126,7 +127,9 @@ public class StepAttributesTest {
 
         // we want the encoded form to be decodeable as either class
         Assert.assertEquals(date, StepAttributes.decode(Date.class, date_encoded));
-        Assert.assertEquals(now, StepAttributes.decode(Instant.class, date_encoded));
+
+        // the serialized form is truncated to millis, so we need to truncate our local object for comparison.
+        Assert.assertEquals(now.truncatedTo(ChronoUnit.MILLIS), StepAttributes.decode(Instant.class, date_encoded));
     }
 
     @Test
