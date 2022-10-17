@@ -35,7 +35,7 @@ import software.amazon.awssdk.services.swf.SwfClient;
 import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
- * A stub FluxCapacitor implemention intended to be used by unit tests.
+ * A stub FluxCapacitor implementation intended to be used by unit tests.
  */
 public class StubFluxCapacitor implements FluxCapacitor {
 
@@ -72,6 +72,12 @@ public class StubFluxCapacitor implements FluxCapacitor {
     @Override
     public WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType, String workflowId,
                                                  Map<String, Object> workflowInput) {
+        return executeWorkflow(workflowType, workflowId, workflowInput, Collections.emptySet());
+    }
+
+    @Override
+    public WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType, String workflowId,
+                                                 Map<String, Object> workflowInput, Set<String> executionTags) {
         if (shutdown) {
             throw new RuntimeException("Cannot use the FluxCapacitor after calling shutdown()!");
         }

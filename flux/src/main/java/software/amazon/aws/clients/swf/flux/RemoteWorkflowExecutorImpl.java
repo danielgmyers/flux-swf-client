@@ -56,6 +56,12 @@ public class RemoteWorkflowExecutorImpl implements RemoteWorkflowExecutor {
     @Override
     public WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType, String workflowId,
                                                  Map<String, Object> workflowInput) {
+        return executeWorkflow(workflowType, workflowId, workflowInput, Collections.emptySet());
+    }
+
+    @Override
+    public WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType, String workflowId,
+                                                 Map<String, Object> workflowInput, Set<String> executionTags) {
         String workflowName = TaskNaming.workflowName(workflowType);
         if (!workflowsByName.containsKey(workflowName)) {
             throw new WorkflowExecutionException("Cannot execute a workflow that was not provided to Flux at initialization: "
@@ -64,16 +70,16 @@ public class RemoteWorkflowExecutorImpl implements RemoteWorkflowExecutor {
 
         Workflow workflow = workflowsByName.get(workflowName);
 
-        Set<String> executionTags = new HashSet<>();
+        Set<String> actualExecutionTags = new HashSet<>(executionTags);
         if (config.getAutomaticallyTagExecutionsWithTaskList() == null
             || config.getAutomaticallyTagExecutionsWithTaskList()) {
-            executionTags.add(workflow.taskList());
+            actualExecutionTags.add(workflow.taskList());
         }
 
         StartWorkflowExecutionRequest request
                 = FluxCapacitorImpl.buildStartWorkflowRequest(config.getSwfDomain(), workflowName, workflowId,
                                                               workflow.taskList(), workflow.maxStartToCloseDuration(),
-                                                              workflowInput, executionTags);
+                                                              workflowInput, actualExecutionTags);
 
         log.debug("Requesting new remote workflow execution for workflow {} with id {}", workflowName, workflowId);
 

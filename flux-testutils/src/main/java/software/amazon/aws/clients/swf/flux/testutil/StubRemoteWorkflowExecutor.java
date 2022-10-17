@@ -16,8 +16,10 @@
 
 package software.amazon.aws.clients.swf.flux.testutil;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import software.amazon.aws.clients.swf.flux.RemoteWorkflowExecutor;
 import software.amazon.aws.clients.swf.flux.WorkflowStatusChecker;
@@ -44,6 +46,12 @@ public class StubRemoteWorkflowExecutor implements RemoteWorkflowExecutor {
     @Override
     public WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType, String workflowId,
                                                  Map<String, Object> workflowInput) {
+        return executeWorkflow(workflowType, workflowId, workflowInput, Collections.emptySet());
+    }
+
+    @Override
+    public WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType, String workflowId,
+                                                 Map<String, Object> workflowInput, Set<String> executionTags) {
         executedWorkflows.put(new WorkflowExecutionRecord(workflowType, workflowId), workflowInput);
         return new WorkflowStatusChecker() {
             @Override

@@ -17,6 +17,7 @@
 package software.amazon.aws.clients.swf.flux;
 
 import java.util.Map;
+import java.util.Set;
 
 import software.amazon.aws.clients.swf.flux.wf.Workflow;
 
@@ -41,4 +42,18 @@ public interface RemoteWorkflowExecutor {
      */
     WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType,
                                           String workflowId, Map<String, Object> workflowInput);
+
+    /**
+     * Executes a workflow of the specified type, using the specified workflow ID and input map,
+     * using the region and credentials that were configured on the RemoteWorkflowExecutor when it was created.
+     * Tags the new workflow execution with the provided set of execution tags.
+     *
+     * Returns a WorkflowStatusChecker object which can be used to monitor the status of the requested workflow.
+     *
+     * @param workflowType The class of the workflow which should be run
+     * @param workflowId A unique identifier for the workflow execution (SWF dedupes on this)
+     * @param workflowInput The map of input values for the workflow execution
+     */
+    WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType, String workflowId,
+                                          Map<String, Object> workflowInput, Set<String> executionTags);
 }
