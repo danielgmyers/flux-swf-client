@@ -19,17 +19,19 @@ package com.danielgmyers.flux.clients.swf.poller;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 public class BlockOnSubmissionThreadPoolExecutorTest {
 
     private BlockOnSubmissionThreadPoolExecutor executor;
 
-    @Before
+    @BeforeEach
     public void setup() {
         executor = new BlockOnSubmissionThreadPoolExecutor(1, "executor");
     }
@@ -45,22 +47,23 @@ public class BlockOnSubmissionThreadPoolExecutorTest {
 
         long startNanoTime = System.nanoTime();
         // Add a Runnable that sleeps for long enough to ensure that the thread pool thread is in use
-        // when we call the execute overload that takes a Supplier.
+        // when we call the execute() overload that takes a Supplier.
         executor.execute(() -> {
             try {
                 Thread.sleep(delay.toMillis());
             } catch (InterruptedException e) {
             }
         });
-        Assert.assertTrue("The first call to execute should not block.", System.nanoTime() - startNanoTime < delay.toNanos());
+        Assertions.assertTrue(System.nanoTime() - startNanoTime < delay.toNanos(), "The first call to execute should not block.");
 
         executor.executeWhenCapacityAvailable(supplier);
-        Assert.assertTrue("The supplier should not be executed until a thread pool thread is free.",
+        Assertions.assertTrue(invokedAtNanoTime.get() - startNanoTime > delay.toNanos(),
                           // which means the supplier should only be invoked after the expected delay.
-                          invokedAtNanoTime.get() - startNanoTime > delay.toNanos());
+                          "The supplier should not be executed until a thread pool thread is free.");
     }
 
-    @Test(timeout = 500)
+    @Test
+    @Timeout(value = 500, unit = TimeUnit.MILLISECONDS)
     public void semaphoreIsReleasedWhenSupplierReturnsNull() {
         Supplier<Runnable> supplier = () -> null;
 
@@ -70,7 +73,8 @@ public class BlockOnSubmissionThreadPoolExecutorTest {
         executor.execute(() -> {});
     }
 
-    @Test(timeout = 500)
+    @Test
+    @Timeout(value = 500, unit = TimeUnit.MILLISECONDS)
     public void executeRunnableReturnedBySupplier() throws InterruptedException, ExecutionException {
         Duration delay = Duration.ofMillis(50);
         CompletableFuture<Boolean> runnableInvoked = new CompletableFuture<>();
@@ -85,11 +89,11 @@ public class BlockOnSubmissionThreadPoolExecutorTest {
         executor.executeWhenCapacityAvailable(supplier);
         // The call above should return before execution of the Runnable that was returned by the Supplier.
         // The assertion below verifies that the Runnable is executed asynchronously without blocking the execute() call.
-        Assert.assertFalse("The Runnable should not have finished executing yet.", runnableInvoked.isDone());
+        Assertions.assertFalse(runnableInvoked.isDone(), "The Runnable should not have finished executing yet.");
 
         // Note that the call to runnableInvoked.get() will block until the runnable completes the Future.
         // So if the runnable does not get invoked the test will timeout.
-        Assert.assertTrue("The Runnable should have run.", runnableInvoked.get());
+        Assertions.assertTrue(runnableInvoked.get(), "The Runnable should have run.");
     }
 
 }

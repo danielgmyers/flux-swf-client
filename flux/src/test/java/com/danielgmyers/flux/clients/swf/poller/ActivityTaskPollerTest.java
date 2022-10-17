@@ -39,9 +39,9 @@ import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.swf.SwfClient;
@@ -142,7 +142,7 @@ public class ActivityTaskPollerTest {
 
     private BlockOnSubmissionThreadPoolExecutor executor;
 
-    @Before
+    @BeforeEach
     public void setup() {
         mockery = EasyMock.createControl();
         swf = mockery.createMock(SwfClient.class);
@@ -197,11 +197,11 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertEquals(1, pollThreadMetrics.getCounts().get(ActivityTaskPoller.NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME).longValue());
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertFalse(workerMetricsRequested);
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertEquals(1, pollThreadMetrics.getCounts().get(ActivityTaskPoller.NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME).longValue());
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertFalse(workerMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -212,11 +212,11 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertEquals(1, pollThreadMetrics.getCounts().get(ActivityTaskPoller.NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME).longValue());
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertFalse(workerMetricsRequested);
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertEquals(1, pollThreadMetrics.getCounts().get(ActivityTaskPoller.NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME).longValue());
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertFalse(workerMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -227,11 +227,11 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertEquals(1, pollThreadMetrics.getCounts().get(ActivityTaskPoller.NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME).longValue());
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertFalse(workerMetricsRequested);
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertEquals(1, pollThreadMetrics.getCounts().get(ActivityTaskPoller.NO_ACTIVITY_TASK_TO_EXECUTE_METRIC_NAME).longValue());
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertFalse(workerMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -246,15 +246,15 @@ public class ActivityTaskPollerTest {
             poller.run();
             executor.shutdown();
             executor.awaitTermination(60, TimeUnit.SECONDS);
-            Assert.fail();
+            Assertions.fail();
         } catch(UnrecognizedTaskException e) {
             // expected
         }
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertEquals(1, pollThreadMetrics.getCounts().get(ActivityTaskPoller.formatUnrecognizedActivityTaskMetricName(activityName)).longValue());
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertFalse(workerMetricsRequested);
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertEquals(1, pollThreadMetrics.getCounts().get(ActivityTaskPoller.formatUnrecognizedActivityTaskMetricName(activityName)).longValue());
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertFalse(workerMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -278,10 +278,10 @@ public class ActivityTaskPollerTest {
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
 
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertFalse(workerMetricsRequested);
-        Assert.assertFalse(stepMetricsRequested);
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertFalse(workerMetricsRequested);
+        Assertions.assertFalse(stepMetricsRequested);
         mockery.verify();
     }
 
@@ -302,17 +302,17 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertTrue(step.didThing()); // true because the step did a thing before specifically deciding to return retry
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertTrue(workerMetricsRequested);
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), null)).longValue());
-        Assert.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
-        Assert.assertTrue(workerThreadMetrics.isClosed());
-        Assert.assertTrue(stepMetricsRequested);
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertTrue(step.didThing()); // true because the step did a thing before specifically deciding to return retry
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertTrue(workerMetricsRequested);
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), null)).longValue());
+        Assertions.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
+        Assertions.assertTrue(workerThreadMetrics.isClosed());
+        Assertions.assertTrue(stepMetricsRequested);
+        Assertions.assertTrue(stepMetrics.isClosed());
         mockery.verify();
     }
 
@@ -325,7 +325,7 @@ public class ActivityTaskPollerTest {
 
         String message = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         message = message + message + message + message + message + message;
-        Assert.assertTrue(message.length() > 256);
+        Assertions.assertTrue(message.length() > 256);
 
         StepResult result = makeStepResult(StepResult.ResultAction.RETRY, null, message, Collections.emptyMap());
         step.setStepResult(result);
@@ -336,17 +336,17 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertTrue(step.didThing()); // true because the step did a thing before specifically deciding to return retry
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertTrue(workerMetricsRequested);
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), null)).longValue());
-        Assert.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
-        Assert.assertTrue(workerThreadMetrics.isClosed());
-        Assert.assertTrue(stepMetricsRequested);
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertTrue(step.didThing()); // true because the step did a thing before specifically deciding to return retry
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertTrue(workerMetricsRequested);
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), null)).longValue());
+        Assertions.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
+        Assertions.assertTrue(workerThreadMetrics.isClosed());
+        Assertions.assertTrue(stepMetricsRequested);
+        Assertions.assertTrue(stepMetrics.isClosed());
         mockery.verify();
     }
 
@@ -366,17 +366,17 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertTrue(step.didThing());
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertTrue(workerMetricsRequested);
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(), StepResult.SUCCEED_RESULT_CODE)).longValue());
-        Assert.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
-        Assert.assertTrue(workerThreadMetrics.isClosed());
-        Assert.assertTrue(stepMetricsRequested);
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertTrue(workerMetricsRequested);
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(), StepResult.SUCCEED_RESULT_CODE)).longValue());
+        Assertions.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
+        Assertions.assertTrue(workerThreadMetrics.isClosed());
+        Assertions.assertTrue(stepMetricsRequested);
+        Assertions.assertTrue(stepMetrics.isClosed());
         mockery.verify();
     }
 
@@ -400,17 +400,17 @@ public class ActivityTaskPollerTest {
         customTaskList.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertTrue(step.didThing());
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + customTaskListName));
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertTrue(workerMetricsRequested);
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(), StepResult.SUCCEED_RESULT_CODE)).longValue());
-        Assert.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
-        Assert.assertTrue(workerThreadMetrics.isClosed());
-        Assert.assertTrue(stepMetricsRequested);
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + customTaskListName));
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertTrue(workerMetricsRequested);
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(), StepResult.SUCCEED_RESULT_CODE)).longValue());
+        Assertions.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
+        Assertions.assertTrue(workerThreadMetrics.isClosed());
+        Assertions.assertTrue(stepMetricsRequested);
+        Assertions.assertTrue(stepMetrics.isClosed());
         mockery.verify();
     }
 
@@ -433,17 +433,17 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertTrue(step.didThing());
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertTrue(workerMetricsRequested);
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(), StepResult.SUCCEED_RESULT_CODE)).longValue());
-        Assert.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
-        Assert.assertTrue(workerThreadMetrics.isClosed());
-        Assert.assertTrue(stepMetricsRequested);
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertTrue(workerMetricsRequested);
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(), StepResult.SUCCEED_RESULT_CODE)).longValue());
+        Assertions.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
+        Assertions.assertTrue(workerThreadMetrics.isClosed());
+        Assertions.assertTrue(stepMetricsRequested);
+        Assertions.assertTrue(stepMetrics.isClosed());
         mockery.verify();
     }
 
@@ -467,17 +467,17 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertTrue(step.didThing());
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertTrue(workerMetricsRequested);
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(), StepResult.SUCCEED_RESULT_CODE)).longValue());
-        Assert.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
-        Assert.assertTrue(workerThreadMetrics.isClosed());
-        Assert.assertTrue(stepMetricsRequested);
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertTrue(workerMetricsRequested);
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(), StepResult.SUCCEED_RESULT_CODE)).longValue());
+        Assertions.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
+        Assertions.assertTrue(workerThreadMetrics.isClosed());
+        Assertions.assertTrue(stepMetricsRequested);
+        Assertions.assertTrue(stepMetrics.isClosed());
         mockery.verify();
     }
 
@@ -497,18 +497,18 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertFalse(step.didThing());
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertTrue(workerMetricsRequested);
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), InterruptedException.class.getSimpleName())).longValue());
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityTaskPoller.formatActivityTaskCancelledMetricName(task.activityType().name())).longValue());
-        Assert.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
-        Assert.assertTrue(workerThreadMetrics.isClosed());
-        Assert.assertTrue(stepMetricsRequested);
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertFalse(step.didThing());
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertTrue(workerMetricsRequested);
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), InterruptedException.class.getSimpleName())).longValue());
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityTaskPoller.formatActivityTaskCancelledMetricName(task.activityType().name())).longValue());
+        Assertions.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
+        Assertions.assertTrue(workerThreadMetrics.isClosed());
+        Assertions.assertTrue(stepMetricsRequested);
+        Assertions.assertTrue(stepMetrics.isClosed());
         mockery.verify();
     }
 
@@ -526,18 +526,18 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertFalse(step.didThing());
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertTrue(workerMetricsRequested);
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), InterruptedException.class.getSimpleName())).longValue());
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityTaskPoller.formatActivityTaskCancelledMetricName(task.activityType().name())).longValue());
-        Assert.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
-        Assert.assertTrue(workerThreadMetrics.isClosed());
-        Assert.assertTrue(stepMetricsRequested);
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertFalse(step.didThing());
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertTrue(workerMetricsRequested);
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), InterruptedException.class.getSimpleName())).longValue());
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityTaskPoller.formatActivityTaskCancelledMetricName(task.activityType().name())).longValue());
+        Assertions.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
+        Assertions.assertTrue(workerThreadMetrics.isClosed());
+        Assertions.assertTrue(stepMetricsRequested);
+        Assertions.assertTrue(stepMetrics.isClosed());
         mockery.verify();
     }
 
@@ -559,53 +559,53 @@ public class ActivityTaskPollerTest {
         poller.run();
         executor.shutdown();
         executor.awaitTermination(60, TimeUnit.SECONDS);
-        Assert.assertFalse(step.didThing());
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
-        Assert.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
-        Assert.assertTrue(pollThreadMetrics.isClosed());
-        Assert.assertTrue(workerMetricsRequested);
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), InterruptedException.class.getSimpleName())).longValue());
-        Assert.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityTaskPoller.formatActivityTaskCancelledMetricName(task.activityType().name())).longValue());
-        Assert.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
-        Assert.assertTrue(workerThreadMetrics.isClosed());
-        Assert.assertTrue(stepMetricsRequested);
-        Assert.assertTrue(stepMetrics.isClosed());
+        Assertions.assertFalse(step.didThing());
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX + "Time"));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME));
+        Assertions.assertNotNull(pollThreadMetrics.getDurations().get(ActivityTaskPoller.WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + Workflow.DEFAULT_TASK_LIST_NAME));
+        Assertions.assertTrue(pollThreadMetrics.isClosed());
+        Assertions.assertTrue(workerMetricsRequested);
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityExecutionUtil.formatRetryResultMetricName(task.activityType().name(), InterruptedException.class.getSimpleName())).longValue());
+        Assertions.assertEquals(1, workerThreadMetrics.getCounts().get(ActivityTaskPoller.formatActivityTaskCancelledMetricName(task.activityType().name())).longValue());
+        Assertions.assertNotNull(workerThreadMetrics.getDurations().get(ActivityTaskPoller.formatActivityExecutionTimeMetricName(task.activityType().name())));
+        Assertions.assertTrue(workerThreadMetrics.isClosed());
+        Assertions.assertTrue(stepMetricsRequested);
+        Assertions.assertTrue(stepMetrics.isClosed());
         mockery.verify();
     }
 
     @Test
     public void testPrepareRetryReason() {
-        Assert.assertNull(poller.prepareRetryReason(null));
+        Assertions.assertNull(poller.prepareRetryReason(null));
 
         String shortString = "short string";
-        Assert.assertEquals(shortString, poller.prepareRetryReason(shortString));
+        Assertions.assertEquals(shortString, poller.prepareRetryReason(shortString));
 
         String maxLengthString = String.join("", Collections.nCopies(256, "a"));
-        Assert.assertEquals(maxLengthString, poller.prepareRetryReason(maxLengthString));
+        Assertions.assertEquals(maxLengthString, poller.prepareRetryReason(maxLengthString));
 
         String shouldBeTruncated = String.join("", Collections.nCopies(257, "t"));
         String truncatedString = shouldBeTruncated.substring(0, 256 - ActivityTaskPoller.SUFFIX_INDICATING_TRUNCATION.length());
         truncatedString += ActivityTaskPoller.SUFFIX_INDICATING_TRUNCATION;
-        Assert.assertEquals(256, truncatedString.length());
-        Assert.assertEquals(truncatedString, poller.prepareRetryReason(shouldBeTruncated));
+        Assertions.assertEquals(256, truncatedString.length());
+        Assertions.assertEquals(truncatedString, poller.prepareRetryReason(shouldBeTruncated));
     }
 
     @Test
     public void testPrepareRetryDetails() {
-        Assert.assertNull(poller.prepareRetryDetails(null));
+        Assertions.assertNull(poller.prepareRetryDetails(null));
 
         String shortString = "short string";
-        Assert.assertEquals(shortString, poller.prepareRetryDetails(shortString));
+        Assertions.assertEquals(shortString, poller.prepareRetryDetails(shortString));
 
         String maxLengthString = String.join("", Collections.nCopies(32768, "a"));
-        Assert.assertEquals(maxLengthString, poller.prepareRetryDetails(maxLengthString));
+        Assertions.assertEquals(maxLengthString, poller.prepareRetryDetails(maxLengthString));
 
         String shouldBeTruncated = String.join("", Collections.nCopies(32769, "t"));
         String truncatedString = shouldBeTruncated.substring(0, 32768 - ActivityTaskPoller.SUFFIX_INDICATING_TRUNCATION.length());
         truncatedString += ActivityTaskPoller.SUFFIX_INDICATING_TRUNCATION;
-        Assert.assertEquals(32768, truncatedString.length());
-        Assert.assertEquals(truncatedString, poller.prepareRetryDetails(shouldBeTruncated));
+        Assertions.assertEquals(32768, truncatedString.length());
+        Assertions.assertEquals(truncatedString, poller.prepareRetryDetails(shouldBeTruncated));
     }
 
     private PollForActivityTaskResponse makeTask(Map<String, String> input) {
@@ -661,8 +661,8 @@ public class ActivityTaskPollerTest {
                 .reason(poller.prepareRetryReason(message)) // prepareRetryReason is tested independently
                 .details(poller.prepareRetryDetails(details)) // prepareRetryDetails is tested independently
                 .build();
-        Assert.assertTrue(raf.reason() == null || raf.reason().length() <= 256);
-        Assert.assertTrue(raf.details() == null || raf.details().length() <= 32768);
+        Assertions.assertTrue(raf.reason() == null || raf.reason().length() <= 256);
+        Assertions.assertTrue(raf.details() == null || raf.details().length() <= 32768);
         EasyMock.expect(swf.respondActivityTaskFailed(raf)).andReturn(RespondActivityTaskFailedResponse.builder().build());
     }
 

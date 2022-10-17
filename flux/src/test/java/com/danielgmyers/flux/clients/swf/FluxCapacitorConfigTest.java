@@ -16,52 +16,58 @@
 
 package com.danielgmyers.flux.clients.swf;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class FluxCapacitorConfigTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void disallowNullAwsRegion() {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
-        config.setAwsRegion(null);
+        Assertions.assertThrows(IllegalArgumentException.class,
+                                () -> config.setAwsRegion(null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void disallowNullExponentialBackoffBase() {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
-        config.setExponentialBackoffBase(null);
+        Assertions.assertThrows(IllegalArgumentException.class,
+                                () -> config.setExponentialBackoffBase(null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void disallowExponentialBackoffBaseLessThanOne() {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
-        config.setExponentialBackoffBase(0.75);
+        Assertions.assertThrows(IllegalArgumentException.class,
+                                () -> config.setExponentialBackoffBase(0.75));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void disallowNullHostnameTransformer() {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
-        config.setHostnameTransformerForPollerIdentity(null);
+        Assertions.assertThrows(IllegalArgumentException.class,
+                                () -> config.setHostnameTransformerForPollerIdentity(null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void disallowNullSwfDomain() {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
-        config.setSwfDomain(null);
+        Assertions.assertThrows(IllegalArgumentException.class,
+                                () -> config.setSwfDomain(null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void disallowNullSwfEndpoint() {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
-        config.setSwfEndpoint(null);
+        Assertions.assertThrows(IllegalArgumentException.class,
+                                () -> config.setSwfEndpoint(null));
     }
 
     @Test
     public void gettingTaskListConfigForUnconfiguredTaskListGivesDefaultConfig() {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
 
-        Assert.assertEquals(new TaskListConfig(), config.getTaskListConfig("random-task-list-name"));
+        Assertions.assertEquals(new TaskListConfig(), config.getTaskListConfig("random-task-list-name"));
     }
 
     @Test
@@ -72,6 +78,6 @@ public class FluxCapacitorConfigTest {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
         config.putTaskListConfig("random-task-list-name", taskListConfig);
 
-        Assert.assertEquals(taskListConfig, config.getTaskListConfig("random-task-list-name"));
+        Assertions.assertEquals(taskListConfig, config.getTaskListConfig("random-task-list-name"));
     }
 }
