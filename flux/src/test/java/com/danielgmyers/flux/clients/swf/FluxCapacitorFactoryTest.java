@@ -17,8 +17,8 @@
 package com.danielgmyers.flux.clients.swf;
 
 import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -31,6 +31,6 @@ public class FluxCapacitorFactoryTest {
 
         FluxCapacitor fc = FluxCapacitorFactory.create(new NoopMetricRecorderFactory(), creds,
                                                        "us-east-1", "https://fake.example.com", "test");
-        Assert.assertEquals(fc.getClass(), FluxCapacitorImpl.class);
+        Assertions.assertEquals(fc.getClass(), FluxCapacitorImpl.class);
     }
 }

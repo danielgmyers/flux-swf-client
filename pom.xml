@@ -47,7 +47,6 @@
         <jackson.version>2.13.4</jackson.version>
         <slf4j.version>1.7.36</slf4j.version>
 
-        <junit.version>4.13.2</junit.version>
         <junit5.version>5.9.0</junit5.version>
         <easymock.version>4.3</easymock.version>
 
@@ -96,7 +95,6 @@
                 </executions>
                 <configuration>
                     <configLocation>checkstyle-rules.xml</configLocation>
-                    <encoding>UTF-8</encoding>
                     <consoleOutput>true</consoleOutput>
                     <failsOnError>true</failsOnError>
                     <linkXRef>false</linkXRef>
@@ -126,7 +124,6 @@
                 <version>${mavenplugin.checkstyle.version}</version>
                 <configuration>
                     <configLocation>checkstyle-rules.xml</configLocation>
-                    <encoding>UTF-8</encoding>
                     <consoleOutput>true</consoleOutput>
                     <failsOnError>true</failsOnError>
                     <linkXRef>false</linkXRef>

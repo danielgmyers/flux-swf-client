@@ -28,9 +28,9 @@ import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithPartition
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import software.amazon.awssdk.services.swf.SwfClient;
 import software.amazon.awssdk.services.swf.model.StartWorkflowExecutionRequest;
@@ -46,7 +46,7 @@ public class RemoteWorkflowExecutorTest {
     private Workflow workflow;
     private FluxCapacitorConfig config;
 
-    @Before
+    @BeforeEach
     public void setup() {
         workflow = new TestWorkflow();
 
@@ -113,7 +113,7 @@ public class RemoteWorkflowExecutorTest {
         mockery.replay();
         try {
             rwe.executeWorkflow(TestWorkflowWithPartitionedStep.class, workflowId, input);
-            Assert.fail();
+            Assertions.fail();
         } catch(WorkflowExecutionException e) {
             // expected
         }
@@ -132,11 +132,11 @@ public class RemoteWorkflowExecutorTest {
         mockery.replay();
         try {
             rwe.executeWorkflow(TestWorkflow.class, workflowId, input);
-            Assert.fail();
+            Assertions.fail();
         } catch(WorkflowExecutionException e) {
             // expected
             // make sure the cause was wrapped properly
-            Assert.assertEquals(IllegalStateException.class, e.getCause().getClass());
+            Assertions.assertEquals(IllegalStateException.class, e.getCause().getClass());
         }
         mockery.verify();
     }

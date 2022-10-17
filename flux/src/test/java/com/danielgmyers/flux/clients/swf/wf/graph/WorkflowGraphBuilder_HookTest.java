@@ -36,8 +36,8 @@ import com.danielgmyers.flux.clients.swf.step.StepHook;
 import com.danielgmyers.flux.clients.swf.step.StepResult;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStepHook;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class WorkflowGraphBuilder_HookTest {
 
@@ -51,10 +51,10 @@ public class WorkflowGraphBuilder_HookTest {
         builder.alwaysClose(one);
 
         WorkflowGraph graph = builder.build();
-        Assert.assertNotNull(graph);
-        Assert.assertNotNull(graph.getHooksForStep(one.getClass()));
-        Assert.assertEquals(1, graph.getHooksForStep(one.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
+        Assertions.assertNotNull(graph);
+        Assertions.assertNotNull(graph.getHooksForStep(one.getClass()));
+        Assertions.assertEquals(1, graph.getHooksForStep(one.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
     }
 
     @Test
@@ -69,11 +69,11 @@ public class WorkflowGraphBuilder_HookTest {
         builder.alwaysClose(one);
 
         WorkflowGraph graph = builder.build();
-        Assert.assertNotNull(graph);
-        Assert.assertNotNull(graph.getHooksForStep(one.getClass()));
-        Assert.assertEquals(2, graph.getHooksForStep(one.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
-        Assert.assertEquals(hook2, graph.getHooksForStep(one.getClass()).get(1));
+        Assertions.assertNotNull(graph);
+        Assertions.assertNotNull(graph.getHooksForStep(one.getClass()));
+        Assertions.assertEquals(2, graph.getHooksForStep(one.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
+        Assertions.assertEquals(hook2, graph.getHooksForStep(one.getClass()).get(1));
     }
 
     @Test
@@ -87,11 +87,11 @@ public class WorkflowGraphBuilder_HookTest {
         builder.alwaysClose(one);
 
         WorkflowGraph graph = builder.build();
-        Assert.assertNotNull(graph);
-        Assert.assertNotNull(graph.getHooksForStep(one.getClass()));
-        Assert.assertEquals(2, graph.getHooksForStep(one.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(1));
+        Assertions.assertNotNull(graph);
+        Assertions.assertNotNull(graph.getHooksForStep(one.getClass()));
+        Assertions.assertEquals(2, graph.getHooksForStep(one.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(1));
     }
 
     @Test
@@ -104,10 +104,10 @@ public class WorkflowGraphBuilder_HookTest {
         builder.alwaysClose(one);
 
         WorkflowGraph graph = builder.build();
-        Assert.assertNotNull(graph);
-        Assert.assertNotNull(graph.getHooksForStep(one.getClass()));
-        Assert.assertEquals(1, graph.getHooksForStep(one.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
+        Assertions.assertNotNull(graph);
+        Assertions.assertNotNull(graph.getHooksForStep(one.getClass()));
+        Assertions.assertEquals(1, graph.getHooksForStep(one.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
     }
 
     @Test
@@ -125,7 +125,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.addStepHook(one, doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -146,7 +146,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.addStepHook(one, doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -161,7 +161,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.addStepHook(two, new TestPreStepHook());
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -178,10 +178,10 @@ public class WorkflowGraphBuilder_HookTest {
         builder.addHookForAllSteps(hook);
 
         WorkflowGraph graph = builder.build();
-        Assert.assertNotNull(graph);
-        Assert.assertNotNull(graph.getHooksForStep(one.getClass()));
-        Assert.assertEquals(1, graph.getHooksForStep(one.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
+        Assertions.assertNotNull(graph);
+        Assertions.assertNotNull(graph.getHooksForStep(one.getClass()));
+        Assertions.assertEquals(1, graph.getHooksForStep(one.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
     }
 
     @Test
@@ -199,13 +199,13 @@ public class WorkflowGraphBuilder_HookTest {
         builder.addHookForAllSteps(hook);
 
         WorkflowGraph graph = builder.build();
-        Assert.assertNotNull(graph);
-        Assert.assertNotNull(graph.getHooksForStep(one.getClass()));
-        Assert.assertEquals(1, graph.getHooksForStep(one.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
-        Assert.assertNotNull(graph.getHooksForStep(two.getClass()));
-        Assert.assertEquals(1, graph.getHooksForStep(two.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(two.getClass()).get(0));
+        Assertions.assertNotNull(graph);
+        Assertions.assertNotNull(graph.getHooksForStep(one.getClass()));
+        Assertions.assertEquals(1, graph.getHooksForStep(one.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
+        Assertions.assertNotNull(graph.getHooksForStep(two.getClass()));
+        Assertions.assertEquals(1, graph.getHooksForStep(two.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(two.getClass()).get(0));
     }
 
     @Test
@@ -221,11 +221,11 @@ public class WorkflowGraphBuilder_HookTest {
         builder.addHookForAllSteps(hook2);
 
         WorkflowGraph graph = builder.build();
-        Assert.assertNotNull(graph);
-        Assert.assertNotNull(graph.getHooksForStep(one.getClass()));
-        Assert.assertEquals(2, graph.getHooksForStep(one.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
-        Assert.assertEquals(hook2, graph.getHooksForStep(one.getClass()).get(1));
+        Assertions.assertNotNull(graph);
+        Assertions.assertNotNull(graph.getHooksForStep(one.getClass()));
+        Assertions.assertEquals(2, graph.getHooksForStep(one.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
+        Assertions.assertEquals(hook2, graph.getHooksForStep(one.getClass()).get(1));
     }
 
     @Test
@@ -245,15 +245,15 @@ public class WorkflowGraphBuilder_HookTest {
         builder.addHookForAllSteps(hook2);
 
         WorkflowGraph graph = builder.build();
-        Assert.assertNotNull(graph);
-        Assert.assertNotNull(graph.getHooksForStep(one.getClass()));
-        Assert.assertEquals(2, graph.getHooksForStep(one.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
-        Assert.assertEquals(hook2, graph.getHooksForStep(one.getClass()).get(1));
-        Assert.assertNotNull(graph.getHooksForStep(two.getClass()));
-        Assert.assertEquals(2, graph.getHooksForStep(two.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(two.getClass()).get(0));
-        Assert.assertEquals(hook2, graph.getHooksForStep(two.getClass()).get(1));
+        Assertions.assertNotNull(graph);
+        Assertions.assertNotNull(graph.getHooksForStep(one.getClass()));
+        Assertions.assertEquals(2, graph.getHooksForStep(one.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
+        Assertions.assertEquals(hook2, graph.getHooksForStep(one.getClass()).get(1));
+        Assertions.assertNotNull(graph.getHooksForStep(two.getClass()));
+        Assertions.assertEquals(2, graph.getHooksForStep(two.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(two.getClass()).get(0));
+        Assertions.assertEquals(hook2, graph.getHooksForStep(two.getClass()).get(1));
     }
 
     @Test
@@ -268,11 +268,11 @@ public class WorkflowGraphBuilder_HookTest {
         builder.addHookForAllSteps(hook);
 
         WorkflowGraph graph = builder.build();
-        Assert.assertNotNull(graph);
-        Assert.assertNotNull(graph.getHooksForStep(one.getClass()));
-        Assert.assertEquals(2, graph.getHooksForStep(one.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(1));
+        Assertions.assertNotNull(graph);
+        Assertions.assertNotNull(graph.getHooksForStep(one.getClass()));
+        Assertions.assertEquals(2, graph.getHooksForStep(one.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(1));
     }
 
     @Test
@@ -286,10 +286,10 @@ public class WorkflowGraphBuilder_HookTest {
         builder.addHookForAllSteps(hook);
 
         WorkflowGraph graph = builder.build();
-        Assert.assertNotNull(graph);
-        Assert.assertNotNull(graph.getHooksForStep(one.getClass()));
-        Assert.assertEquals(1, graph.getHooksForStep(one.getClass()).size());
-        Assert.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
+        Assertions.assertNotNull(graph);
+        Assertions.assertNotNull(graph.getHooksForStep(one.getClass()));
+        Assertions.assertEquals(1, graph.getHooksForStep(one.getClass()).size());
+        Assertions.assertEquals(hook, graph.getHooksForStep(one.getClass()).get(0));
     }
 
     @Test
@@ -307,7 +307,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.addHookForAllSteps(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -328,7 +328,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.addHookForAllSteps(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -349,7 +349,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addStepHook(one, hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -367,7 +367,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addStepHook(one, hookWithMetricsAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -385,7 +385,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -406,7 +406,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -427,7 +427,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addStepHook(one, hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -449,7 +449,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addStepHook(one, hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -472,7 +472,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addStepHook(two, hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -494,7 +494,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addStepHook(one, hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -512,7 +512,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addStepHook(one, hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -530,7 +530,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -551,7 +551,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -570,7 +570,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addStepHook(one, hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -588,7 +588,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addStepHook(one, hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -606,7 +606,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -627,7 +627,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -648,7 +648,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -669,7 +669,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -690,7 +690,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addStepHook(one, hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -708,7 +708,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addHookForAllSteps(hookWithMetricsAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -726,7 +726,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -747,7 +747,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -768,7 +768,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addHookForAllSteps(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -790,7 +790,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addHookForAllSteps(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -813,7 +813,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -837,7 +837,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addHookForAllSteps(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -858,7 +858,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addHookForAllSteps(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -880,7 +880,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addHookForAllSteps(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -900,7 +900,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addHookForAllSteps(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -918,7 +918,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -939,7 +939,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -959,7 +959,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addHookForAllSteps(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -979,7 +979,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addHookForAllSteps(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -997,7 +997,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1018,7 +1018,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1039,7 +1039,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1060,7 +1060,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1085,7 +1085,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1110,7 +1110,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1124,13 +1124,13 @@ public class WorkflowGraphBuilder_HookTest {
         builder.addWorkflowHook(new TestPreStepHook());
 
         WorkflowGraph graph = builder.build();
-        Assert.assertEquals(PreWorkflowHookAnchor.class, graph.getFirstStep().getClass());
-        Assert.assertNull(graph.getHooksForStep(TestStepOne.class));
-        Assert.assertNotNull(graph.getHooksForStep(PreWorkflowHookAnchor.class));
-        Assert.assertEquals(1, graph.getHooksForStep(PreWorkflowHookAnchor.class).size());
-        Assert.assertEquals(TestPreStepHook.class, graph.getHooksForStep(PreWorkflowHookAnchor.class).get(0).getClass());
+        Assertions.assertEquals(PreWorkflowHookAnchor.class, graph.getFirstStep().getClass());
+        Assertions.assertNull(graph.getHooksForStep(TestStepOne.class));
+        Assertions.assertNotNull(graph.getHooksForStep(PreWorkflowHookAnchor.class));
+        Assertions.assertEquals(1, graph.getHooksForStep(PreWorkflowHookAnchor.class).size());
+        Assertions.assertEquals(TestPreStepHook.class, graph.getHooksForStep(PreWorkflowHookAnchor.class).get(0).getClass());
 
-        Assert.assertFalse(graph.getNodes().containsKey(PostWorkflowHookAnchor.class));
+        Assertions.assertFalse(graph.getNodes().containsKey(PostWorkflowHookAnchor.class));
     }
 
     @Test
@@ -1141,18 +1141,18 @@ public class WorkflowGraphBuilder_HookTest {
         builder.addWorkflowHook(new TestPostStepHook());
 
         WorkflowGraph graph = builder.build();
-        Assert.assertEquals(PostWorkflowHookAnchor.class, graph.getNodes().get(TestStepOne.class).getNextStepsByResultCode().get(StepResult.ALWAYS_RESULT_CODE).getStep().getClass());
-        Assert.assertEquals(TestStepOne.class, graph.getFirstStep().getClass());
-        Assert.assertNull(graph.getHooksForStep(TestStepOne.class));
-        Assert.assertNotNull(graph.getHooksForStep(PostWorkflowHookAnchor.class));
-        Assert.assertEquals(1, graph.getHooksForStep(PostWorkflowHookAnchor.class).size());
-        Assert.assertEquals(TestPostStepHook.class, graph.getHooksForStep(PostWorkflowHookAnchor.class).get(0).getClass());
+        Assertions.assertEquals(PostWorkflowHookAnchor.class, graph.getNodes().get(TestStepOne.class).getNextStepsByResultCode().get(StepResult.ALWAYS_RESULT_CODE).getStep().getClass());
+        Assertions.assertEquals(TestStepOne.class, graph.getFirstStep().getClass());
+        Assertions.assertNull(graph.getHooksForStep(TestStepOne.class));
+        Assertions.assertNotNull(graph.getHooksForStep(PostWorkflowHookAnchor.class));
+        Assertions.assertEquals(1, graph.getHooksForStep(PostWorkflowHookAnchor.class).size());
+        Assertions.assertEquals(TestPostStepHook.class, graph.getHooksForStep(PostWorkflowHookAnchor.class).get(0).getClass());
 
-        Assert.assertEquals(1, graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().size());
-        Assert.assertTrue(graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().containsKey(StepResult.ALWAYS_RESULT_CODE));
-        Assert.assertNull(graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().get(StepResult.ALWAYS_RESULT_CODE));
+        Assertions.assertEquals(1, graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().size());
+        Assertions.assertTrue(graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().containsKey(StepResult.ALWAYS_RESULT_CODE));
+        Assertions.assertNull(graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().get(StepResult.ALWAYS_RESULT_CODE));
 
-        Assert.assertFalse(graph.getNodes().containsKey(PreWorkflowHookAnchor.class));
+        Assertions.assertFalse(graph.getNodes().containsKey(PreWorkflowHookAnchor.class));
     }
 
     @Test
@@ -1163,22 +1163,22 @@ public class WorkflowGraphBuilder_HookTest {
         builder.addWorkflowHook(new TestPreAndPostStepHook());
 
         WorkflowGraph graph = builder.build();
-        Assert.assertEquals(PreWorkflowHookAnchor.class, graph.getFirstStep().getClass());
-        Assert.assertEquals(PostWorkflowHookAnchor.class, graph.getNodes().get(TestStepOne.class).getNextStepsByResultCode().get(StepResult.ALWAYS_RESULT_CODE).getStep().getClass());
+        Assertions.assertEquals(PreWorkflowHookAnchor.class, graph.getFirstStep().getClass());
+        Assertions.assertEquals(PostWorkflowHookAnchor.class, graph.getNodes().get(TestStepOne.class).getNextStepsByResultCode().get(StepResult.ALWAYS_RESULT_CODE).getStep().getClass());
 
-        Assert.assertNull(graph.getHooksForStep(TestStepOne.class));
+        Assertions.assertNull(graph.getHooksForStep(TestStepOne.class));
 
-        Assert.assertNotNull(graph.getHooksForStep(PreWorkflowHookAnchor.class));
-        Assert.assertEquals(1, graph.getHooksForStep(PreWorkflowHookAnchor.class).size());
-        Assert.assertEquals(TestPreAndPostStepHook.class, graph.getHooksForStep(PreWorkflowHookAnchor.class).get(0).getClass());
+        Assertions.assertNotNull(graph.getHooksForStep(PreWorkflowHookAnchor.class));
+        Assertions.assertEquals(1, graph.getHooksForStep(PreWorkflowHookAnchor.class).size());
+        Assertions.assertEquals(TestPreAndPostStepHook.class, graph.getHooksForStep(PreWorkflowHookAnchor.class).get(0).getClass());
 
-        Assert.assertNotNull(graph.getHooksForStep(PostWorkflowHookAnchor.class));
-        Assert.assertEquals(1, graph.getHooksForStep(PostWorkflowHookAnchor.class).size());
-        Assert.assertEquals(TestPreAndPostStepHook.class, graph.getHooksForStep(PostWorkflowHookAnchor.class).get(0).getClass());
+        Assertions.assertNotNull(graph.getHooksForStep(PostWorkflowHookAnchor.class));
+        Assertions.assertEquals(1, graph.getHooksForStep(PostWorkflowHookAnchor.class).size());
+        Assertions.assertEquals(TestPreAndPostStepHook.class, graph.getHooksForStep(PostWorkflowHookAnchor.class).get(0).getClass());
 
-        Assert.assertEquals(1, graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().size());
-        Assert.assertTrue(graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().containsKey(StepResult.ALWAYS_RESULT_CODE));
-        Assert.assertNull(graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().get(StepResult.ALWAYS_RESULT_CODE));
+        Assertions.assertEquals(1, graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().size());
+        Assertions.assertTrue(graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().containsKey(StepResult.ALWAYS_RESULT_CODE));
+        Assertions.assertNull(graph.getNodes().get(PostWorkflowHookAnchor.class).getNextStepsByResultCode().get(StepResult.ALWAYS_RESULT_CODE));
     }
 
     @Test
@@ -1196,7 +1196,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addWorkflowHook(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1214,7 +1214,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1235,7 +1235,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1256,7 +1256,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addWorkflowHook(hookWithMetricsAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1274,7 +1274,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addWorkflowHook(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1296,7 +1296,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addWorkflowHook(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1319,7 +1319,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1343,7 +1343,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addWorkflowHook(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1364,7 +1364,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addWorkflowHook(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1382,7 +1382,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addWorkflowHook(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1400,7 +1400,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1421,7 +1421,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1440,7 +1440,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         builder.addWorkflowHook(hookWithInputAttribute);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1458,7 +1458,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1479,7 +1479,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1500,7 +1500,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1521,7 +1521,7 @@ public class WorkflowGraphBuilder_HookTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }

@@ -48,9 +48,8 @@ import com.danielgmyers.flux.clients.swf.step.StepApply;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
 import com.danielgmyers.flux.clients.swf.step.StepResult;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class WorkflowGraphBuilderTest {
 
@@ -58,7 +57,7 @@ public class WorkflowGraphBuilderTest {
     public void builder_FirstStepCannotBeNull() {
         try {
             new WorkflowGraphBuilder(null);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -71,7 +70,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             new WorkflowGraphBuilder(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -90,7 +89,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             new WorkflowGraphBuilder(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -106,7 +105,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             new WorkflowGraphBuilder(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -119,7 +118,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(null);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -138,7 +137,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -151,7 +150,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(one);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -166,7 +165,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(two);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -182,7 +181,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -204,7 +203,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -223,7 +222,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -242,7 +241,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -261,7 +260,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -280,7 +279,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -304,7 +303,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -329,7 +328,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -353,7 +352,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -377,7 +376,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.addStep(doNotDoThis);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -441,7 +440,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.closeOnSuccess(one);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -464,7 +463,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.successTransition(TestStepOne.class, TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -568,7 +567,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.customTransition(TestPartitionedStep.class, "customCode", CloseWorkflow.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -581,7 +580,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.customTransition(TestStepOne.class, null, CloseWorkflow.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -594,7 +593,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.customTransition(TestStepOne.class, "", CloseWorkflow.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -608,7 +607,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.alwaysTransition(TestStepOne.class, TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -622,7 +621,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.successTransition(TestStepOne.class, TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -636,7 +635,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.alwaysTransition(TestStepOne.class, TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -650,7 +649,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.failTransition(TestStepOne.class, TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -664,7 +663,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.alwaysTransition(TestStepOne.class, TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -678,7 +677,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.customTransition(TestStepOne.class, "someCode", TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -692,7 +691,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.alwaysTransition(TestStepOne.class, TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -706,7 +705,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.successTransition(TestStepOne.class, TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -720,7 +719,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.failTransition(TestStepOne.class, TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -735,7 +734,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.customTransition(TestStepOne.class, customCode, TestBranchStep.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -748,7 +747,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.alwaysTransition(TestStepTwo.class, CloseWorkflow.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -761,7 +760,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.successTransition(TestStepTwo.class, CloseWorkflow.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -774,7 +773,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.failTransition(TestStepTwo.class, CloseWorkflow.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -787,7 +786,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.customTransition(TestStepTwo.class, "someCode", CloseWorkflow.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -800,7 +799,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.alwaysTransition(TestStepOne.class, null);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -813,7 +812,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.successTransition(TestStepOne.class, null);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -826,7 +825,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.failTransition(TestStepOne.class, null);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -839,7 +838,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.customTransition(TestStepOne.class, "customCode", null);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -852,7 +851,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.alwaysTransition(TestStepOne.class, TestStepOne.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -865,7 +864,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.successTransition(TestStepOne.class, TestStepOne.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -878,7 +877,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.failTransition(TestStepOne.class, TestStepOne.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -891,7 +890,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.customTransition(TestStepOne.class, "customCode", TestStepOne.class);
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -906,9 +905,9 @@ public class WorkflowGraphBuilderTest {
 
         WorkflowGraph graph = builder.build();
 
-        Assert.assertEquals(one, graph.getFirstStep());
+        Assertions.assertEquals(one, graph.getFirstStep());
 
-        Assert.assertEquals(1, graph.getNodes().size());
+        Assertions.assertEquals(1, graph.getNodes().size());
         verifySuccessTransition(graph, TestStepOne.class, null);
     }
 
@@ -925,9 +924,9 @@ public class WorkflowGraphBuilderTest {
 
         WorkflowGraph graph = builder.build();
 
-        Assert.assertEquals(one, graph.getFirstStep());
+        Assertions.assertEquals(one, graph.getFirstStep());
 
-        Assert.assertEquals(2, graph.getNodes().size());
+        Assertions.assertEquals(2, graph.getNodes().size());
         verifySuccessTransition(graph, TestStepOne.class, two);
         verifySuccessTransition(graph, TestStepTwo.class, null);
     }
@@ -945,9 +944,9 @@ public class WorkflowGraphBuilderTest {
 
         WorkflowGraph graph = builder.build();
 
-        Assert.assertEquals(one, graph.getFirstStep());
+        Assertions.assertEquals(one, graph.getFirstStep());
 
-        Assert.assertEquals(2, graph.getNodes().size());
+        Assertions.assertEquals(2, graph.getNodes().size());
         verifySuccessTransition(graph, TestStepOne.class, two);
         verifySuccessTransition(graph, TestStepTwo.class, null);
     }
@@ -970,9 +969,9 @@ public class WorkflowGraphBuilderTest {
 
         WorkflowGraph graph = builder.build();
 
-        Assert.assertEquals(one, graph.getFirstStep());
+        Assertions.assertEquals(one, graph.getFirstStep());
 
-        Assert.assertEquals(3, graph.getNodes().size());
+        Assertions.assertEquals(3, graph.getNodes().size());
 
         Map<String, WorkflowStep> stepOneTransitions = new HashMap<>();
         stepOneTransitions.put(StepResult.SUCCEED_RESULT_CODE, two);
@@ -1000,9 +999,9 @@ public class WorkflowGraphBuilderTest {
 
         WorkflowGraph graph = builder.build();
 
-        Assert.assertEquals(one, graph.getFirstStep());
+        Assertions.assertEquals(one, graph.getFirstStep());
 
-        Assert.assertEquals(3, graph.getNodes().size());
+        Assertions.assertEquals(3, graph.getNodes().size());
 
         Map<String, WorkflowStep> stepOneTransitions = new HashMap<>();
         stepOneTransitions.put(StepResult.SUCCEED_RESULT_CODE, two);
@@ -1033,9 +1032,9 @@ public class WorkflowGraphBuilderTest {
 
         WorkflowGraph graph = builder.build();
 
-        Assert.assertEquals(one, graph.getFirstStep());
+        Assertions.assertEquals(one, graph.getFirstStep());
 
-        Assert.assertEquals(3, graph.getNodes().size());
+        Assertions.assertEquals(3, graph.getNodes().size());
 
         Map<String, WorkflowStep> stepOneTransitions = new HashMap<>();
         stepOneTransitions.put(StepResult.SUCCEED_RESULT_CODE, two);
@@ -1070,9 +1069,9 @@ public class WorkflowGraphBuilderTest {
 
         WorkflowGraph graph = builder.build();
 
-        Assert.assertEquals(one, graph.getFirstStep());
+        Assertions.assertEquals(one, graph.getFirstStep());
 
-        Assert.assertEquals(4, graph.getNodes().size());
+        Assertions.assertEquals(4, graph.getNodes().size());
 
         Map<String, WorkflowStep> stepOneTransitions = new HashMap<>();
         stepOneTransitions.put(StepResult.SUCCEED_RESULT_CODE, branch);
@@ -1093,7 +1092,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1110,7 +1109,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1125,7 +1124,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1144,7 +1143,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1162,7 +1161,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1186,7 +1185,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1213,7 +1212,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1226,7 +1225,7 @@ public class WorkflowGraphBuilderTest {
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(one);
         builder.alwaysClose(one);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1238,7 +1237,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1252,7 +1251,7 @@ public class WorkflowGraphBuilderTest {
         builder.alwaysClose(one);
 
         // this one should succeed even though the attribute is not available, because the input attribute is optional
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1264,7 +1263,7 @@ public class WorkflowGraphBuilderTest {
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(one, initialAttributes);
         builder.alwaysClose(one);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1278,7 +1277,7 @@ public class WorkflowGraphBuilderTest {
         builder.addStep(two);
         builder.alwaysClose(two);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1304,7 +1303,7 @@ public class WorkflowGraphBuilderTest {
         builder.addStep(three);
         builder.alwaysClose(three);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1320,7 +1319,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1339,7 +1338,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1367,7 +1366,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1394,7 +1393,7 @@ public class WorkflowGraphBuilderTest {
         builder.alwaysClose(end);
 
         // this one should succeed even though the attribute is not available, because the input attribute is optional
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1417,7 +1416,7 @@ public class WorkflowGraphBuilderTest {
         builder.addStep(end);
         builder.alwaysClose(end);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1440,7 +1439,7 @@ public class WorkflowGraphBuilderTest {
         builder.addStep(end);
         builder.alwaysClose(end);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1450,7 +1449,7 @@ public class WorkflowGraphBuilderTest {
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(start, Collections.emptyMap());
         builder.alwaysClose(start);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1460,7 +1459,7 @@ public class WorkflowGraphBuilderTest {
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(start, Collections.emptyMap());
         builder.alwaysClose(start);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1470,7 +1469,7 @@ public class WorkflowGraphBuilderTest {
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(one, Collections.emptyMap());
         builder.alwaysClose(one);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1482,7 +1481,7 @@ public class WorkflowGraphBuilderTest {
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(one, initialAttributes);
         builder.alwaysClose(one);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1494,7 +1493,7 @@ public class WorkflowGraphBuilderTest {
 
         try {
             builder.build();
-            Assert.fail();
+            Assertions.fail();
         } catch (WorkflowGraphBuildException e) {
             // expected
         }
@@ -1519,7 +1518,7 @@ public class WorkflowGraphBuilderTest {
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(alwaysAllowWorkflowId, Collections.emptyMap());
         builder.alwaysClose(alwaysAllowWorkflowId);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1534,7 +1533,7 @@ public class WorkflowGraphBuilderTest {
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(alwaysAllowInitialAttemptTime, Collections.emptyMap());
         builder.alwaysClose(alwaysAllowInitialAttemptTime);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1549,7 +1548,7 @@ public class WorkflowGraphBuilderTest {
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(alwaysAllowRetryAttempt, Collections.emptyMap());
         builder.alwaysClose(alwaysAllowRetryAttempt);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     @Test
@@ -1570,7 +1569,7 @@ public class WorkflowGraphBuilderTest {
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(alwaysAllowMetrics, Collections.emptyMap());
         builder.alwaysClose(alwaysAllowMetrics);
 
-        Assert.assertNotNull(builder.build());
+        Assertions.assertNotNull(builder.build());
     }
 
     private void verifyAlwaysTransition(WorkflowGraph graph, Class<? extends WorkflowStep> source, WorkflowStep successTarget) {
@@ -1587,29 +1586,29 @@ public class WorkflowGraphBuilderTest {
 
     private void verifyCustomTransition(WorkflowGraph graph, Class<? extends WorkflowStep> source,
                                         String resultCode, WorkflowStep successTarget) {
-        Assert.assertTrue(graph.getNodes().containsKey(source));
+        Assertions.assertTrue(graph.getNodes().containsKey(source));
         WorkflowGraphNode node = graph.getNodes().get(source);
-        Assert.assertEquals(1, node.getNextStepsByResultCode().size());
-        Assert.assertTrue(node.getNextStepsByResultCode().containsKey(resultCode));
+        Assertions.assertEquals(1, node.getNextStepsByResultCode().size());
+        Assertions.assertTrue(node.getNextStepsByResultCode().containsKey(resultCode));
         if(successTarget == null) {
-            Assert.assertNull(node.getNextStepsByResultCode().get(resultCode));
+            Assertions.assertNull(node.getNextStepsByResultCode().get(resultCode));
         } else {
-            Assert.assertEquals(successTarget, node.getNextStepsByResultCode().get(resultCode).getStep());
+            Assertions.assertEquals(successTarget, node.getNextStepsByResultCode().get(resultCode).getStep());
         }
     }
 
     private void verifyTransitions(WorkflowGraph graph, Class<? extends WorkflowStep> source,
                                    Map<String, WorkflowStep> targetsByResultCode) {
-        Assert.assertTrue(graph.getNodes().containsKey(source));
+        Assertions.assertTrue(graph.getNodes().containsKey(source));
         WorkflowGraphNode node = graph.getNodes().get(source);
-        Assert.assertEquals(targetsByResultCode.size(), node.getNextStepsByResultCode().size());
-        Assert.assertTrue(node.getNextStepsByResultCode().keySet().containsAll(targetsByResultCode.keySet()));
+        Assertions.assertEquals(targetsByResultCode.size(), node.getNextStepsByResultCode().size());
+        Assertions.assertTrue(node.getNextStepsByResultCode().keySet().containsAll(targetsByResultCode.keySet()));
 
         for (Entry<String, WorkflowStep> entry : targetsByResultCode.entrySet()) {
             if(entry.getValue() == null) {
-                Assert.assertNull(node.getNextStepsByResultCode().get(entry.getKey()));
+                Assertions.assertNull(node.getNextStepsByResultCode().get(entry.getKey()));
             } else {
-                Assert.assertEquals(entry.getValue(), node.getNextStepsByResultCode().get(entry.getKey()).getStep());
+                Assertions.assertEquals(entry.getValue(), node.getNextStepsByResultCode().get(entry.getKey()).getStep());
 
             }
         }

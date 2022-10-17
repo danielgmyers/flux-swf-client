@@ -31,7 +31,7 @@ import com.danielgmyers.flux.clients.swf.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.clients.swf.step.StepApply;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
 import com.danielgmyers.flux.clients.swf.step.StepResult;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 public class TestPartitionedStep implements PartitionedWorkflowStep {
 
@@ -56,8 +56,8 @@ public class TestPartitionedStep implements PartitionedWorkflowStep {
     @StepApply
     public StepResult apply(@Attribute(StepAttributes.PARTITION_ID) String partitionId,
                             @Attribute(StepAttributes.PARTITION_COUNT) Long partitionCount) {
-        Assert.assertNotNull(partitionId);
-        Assert.assertEquals(partitionIds.size(), partitionCount.longValue());
+        Assertions.assertNotNull(partitionId);
+        Assertions.assertEquals(partitionIds.size(), partitionCount.longValue());
         return StepResult.success();
     }
 
@@ -65,7 +65,7 @@ public class TestPartitionedStep implements PartitionedWorkflowStep {
     public PartitionIdGeneratorResult partitionIds(MetricRecorder metrics, @Attribute(StepAttributes.WORKFLOW_ID) String workflowId) {
         metrics.addCount(PARTITION_ID_GENERATOR_METRIC, partitionIds.size());
         metrics.addProperty("workflowIdForPartitionGenerator", workflowId);
-        Assert.assertNotNull(workflowId);
+        Assertions.assertNotNull(workflowId);
         return PartitionIdGeneratorResult.create(partitionIds).withAttributes(additionalAttributes);
     }
 
