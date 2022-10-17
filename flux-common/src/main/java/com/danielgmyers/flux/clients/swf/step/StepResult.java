@@ -16,10 +16,8 @@
 
 package com.danielgmyers.flux.clients.swf.step;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -59,7 +57,7 @@ public final class StepResult {
     public static final String ALWAYS_RESULT_CODE = "_always";
 
     public static final Set<String> VALID_PARTITIONED_STEP_RESULT_CODES
-            = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(SUCCEED_RESULT_CODE, FAIL_RESULT_CODE, ALWAYS_RESULT_CODE)));
+            = Set.of(SUCCEED_RESULT_CODE, FAIL_RESULT_CODE, ALWAYS_RESULT_CODE);
 
     /**
      * An enum indicating whether the step succeeded or the workflow should be rolled back.
@@ -127,20 +125,7 @@ public final class StepResult {
      * Produces a success result object with a specific message.
      */
     public static StepResult success(String message) {
-        return success(SUCCEED_RESULT_CODE, message);
-    }
-
-    /**
-     * Produces a success result object with a specific result code and message.
-     *
-     * Use StepResult.complete() instead.
-     */
-    @Deprecated
-    public static StepResult success(String resultCode, String message) {
-        if (resultCode == null || resultCode.isEmpty()) {
-            throw new IllegalArgumentException("Result codes cannot be blank.");
-        }
-        return new StepResult(ResultAction.COMPLETE, resultCode, message);
+        return complete(SUCCEED_RESULT_CODE, message);
     }
 
     /**
@@ -175,20 +160,7 @@ public final class StepResult {
      * Produces a failure result object with a specific message.
      */
     public static StepResult failure(String message) {
-        return failure(FAIL_RESULT_CODE, message);
-    }
-
-    /**
-     * Produces a failure result object with a specific result code and message.
-     *
-     * Use StepResult.complete() instead.
-     */
-    @Deprecated
-    public static StepResult failure(String resultCode, String message) {
-        if (resultCode == null || resultCode.isEmpty()) {
-            throw new IllegalArgumentException("Result codes cannot be blank.");
-        }
-        return new StepResult(ResultAction.COMPLETE, resultCode, message);
+        return complete(FAIL_RESULT_CODE, message);
     }
 
     public ResultAction getAction() {
