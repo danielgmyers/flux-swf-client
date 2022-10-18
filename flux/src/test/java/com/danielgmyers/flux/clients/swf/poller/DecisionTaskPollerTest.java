@@ -1282,6 +1282,12 @@ public class DecisionTaskPollerTest {
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
         clock.forward(Duration.ofMillis(100));
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+
+        clock.forward(Duration.ofMillis(100));
 
         for (String partitionId : partitionIds) {
             history.scheduleStepAttempt(partitionId);
@@ -1353,6 +1359,12 @@ public class DecisionTaskPollerTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
 
         clock.forward(Duration.ofMillis(100));
 
@@ -1428,6 +1440,12 @@ public class DecisionTaskPollerTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        clock.forward(Duration.ofMillis(100));
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
 
         Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
@@ -1506,6 +1524,11 @@ public class DecisionTaskPollerTest {
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
+        clock.forward(Duration.ofMillis(100));
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
 
         clock.forward(Duration.ofMillis(100));
 
@@ -1576,6 +1599,12 @@ public class DecisionTaskPollerTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
 
         Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
@@ -2384,6 +2413,12 @@ public class DecisionTaskPollerTest {
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
+        clock.forward(Duration.ofMillis(100));
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+
         // both partitions are initially scheduled at the same time
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt(succeededPartition);
@@ -2622,6 +2657,12 @@ public class DecisionTaskPollerTest {
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
 
+        clock.forward(Duration.ofMillis(100));
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+
         // both partitions initially scheduled at the same time
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt(retryingPartition);
@@ -2682,6 +2723,12 @@ public class DecisionTaskPollerTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt(partitionToReschedule);
@@ -2754,6 +2801,12 @@ public class DecisionTaskPollerTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success().withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
 
         Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt(partitionToReschedule);
