@@ -482,52 +482,12 @@ public class DecisionTaskPoller implements Runnable {
         String workflowName = TaskNaming.workflowName(workflow);
         String nextStepName = TaskNaming.stepName(nextStep);
         String nextActivityName = TaskNaming.activityName(workflowName, nextStepName);
+
         boolean nextStepIsPartitioned = PartitionedWorkflowStep.class.isAssignableFrom(nextStep.getClass());
-
-        boolean generatePartitionMetadata = false;
-
         PartitionMetadata nextStepPartitionMetadata = state.getPartitionMetadata(nextStepName);
 
-        // If we already have state for the step, we are probably retrying. Otherwise, it's a new step.
-        if (!state.getLatestPartitionStates(nextActivityName).isEmpty()) {
-            // Here we need to decide whether to generate partition metadata.
-
-            // First we need to check if we already have partition metadata (from the marker) for this partition.
-            // If so, we don't need to do anything here.
-
-            // Otherwise, we need to check if we have partial state. This can happen if this is a partitioned step and SWF throttled
-            // activity scheduling for some or all of the partitions.
-            if (nextStepIsPartitioned && nextStepPartitionMetadata == null) {
-                // Here we need to check each partition id to figure out two things:
-                // 1) Do we have non-empty state for at least one partition?
-                // 2) Do we have empty state for at least one partition?
-                // We'll only have empty state for a partition whose first attempt was never successfully scheduled.
-
-                boolean hasNonEmptyState = false;
-                boolean hasEmptyState = false;
-
-                for (PartitionState partition : state.getLatestPartitionStates(nextActivityName).values()) {
-                    if (partition == null) {
-                        hasEmptyState = true;
-                    } else {
-                        hasNonEmptyState = true;
-                    }
-                }
-
-                // If we have empty state for all partitions, we can proceed to generate partition metadata.
-                if (hasEmptyState && !hasNonEmptyState) {
-                    generatePartitionMetadata = true;
-                }
-            }
-        } else if (nextStepIsPartitioned) {
-            // In this case, it's a new partitioned step. If we don't already have partition metadata,
-            // we need to generate it.
-            if (nextStepPartitionMetadata == null) {
-                generatePartitionMetadata = true;
-            }
-        }
-
-        if (generatePartitionMetadata) {
+        // We need to generate partition metadata if the next step is partitioned and we don't have any partition metadata.
+        if (nextStepIsPartitioned && nextStepPartitionMetadata == null) {
             // If we need to generate partition ids, then we need to return two decisions.
             // First, we need to record a marker containing the partition metadata.
             // Second, like when we cancel a retry timer, we need to force another decision to occur.
@@ -562,54 +522,10 @@ public class DecisionTaskPoller implements Runnable {
         // Now we need to extract the set of partition IDs.
         Set<String> partitionIds;
         if (nextStepIsPartitioned) {
-            if (nextStepPartitionMetadata != null) {
-                partitionIds = nextStepPartitionMetadata.getPartitionIds();
-            } else {
-                // In this case, we don't have partition metadata but we didn't decide to generate partition metadata.
-                // We'll need to extract the partition IDs from the set of partitions we have state for.
-                // This should only happen during deployment of this change.
-                partitionIds = state.getLatestPartitionStates(nextActivityName).keySet();
-            }
+            partitionIds = nextStepPartitionMetadata.getPartitionIds();
+            nextStepInput.putAll(nextStepPartitionMetadata.getEncodedAdditionalAttributes());
         } else {
             partitionIds = Collections.singleton(null);
-        }
-
-        // For partitioned steps, there are a few edge cases to handle.
-        //
-        // 1) If we have a partition metadata marker, we're not in the edge case.
-        // 2) If all partitions had at least one successfully-scheduled attempt, then we proceed without the marker.
-        //    This handles backward-compatibility during deployment of this change in the absence of throttling.
-        // 3) If SWF has rejected the first attempt to schedule at least one partition, and zero partitions
-        //    have been successfully scheduled, we can proceed to generate the metadata marker.
-        //    This handles backward-compatibility during deployment of this change if throttling is occurring to all partitions.
-        //    This case is checked for above, so if we get to this point in the code we actually hit case 1.
-        // 4) If SWF has rejected the first attempt to schedule at least one partition, but has successfully scheduled
-        //    at least one attempt for at least one other partition, then we can proceed without the marker,
-        //    but we need to extract any additional attributes from the input to one of the successfully-scheduled partitions.
-        //
-        //  We could just abandon the workflow if we hit case 4, but it is better to allow users to force the workflow
-        //  into a rollback or recovery path in the workflow graph if possible, rather than requiring them to terminate
-        //  the workflow in all cases.
-
-        // If we have partition metadata, we should put its additional attributes into the next step input.
-        if (nextStepPartitionMetadata != null) {
-            nextStepInput.putAll(nextStepPartitionMetadata.getEncodedAdditionalAttributes());
-        } else if (nextStepIsPartitioned) {
-            // If we get here, we need to extract the additional attributes from one of the successfully-scheduled partitions.
-            // Note that we can't get here if there aren't any successfully-scheduled partitions, since we would have
-            // generated partition metadata and returned from this method earlier.
-            // In other words, if we got here, then we don't have a partition metadata marker,
-            // and there was at least one successfully-scheduled partition, which means the .orElse() here can't trigger.
-            PartitionState lastState = state.getLatestPartitionStates(nextActivityName)
-                    .values().stream().filter(Objects::nonNull).findFirst().orElse(null);
-
-            for (Map.Entry<String, String> e : lastState.getAttemptInput().entrySet()) {
-                nextStepInput.putIfAbsent(e.getKey(), e.getValue());
-            }
-
-            // We'll need to remove the partition-specific inputs
-            nextStepInput.remove(StepAttributes.PARTITION_ID);
-            nextStepInput.remove(StepAttributes.RETRY_ATTEMPT);
         }
 
         for (String partitionId : partitionIds) {
