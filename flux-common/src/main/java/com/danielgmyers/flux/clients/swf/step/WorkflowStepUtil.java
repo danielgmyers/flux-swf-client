@@ -21,10 +21,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
@@ -100,25 +98,15 @@ public final class WorkflowStepUtil {
         String activityName = TaskNaming.activityName(workflowName, step);
         Method partitionIdMethod = WorkflowStepUtil.getUniqueAnnotatedMethod(step.getClass(), PartitionIdGenerator.class);
         try (MetricRecorder stepMetrics = metricsFactory.newMetricRecorder(activityName + "." + partitionIdMethod.getName())) {
-            Map<String, String> generatorInput = new TreeMap<>(stepInput);
-
-            Object[] arguments = WorkflowStepUtil.generateArguments(step.getClass(), partitionIdMethod, stepMetrics,
-                                                                    generatorInput);
-
-            PartitionIdGeneratorResult result;
-            if (List.class.equals(partitionIdMethod.getReturnType())) {
-                List<String> partitionIds = (List<String>)partitionIdMethod.invoke(step, arguments);
-                result = PartitionIdGeneratorResult.create(new HashSet<>(partitionIds));
-            } else if (PartitionIdGeneratorResult.class.equals(partitionIdMethod.getReturnType())) {
-                result = (PartitionIdGeneratorResult)(partitionIdMethod.invoke(step, arguments));
-            } else {
+            if (!PartitionIdGeneratorResult.class.equals(partitionIdMethod.getReturnType())) {
                 // the return type of this method is validated by the workflow graph builder, so this shouldn't happen
-                throw new RuntimeException(String.format("%s.%s must have return type List<String>"
-                                                         + " or PartitionIdGeneratorResult.",
+                throw new RuntimeException(String.format("%s.%s must have return type PartitionIdGeneratorResult.",
                                                          step.getClass().getSimpleName(), partitionIdMethod.getName()));
             }
 
-            return result;
+            Object[] arguments = WorkflowStepUtil.generateArguments(step.getClass(), partitionIdMethod, stepMetrics,
+                                                                    stepInput);
+            return (PartitionIdGeneratorResult)(partitionIdMethod.invoke(step, arguments));
         } catch (IllegalAccessException | InvocationTargetException e) {
             String message = "Got an exception while attempting to request partition ids for workflow " + workflowId
                                 + " for step " + activityName;
