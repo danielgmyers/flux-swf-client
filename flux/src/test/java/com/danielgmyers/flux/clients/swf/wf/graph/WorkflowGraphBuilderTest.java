@@ -43,6 +43,7 @@ import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepTwo;
 import com.danielgmyers.flux.clients.swf.step.Attribute;
 import com.danielgmyers.flux.clients.swf.step.CloseWorkflow;
 import com.danielgmyers.flux.clients.swf.step.PartitionIdGenerator;
+import com.danielgmyers.flux.clients.swf.step.PartitionIdGeneratorResult;
 import com.danielgmyers.flux.clients.swf.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.clients.swf.step.StepApply;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
@@ -1504,8 +1505,8 @@ public class WorkflowGraphBuilderTest {
         WorkflowStep alwaysAllowWorkflowId = new PartitionedWorkflowStep() {
 
             @PartitionIdGenerator
-            public List<String> getPartitionIds(@Attribute(StepAttributes.WORKFLOW_ID) String workflowId) {
-                return Collections.emptyList();
+            public PartitionIdGeneratorResult getPartitionIds(@Attribute(StepAttributes.WORKFLOW_ID) String workflowId) {
+                return PartitionIdGeneratorResult.create();
             }
 
             @StepApply
@@ -1556,8 +1557,8 @@ public class WorkflowGraphBuilderTest {
         WorkflowStep alwaysAllowMetrics = new PartitionedWorkflowStep() {
 
             @PartitionIdGenerator
-            public List<String> getPartitionIds(MetricRecorder metrics) {
-                return Collections.emptyList();
+            public PartitionIdGeneratorResult getPartitionIds(MetricRecorder metrics) {
+                return PartitionIdGeneratorResult.create();
             }
 
             @StepApply

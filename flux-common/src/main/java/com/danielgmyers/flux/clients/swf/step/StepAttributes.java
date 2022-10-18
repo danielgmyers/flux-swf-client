@@ -23,8 +23,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -84,8 +82,7 @@ public final class StepAttributes {
     // Map is allowed but it's not included here because we want to allow any implementation of Map, not just the interface.
     // Visible for testing.
     static final Set<Class<?>> ALLOWED_TYPES
-            = Stream.of(Boolean.class, String.class, Long.class, Date.class, Instant.class)
-                    .collect(Collectors.toSet());
+            = Set.of(Boolean.class, String.class, Long.class, Date.class, Instant.class);
 
     private StepAttributes() {}
 

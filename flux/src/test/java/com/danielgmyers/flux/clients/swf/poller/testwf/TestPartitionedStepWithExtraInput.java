@@ -16,11 +16,11 @@
 
 package com.danielgmyers.flux.clients.swf.poller.testwf;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.Set;
 
 import com.danielgmyers.flux.clients.swf.step.Attribute;
 import com.danielgmyers.flux.clients.swf.step.PartitionIdGenerator;
+import com.danielgmyers.flux.clients.swf.step.PartitionIdGeneratorResult;
 import com.danielgmyers.flux.clients.swf.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.clients.swf.step.StepApply;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
@@ -38,7 +38,7 @@ public class TestPartitionedStepWithExtraInput implements PartitionedWorkflowSte
     }
 
     @PartitionIdGenerator
-    public List<String> partitionIds(@Attribute(INPUT_ATTR) String foo) {
-        return Arrays.asList("1", "2");
+    public PartitionIdGeneratorResult partitionIds(@Attribute(INPUT_ATTR) String foo) {
+        return PartitionIdGeneratorResult.create(Set.of("1", "2"));
     }
 }

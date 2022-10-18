@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,6 +11,7 @@ import java.util.UUID;
 
 import com.danielgmyers.flux.clients.swf.step.Attribute;
 import com.danielgmyers.flux.clients.swf.step.PartitionIdGenerator;
+import com.danielgmyers.flux.clients.swf.step.PartitionIdGeneratorResult;
 import com.danielgmyers.flux.clients.swf.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.clients.swf.step.StepApply;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
@@ -120,14 +120,14 @@ public class PartitionedWorkflowTests extends WorkflowTestBase {
          * Also inserts an empty set into the executedPartitionsByWorkflowId map.
          */
         @PartitionIdGenerator
-        public List<String> generatePartitionIds(@Attribute(StepAttributes.WORKFLOW_ID) String workflowId) {
+        public PartitionIdGeneratorResult generatePartitionIds(@Attribute(StepAttributes.WORKFLOW_ID) String workflowId) {
             Set<String> ids = new HashSet<>();
             for (int i = 0; i < 10; i++) {
                 ids.add(UUID.randomUUID().toString());
             }
             executedPartitionsByWorkflowId.put(workflowId, Collections.synchronizedSet(new HashSet<>()));
             generatedPartitionsByWorkflowId.put(workflowId, ids);
-            return new LinkedList<>(ids);
+            return PartitionIdGeneratorResult.create(ids);
         }
 
         public static Map<String, Set<String>> getGeneratedPartitionsByWorkflowId() {

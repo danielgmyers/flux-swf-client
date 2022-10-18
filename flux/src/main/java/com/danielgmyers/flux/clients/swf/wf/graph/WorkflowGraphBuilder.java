@@ -155,12 +155,10 @@ public class WorkflowGraphBuilder {
             try {
                 Method partitionIdGeneratorMethod = WorkflowStepUtil.getUniqueAnnotatedMethod(step.getClass(),
                                                                                               PartitionIdGenerator.class);
-                if (!List.class.equals(partitionIdGeneratorMethod.getReturnType())
-                        && !PartitionIdGeneratorResult.class.equals(partitionIdGeneratorMethod.getReturnType())) {
-                    throw new WorkflowGraphBuildException(String.format("%s.%s must have a return type of List<String>"
-                                                                        + " or PartitionIdGeneratorResult.",
-                                                                        step.getClass().getSimpleName(),
-                                                                        partitionIdGeneratorMethod.getName()));
+                if ( !PartitionIdGeneratorResult.class.equals(partitionIdGeneratorMethod.getReturnType())) {
+                    throw new WorkflowGraphBuildException(
+                            String.format("%s.%s must have a return type of PartitionIdGeneratorResult.",
+                                          step.getClass().getSimpleName(), partitionIdGeneratorMethod.getName()));
                 }
 
                 for (Parameter param : partitionIdGeneratorMethod.getParameters()) {
