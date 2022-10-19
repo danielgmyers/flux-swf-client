@@ -23,12 +23,12 @@
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
-            <version>4.2.3</version>
+            <version>5.1.0</version>
         </dependency>
         <dependency>
             <groupId>io.github.classgraph</groupId>
             <artifactId>classgraph</artifactId>
-            <version>4.8.90</version>
+            <version>4.8.149</version>
         </dependency>
 
         <!-- flux internal dependencies -->
@@ -43,7 +43,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>${junit5.version}</version> <!-- this was written against newer junit than the rest of the code -->
+            <version>${junit5.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
