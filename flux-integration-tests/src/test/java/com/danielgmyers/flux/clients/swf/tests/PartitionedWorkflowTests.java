@@ -21,6 +21,9 @@ import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,12 +32,19 @@ import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 /**
  * Tests that validate Flux's behavior for partitioned workflows.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Execution(ExecutionMode.CONCURRENT)
 public class PartitionedWorkflowTests extends WorkflowTestBase {
     private final static Logger log = LoggerFactory.getLogger(PartitionedWorkflowTests.class);
 
     @Override
     List<Workflow> getWorkflowsForTest() {
         return Collections.singletonList(new PartitionedGreeting());
+    }
+
+    @Override
+    Logger getLogger() {
+        return log;
     }
 
     int getWorkerPoolThreadCount() {

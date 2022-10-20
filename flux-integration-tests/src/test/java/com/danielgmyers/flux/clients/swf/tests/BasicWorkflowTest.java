@@ -16,17 +16,30 @@ import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Validates very basic workflow functionality.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Execution(ExecutionMode.CONCURRENT)
 public class BasicWorkflowTest extends WorkflowTestBase {
+    private static final Logger log = LoggerFactory.getLogger(BasicWorkflowTest.class);
 
     @Override
     List<Workflow> getWorkflowsForTest() {
         return Collections.singletonList(new HelloWorld());
+    }
+
+    @Override
+    Logger getLogger() {
+        return log;
     }
 
     /**
