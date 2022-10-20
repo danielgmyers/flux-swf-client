@@ -20,6 +20,9 @@ import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,12 +31,19 @@ import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 /**
  * Validates we can run workflows against a remote region.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Execution(ExecutionMode.CONCURRENT)
 public class RemoteWorkflowTest extends WorkflowTestBase {
     private static final Logger log = LoggerFactory.getLogger(RemoteWorkflowTest.class);
 
     @Override
     List<Workflow> getWorkflowsForTest() {
         return Collections.singletonList(new HelloWorld());
+    }
+
+    @Override
+    Logger getLogger() {
+        return log;
     }
 
     /**

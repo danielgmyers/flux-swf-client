@@ -14,11 +14,10 @@ import com.danielgmyers.flux.clients.swf.RemoteWorkflowExecutor;
 import com.danielgmyers.flux.clients.swf.TestConfig;
 import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -43,7 +42,6 @@ import software.amazon.awssdk.services.swf.paginators.ListOpenWorkflowExecutions
  */
 @Disabled
 public abstract class WorkflowTestBase {
-    private static final Logger log = LoggerFactory.getLogger(WorkflowTestBase.class);
 
     private SwfClient swfClient;
     private FluxCapacitor capacitor;
@@ -59,6 +57,11 @@ public abstract class WorkflowTestBase {
 
     abstract List<Workflow> getWorkflowsForTest();
 
+    /**
+     * Test classes should override this so that the logger has the test class name in it instead of WorkflowTestBase.
+     */
+    abstract Logger getLogger();
+
     int getWorkerPoolThreadCount() {
         return 1;
     }
@@ -66,7 +69,7 @@ public abstract class WorkflowTestBase {
     /**
      * Configures an SWF client and the FluxCapacitor.
      */
-    @BeforeEach
+    @BeforeAll
     public void setUpFluxCapacitor() {
         swfClient = createSwfClient(true);
 
@@ -92,7 +95,7 @@ public abstract class WorkflowTestBase {
     }
 
     protected FluxCapacitor createFluxCapacitor(boolean localRegion, List<Workflow> workflows) {
-        log.info(String.format("Initializing %s Flux with domain %s...", (localRegion ? "local" : "remote"), getWorkflowDomain()));
+        getLogger().info(String.format("Initializing %s Flux with domain %s...", (localRegion ? "local" : "remote"), getWorkflowDomain()));
         FluxCapacitorConfig config;
         if (localRegion) {
             config = TestConfig.generateFluxConfig(getWorkflowDomain(), getWorkerPoolThreadCount());
@@ -103,7 +106,7 @@ public abstract class WorkflowTestBase {
         FluxCapacitor capacitor = FluxCapacitorFactory.create(new NoopMetricRecorderFactory(),
                                                               DefaultCredentialsProvider.create(), config);
         capacitor.initialize(workflows);
-        log.info(String.format("Finished initializing %s Flux with domain %s...",
+        getLogger().info(String.format("Finished initializing %s Flux with domain %s...",
                                (localRegion ? "local" : "remote"), getWorkflowDomain()));
         return capacitor;
     }
@@ -115,18 +118,16 @@ public abstract class WorkflowTestBase {
     /**
      * Cleans up Flux.
      */
-    @AfterEach
+    @AfterAll
     public void cleanUpFluxCapacitor() throws InterruptedException {
-        log.info("Shutting down Flux with domain " + getWorkflowDomain() + "...");
+        getLogger().info("Shutting down Flux with domain " + getWorkflowDomain() + "...");
         capacitor.shutdown();
-        capacitor.awaitTermination(75, TimeUnit.SECONDS);
-        log.info("Flux shutdown complete for domain " + getWorkflowDomain() + ".");
 
         terminateOpenWorkflowExecutions(swfClient);
     }
 
     protected void terminateOpenWorkflowExecutions(SwfClient swf) {
-        log.info("Looking for workflow executions to terminate...");
+        getLogger().info("Looking for workflow executions to terminate...");
 
         Instant now = Instant.now();
         ListOpenWorkflowExecutionsRequest request = ListOpenWorkflowExecutionsRequest.builder()
@@ -139,19 +140,24 @@ public abstract class WorkflowTestBase {
         boolean found = false;
         for (WorkflowExecutionInfo info: infos.executionInfos()) {
             found = true;
-            log.info("Found execution of " + info.workflowType().name() + " with id " + info.execution().workflowId()
+            getLogger().info("Found execution of " + info.workflowType().name() + " with id " + info.execution().workflowId()
                     + ", terminating...");
-            swf.terminateWorkflowExecution(TerminateWorkflowExecutionRequest.builder().domain(getWorkflowDomain())
-                                                    .workflowId(info.execution().workflowId()).build());
+            try {
+                swf.terminateWorkflowExecution(TerminateWorkflowExecutionRequest.builder().domain(getWorkflowDomain())
+                                                       .workflowId(info.execution().workflowId()).build());
+            } catch (UnknownResourceException e) {
+                getLogger().info("Execution " + info.execution().workflowId()
+                                 + " terminated on its own before we could terminate it.", e);
+            }
         }
 
         if (!found) {
-            log.info("No workflow executions eligible for termination found.");
+            getLogger().info("No workflow executions eligible for termination found.");
         }
     }
 
     void signalWorkflowExecution(String workflowId, String signalName, String signalContent) {
-        log.info(String.format("Sending %s signal to workflow %s with content: %n%s",
+        getLogger().info(String.format("Sending %s signal to workflow %s with content: %n%s",
                                signalName, workflowId, signalContent));
         SignalWorkflowExecutionRequest request = SignalWorkflowExecutionRequest.builder()
                 .domain(getWorkflowDomain()).workflowId(workflowId).signalName(signalName).input(signalContent).build();
@@ -173,7 +179,7 @@ public abstract class WorkflowTestBase {
         Instant now = Instant.now();
         Instant stopWaiting = now.plus(timeout);
 
-        log.info("Waiting for workflow " + workflowId + " to close for up to " + timeout.getSeconds() + " seconds.");
+        getLogger().info("Waiting for workflow " + workflowId + " to close for up to " + timeout.getSeconds() + " seconds.");
 
         while (true) {
             try {
@@ -185,18 +191,18 @@ public abstract class WorkflowTestBase {
 
                 ListClosedWorkflowExecutionsResponse infos = swfClient.listClosedWorkflowExecutions(request);
                 if (infos.executionInfos() != null && !infos.executionInfos().isEmpty()) {
-                    log.info("Found closed execution for workflow id " + workflowId
+                    getLogger().info("Found closed execution for workflow id " + workflowId
                                      + ", runId: " + infos.executionInfos().get(0).execution().runId());
                     return infos.executionInfos().get(0);
                 }
             } catch (UnknownResourceException e) {
-                log.warn("Got UnknownResourceException trying to list closed workflows.", e);
+                getLogger().warn("Got UnknownResourceException trying to list closed workflows.", e);
             }
-            log.info("Workflow with id " + workflowId + " does not appear to be closed yet.");
+            getLogger().info("Workflow with id " + workflowId + " does not appear to be closed yet.");
 
             if (now.isAfter(stopWaiting)) {
                 String message = "Timed out waiting for completion of workflow with id: " + workflowId;
-                log.warn(message);
+                getLogger().warn(message);
                 throw new RuntimeException(message);
             }
 

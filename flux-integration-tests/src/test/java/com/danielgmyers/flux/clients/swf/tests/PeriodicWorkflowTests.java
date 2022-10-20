@@ -13,18 +13,28 @@ import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Tests that validate Flux's behavior for @Periodic workflows.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Execution(ExecutionMode.CONCURRENT)
 public class PeriodicWorkflowTests extends WorkflowTestBase {
     private static final Logger log = LoggerFactory.getLogger(PeriodicWorkflowTests.class);
 
     @Override
     List<Workflow> getWorkflowsForTest() {
         return Collections.singletonList(new PeriodicHello());
+    }
+
+    @Override
+    Logger getLogger() {
+        return log;
     }
 
     /**

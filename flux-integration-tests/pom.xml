@@ -62,11 +62,6 @@
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <!-- The integration tests make a lot of network requests,
-                         so this limits how much happens concurrently -->
-                    <threadCount>2</threadCount>
-                </configuration>
             </plugin>
         </plugins>
     </build>

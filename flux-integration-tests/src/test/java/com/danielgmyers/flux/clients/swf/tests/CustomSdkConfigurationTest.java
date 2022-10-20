@@ -19,6 +19,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.interceptor.Context;
@@ -32,7 +37,10 @@ import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
  * got wired into the SwfClient, we'll configure it with an execution interceptor
  * and verify that the interceptor got called during the HelloWorld workflow.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Execution(ExecutionMode.CONCURRENT)
 public class CustomSdkConfigurationTest extends WorkflowTestBase {
+    private static final Logger log = LoggerFactory.getLogger(CustomSdkConfigurationTest.class);
 
     private boolean interceptorCalled;
 
@@ -64,6 +72,11 @@ public class CustomSdkConfigurationTest extends WorkflowTestBase {
     @Override
     List<Workflow> getWorkflowsForTest() {
         return Collections.singletonList(new HelloWorld());
+    }
+
+    @Override
+    Logger getLogger() {
+        return log;
     }
 
     /**

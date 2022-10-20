@@ -19,6 +19,9 @@ import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +30,8 @@ import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 /**
  * Tests that validate Flux's behavior for multi-step workflows.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Execution(ExecutionMode.CONCURRENT)
 public class MultiStepWorkflowTests extends WorkflowTestBase {
     private static final Logger log = LoggerFactory.getLogger(MultiStepWorkflowTests.class);
 
@@ -35,6 +40,11 @@ public class MultiStepWorkflowTests extends WorkflowTestBase {
     @Override
     List<Workflow> getWorkflowsForTest() {
         return Collections.singletonList(new MultiStep());
+    }
+
+    @Override
+    Logger getLogger() {
+        return log;
     }
 
     int getWorkerPoolThreadCount() {
