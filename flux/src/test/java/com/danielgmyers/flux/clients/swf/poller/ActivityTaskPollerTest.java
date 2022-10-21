@@ -42,6 +42,8 @@ import org.easymock.IMocksControl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.swf.SwfClient;
@@ -60,6 +62,7 @@ import software.amazon.awssdk.services.swf.model.TaskList;
 import software.amazon.awssdk.services.swf.model.UnknownResourceException;
 import software.amazon.awssdk.services.swf.model.WorkflowExecution;
 
+@Execution(ExecutionMode.CONCURRENT)
 public class ActivityTaskPollerTest {
 
     public static class DummyStep implements WorkflowStep {
