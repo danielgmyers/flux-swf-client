@@ -24,7 +24,7 @@ import com.danielgmyers.flux.clients.swf.wf.Workflow;
 /**
  * Represents an object that can execute workflows against a different endpoint and/or using different credentials
  * than the main FluxCapacitor. Should be used only when there is no cleaner way to do cross-region or
- * cross-acount operations (e.g. when there are no API endpoints available other than the SWF endpoints).
+ * cross-account operations (e.g. when there are no API endpoints available other than the workflow service endpoints).
  *
  * Some caveats: this assumes you're already running the real FluxCapacitor against the remote region in the provided account,
  * which should take care of registering workflows, domains, etc.

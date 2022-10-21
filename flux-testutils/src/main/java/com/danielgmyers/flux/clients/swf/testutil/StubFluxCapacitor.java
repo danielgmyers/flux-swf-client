@@ -31,10 +31,6 @@ import com.danielgmyers.flux.clients.swf.poller.TaskNaming;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.services.swf.SwfClient;
-import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
-
 /**
  * A stub FluxCapacitor implementation intended to be used by unit tests.
  */
@@ -97,27 +93,13 @@ public class StubFluxCapacitor implements FluxCapacitor {
             }
             executedWorkflows.put(execution, Collections.unmodifiableMap(inputCopy));
         }
-        return new WorkflowStatusChecker() {
-            // TODO -- make some way for the test to control what checkStatus returns
-            @Override
-            public WorkflowStatus checkStatus() {
-                return WorkflowStatus.UNKNOWN;
-            }
 
-            @Override
-            public WorkflowExecutionInfo getExecutionInfo() {
-                return null;
-            }
-
-            public SwfClient getSwfClient() {
-                return null;
-            }
-        };
+        // TODO -- make some way for the test to control what this returns
+        return () -> null;
     }
 
     @Override
-    public RemoteWorkflowExecutor getRemoteWorkflowExecutor(String swfRegion, String swfEndpoint,
-                                                            AwsCredentialsProvider credentials, String workflowDomain) {
+    public RemoteWorkflowExecutor getRemoteWorkflowExecutor(String endpointId, String workflowDomain) {
         return new StubRemoteWorkflowExecutor();
     }
 

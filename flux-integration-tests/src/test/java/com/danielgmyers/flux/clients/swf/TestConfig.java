@@ -21,24 +21,13 @@ public final class TestConfig {
     }
 
     /**
-     * Retrieves the configured SWF endpoint.
+     * Retrieves the configured remote region.
      */
-    public static String getSwfEndpoint() {
-        return System.getProperty("swfEndpoint", null);
-    }
-
-    /**
-     * Gets the region to be used in the Remote Workflow tests.
-     */
-    public static String getRemoteRegion() {
-        return System.getProperty("remoteRegion", "us-east-1");
-    }
-
-    /**
-     * Gets the SWF endpoint to be used in the Remote Workflow tests.
-     */
-    public static String getRemoteEndpoint() {
-        return System.getProperty("remoteEndpoint", null);
+    public static RemoteSwfClientConfig getRemoteClientConfig() {
+        RemoteSwfClientConfig config = new RemoteSwfClientConfig();
+        config.setAwsRegion(System.getProperty("remoteRegion", "us-east-1"));
+        config.setSwfEndpoint(System.getProperty("remoteEndpoint", null));
+        return config;
     }
 
     /**
@@ -49,7 +38,7 @@ public final class TestConfig {
      * @param workerPoolSize - the size of the thread pool for the deciders and workers.
      */
     public static FluxCapacitorConfig generateFluxConfig(String swfDomain, int workerPoolSize) {
-        return generateFluxConfig(getAwsRegion(), getSwfEndpoint(), swfDomain, workerPoolSize);
+        return generateFluxConfig(getAwsRegion(), swfDomain, workerPoolSize);
     }
 
     /**
@@ -60,15 +49,13 @@ public final class TestConfig {
      * @param workerPoolSize - the size of the thread pool for the deciders and workers.
      */
     public static FluxCapacitorConfig generateRemoteFluxConfig(String swfDomain, int workerPoolSize) {
-        return generateFluxConfig(getRemoteRegion(), getRemoteEndpoint(), swfDomain, workerPoolSize);
+        RemoteSwfClientConfig remoteConfig = getRemoteClientConfig();
+        return generateFluxConfig(remoteConfig.getAwsRegion(), swfDomain, workerPoolSize);
     }
 
-    private static FluxCapacitorConfig generateFluxConfig(String region, String endpoint, String domain, int poolSize) {
+    private static FluxCapacitorConfig generateFluxConfig(String region, String domain, int poolSize) {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
         config.setAwsRegion(region);
-        if (endpoint != null) {
-            config.setSwfEndpoint(endpoint); // endpoint is determined automatically from region if endpoint is not set
-        }
         config.setSwfDomain(domain);
 
         TaskListConfig tasklistConfig = new TaskListConfig();

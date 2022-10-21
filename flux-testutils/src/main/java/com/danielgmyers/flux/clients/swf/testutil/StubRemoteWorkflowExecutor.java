@@ -27,9 +27,6 @@ import com.danielgmyers.flux.clients.swf.poller.TaskNaming;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 
-import software.amazon.awssdk.services.swf.SwfClient;
-import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
-
 /**
  * Stub implementation of the RemoteWorkflowExecutor interface, useful for writing unit tests against Flux.
  */
@@ -54,21 +51,8 @@ public class StubRemoteWorkflowExecutor implements RemoteWorkflowExecutor {
     public WorkflowStatusChecker executeWorkflow(Class<? extends Workflow> workflowType, String workflowId,
                                                  Map<String, Object> workflowInput, Set<String> executionTags) {
         executedWorkflows.put(new WorkflowExecutionRecord(workflowType, workflowId), workflowInput);
-        return new WorkflowStatusChecker() {
-            @Override
-            public WorkflowStatus checkStatus() {
-                return WorkflowStatus.UNKNOWN;
-            }
-
-            @Override
-            public WorkflowExecutionInfo getExecutionInfo() {
-                return null;
-            }
-
-            public SwfClient getSwfClient() {
-                return null;
-            }
-        };
+        // TODO -- make some way for the test to control what this returns
+        return () -> null;
     }
 
     /**

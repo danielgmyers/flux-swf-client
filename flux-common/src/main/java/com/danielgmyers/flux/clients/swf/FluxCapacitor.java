@@ -23,8 +23,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-
 /**
  * The primary interface through which the Flux library is used at runtime.
  */
@@ -65,10 +63,15 @@ public interface FluxCapacitor {
                                           Set<String> executionTags);
 
     /**
-     * Returns an object that can submit workflow executions against a different region/endpoint and with different credentials.
+     * Returns an object that can submit workflow executions to another workflow service endpoint.
+     * The FluxCapacitor implementation will require one or more callbacks to be provided via configuration
+     * to look up the necessary information to initialize the underlying client.
+     *
+     * @param endpointId This should be an identifier that can be used by the aforementioned configuration callbacks to determine
+     *                   which configuration data to supply to the underlying client.
+     * @param workflowDomain The domain that the remote workflows should be executed in.
      */
-    RemoteWorkflowExecutor getRemoteWorkflowExecutor(String swfRegion, String swfEndpoint, AwsCredentialsProvider credentials,
-                                                     String workflowDomain);
+    RemoteWorkflowExecutor getRemoteWorkflowExecutor(String endpointId, String workflowDomain);
 
     /**
      * Shuts down this FluxCapacitor object's worker thread pools. Running threads are not interrupted.

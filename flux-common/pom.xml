@@ -33,9 +33,9 @@
             <optional>false</optional>
         </dependency>
         <dependency>
-            <artifactId>swf</artifactId>
-            <groupId>software.amazon.awssdk</groupId>
-            <version>${awssdk.version}</version>
+            <artifactId>slf4j-api</artifactId>
+            <groupId>org.slf4j</groupId>
+            <version>${slf4j.version}</version>
             <optional>false</optional>
         </dependency>
 

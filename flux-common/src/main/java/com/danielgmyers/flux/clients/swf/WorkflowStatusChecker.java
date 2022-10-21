@@ -16,8 +16,8 @@
 
 package com.danielgmyers.flux.clients.swf;
 
-import software.amazon.awssdk.services.swf.SwfClient;
-import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
+import com.danielgmyers.flux.clients.swf.wf.WorkflowInfo;
+import com.danielgmyers.flux.clients.swf.wf.WorkflowStatus;
 
 /**
  * Allows checking the status of a workflow execution. Obtained from a FluxCapacitor or RemoteWorkflowExecutor.
@@ -25,24 +25,20 @@ import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 public interface WorkflowStatusChecker {
 
     /**
-     * Represents the status of a workflow. This is a composite of the workflow's ExecutionStatus and CloseStatus.
-     */
-    enum WorkflowStatus { IN_PROGRESS, COMPLETED, FAILED, CANCELED, TERMINATED, TIMED_OUT, UNKNOWN }
-
-    /**
-     * Queries SWF to determine the status of the associated workflow execution.
+     * Queries the workflow service to determine the status of the associated workflow execution.
      * Returns WorkflowStatus.UNKNOWN if the status could not be retrieved.
      */
-    WorkflowStatus checkStatus();
+    default WorkflowStatus checkStatus() {
+        WorkflowInfo info = getWorkflowInfo();
+        if (info == null) {
+            return WorkflowStatus.UNKNOWN;
+        }
+        return info.getWorkflowStatus();
+    }
 
     /**
-     * Queries SWF to retrieve the current WorkflowExecutionInfo for the associated execution.
-     * May return null if the execution info could not be retrieved.
+     * Queries the workflow service to retrieve detailed information about the workflow execution.
+     * May return null if the information could not be retrieved.
      */
-    WorkflowExecutionInfo getExecutionInfo();
-
-    /**
-     * Useful primarily in integration tests, this allows the raw SWF client to be retrieved from the status checker.
-     */
-    SwfClient getSwfClient();
+    WorkflowInfo getWorkflowInfo();
 }

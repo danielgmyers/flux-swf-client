@@ -9,6 +9,8 @@ import java.util.concurrent.TimeUnit;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitor;
 import com.danielgmyers.flux.clients.swf.RemoteWorkflowExecutor;
+import com.danielgmyers.flux.clients.swf.wf.WorkflowInfo;
+import com.danielgmyers.flux.clients.swf.wf.WorkflowStatus;
 import com.danielgmyers.flux.clients.swf.WorkflowStatusChecker;
 import com.danielgmyers.flux.clients.swf.step.Attribute;
 import com.danielgmyers.flux.clients.swf.step.StepApply;
@@ -18,7 +20,7 @@ import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
@@ -26,7 +28,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
+import software.amazon.awssdk.services.swf.SwfClient;
 
 /**
  * Validates we can run workflows against a remote region.
@@ -49,7 +51,7 @@ public class RemoteWorkflowTest extends WorkflowTestBase {
     /**
      * Ensures the workflow type is registered in the remote region.
      */
-    @BeforeEach
+    @BeforeAll
     public void setUpRemoteWorkflows() throws InterruptedException {
         // This is probably suboptimal but here all we're trying to do is ensure our workflows are registered in the remote region.
         FluxCapacitor remoteCapacitor = createFluxCapacitor(false, getWorkflowsForTest());
@@ -72,16 +74,15 @@ public class RemoteWorkflowTest extends WorkflowTestBase {
         log.info("Requesting execution of remote workflow...");
         RemoteWorkflowExecutor remoteExecutor = getRemoteWorkflowExecutor();
         WorkflowStatusChecker status = remoteExecutor.executeWorkflow(HelloWorld.class, uuid, Collections.emptyMap());
-        WorkflowStatusChecker.WorkflowStatus lastStatus = status.checkStatus();
-        log.info("Received status " + lastStatus.toString() + " for requested remote workflow.");
+        WorkflowInfo info = status.getWorkflowInfo();
+        log.info("Received status " + info.getWorkflowStatus() + " for requested remote workflow.");
 
-        WorkflowExecutionInfo info = status.getExecutionInfo();
-        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME),
-                                new HashSet<>(info.tagList()));
+        Assertions.assertEquals(Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME), info.getExecutionTags());
 
-        Assertions.assertEquals(WorkflowStatusChecker.WorkflowStatus.IN_PROGRESS, status.checkStatus());
+        Assertions.assertEquals(WorkflowStatus.IN_PROGRESS, info.getWorkflowStatus());
 
-        terminateOpenWorkflowExecutions(status.getSwfClient());
+        SwfClient remoteSwf = createSwfClient(false);
+        terminateOpenWorkflowExecutions(remoteSwf);
     }
 
     /**

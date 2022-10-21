@@ -20,13 +20,6 @@
     </licenses>
 
     <dependencies>
-        <dependency>
-            <artifactId>swf</artifactId>
-            <groupId>software.amazon.awssdk</groupId>
-            <version>${awssdk.version}</version>
-            <optional>false</optional>
-        </dependency>
-
         <!-- flux internal dependencies -->
         <dependency>
             <artifactId>flux-common</artifactId>
@@ -40,12 +33,6 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${junit5.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.easymock</groupId>
-            <artifactId>easymock</artifactId>
-            <version>${easymock.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
