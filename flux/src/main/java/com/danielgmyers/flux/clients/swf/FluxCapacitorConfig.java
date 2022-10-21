@@ -36,6 +36,7 @@ public class FluxCapacitorConfig {
     private ClientOverrideConfiguration clientOverrideConfiguration;
     private final Map<String, TaskListConfig> taskListConfigs = new HashMap<>();
     private Boolean automaticallyTagExecutionsWithTaskList;
+    private Function<String, RemoteSwfClientConfig> remoteSwfClientConfigProvider;
 
     public String getAwsRegion() {
         return awsRegion;
@@ -274,5 +275,19 @@ public class FluxCapacitorConfig {
 
     public Boolean getAutomaticallyTagExecutionsWithTaskList() {
         return automaticallyTagExecutionsWithTaskList;
+    }
+
+    /**
+     * Specifies a callback function that Flux can use to retrieve configuration for a RemoteWorkflowExecutor.
+     * The input to this callback is an arbitrary "endpoint id". This string is provided by the user
+     * as input to FluxCapacitor.getRemoteWorkflowExecutor().
+     * For example, the user might choose to map the endpoint id "standby-region" to a particular remote region config.
+     */
+    public void setRemoteSwfClientConfigProvider(Function<String, RemoteSwfClientConfig> remoteSwfClientConfigProvider) {
+        this.remoteSwfClientConfigProvider = remoteSwfClientConfigProvider;
+    }
+
+    public Function<String, RemoteSwfClientConfig> getRemoteSwfClientConfigProvider() {
+        return remoteSwfClientConfigProvider;
     }
 }

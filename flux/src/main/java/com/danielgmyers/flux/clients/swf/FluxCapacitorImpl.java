@@ -56,6 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.core.retry.backoff.BackoffStrategy;
@@ -77,7 +78,6 @@ import software.amazon.awssdk.services.swf.model.TaskList;
 import software.amazon.awssdk.services.swf.model.TypeAlreadyExistsException;
 import software.amazon.awssdk.services.swf.model.UnknownResourceException;
 import software.amazon.awssdk.services.swf.model.WorkflowExecutionAlreadyStartedException;
-import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 import software.amazon.awssdk.services.swf.model.WorkflowType;
 
 /**
@@ -152,7 +152,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
             overrideConfig = ClientOverrideConfiguration.builder()
                                                         .retryPolicy(retryPolicy)
                                                         .build();
-        } else if (!overrideConfig.retryPolicy().isPresent()) {
+        } else if (overrideConfig.retryPolicy().isEmpty()) {
             overrideConfig = overrideConfig.toBuilder().retryPolicy(retryPolicy).build();
         }
 
@@ -228,27 +228,13 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
         try {
             StartWorkflowExecutionResponse response = swf.startWorkflowExecution(request);
             log.debug("Started workflow {} with id {}: received execution id {}.", workflowName, workflowId, response.runId());
-            return new WorkflowStatusCheckerImpl(swf, workflowDomain, workflowId, response.runId());
+            return new WorkflowStatusCheckerImpl(clock, swf, workflowDomain, workflowId, response.runId());
         } catch (WorkflowExecutionAlreadyStartedException e) {
             log.debug("Attempted to start workflow {} with id {} but it was already started.", workflowName, workflowId, e);
             // swallow, we're ok with this happening
 
             // TODO -- figure out how to find the run id so we can return a useful WorkflowStatusChecker
-            return new WorkflowStatusChecker() {
-                @Override
-                public WorkflowStatus checkStatus() {
-                    return WorkflowStatus.UNKNOWN;
-                }
-
-                @Override
-                public WorkflowExecutionInfo getExecutionInfo() {
-                    return null;
-                }
-
-                public SwfClient getSwfClient() {
-                    return swf;
-                }
-            };
+            return () -> null;
         } catch (Exception e) {
             String message = String.format("Got exception attempting to start workflow %s with id %s",
                                            workflowName, workflowId);
@@ -258,22 +244,34 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     }
 
     @Override
-    public RemoteWorkflowExecutor getRemoteWorkflowExecutor(String swfRegion, String swfEndpoint,
-                                                            AwsCredentialsProvider credentials, String workflowDomain) {
+    public RemoteWorkflowExecutor getRemoteWorkflowExecutor(String endpointId, String workflowDomain) {
         // for the regular FluxCapacitor SwfClient, we disabled all the retry logic
         // since we do our own for metrics purposes. However the remote client is not used
         // for much, and we don't bother emitting metrics for it, so the defaults are fine.
 
-        // this is where we'd add an execution interceptor for e.g. SDK metrics
-        ClientOverrideConfiguration overrideConfig = ClientOverrideConfiguration.builder().build();
+        Function<String, RemoteSwfClientConfig> remoteConfigProvider = config.getRemoteSwfClientConfigProvider();
+        if (remoteConfigProvider == null) {
+            throw new IllegalStateException("Cannot create a remote workflow executor without a remote client config provider.");
+        }
+        RemoteSwfClientConfig remoteConfig = remoteConfigProvider.apply(endpointId);
+
+        AwsCredentialsProvider credentials = remoteConfig.getCredentials();
+        if (credentials == null) {
+            credentials = DefaultCredentialsProvider.create();
+        }
+
+        ClientOverrideConfiguration overrideConfig = remoteConfig.getClientOverrideConfiguration();
+        if (overrideConfig == null) {
+            overrideConfig = ClientOverrideConfiguration.builder().build();
+        }
 
         SwfClientBuilder customSwf = SwfClient.builder().credentialsProvider(credentials)
-                .region(Region.of(swfRegion))
+                .region(Region.of(remoteConfig.getAwsRegion()))
                 .overrideConfiguration(overrideConfig);
-        if (swfEndpoint != null) {
-            customSwf.endpointOverride(URI.create(swfEndpoint));
+        if (remoteConfig.getSwfEndpoint() != null) {
+            customSwf.endpointOverride(URI.create(remoteConfig.getSwfEndpoint()));
         }
-        return new RemoteWorkflowExecutorImpl(metricsFactory, workflowsByName, customSwf.build(), config);
+        return new RemoteWorkflowExecutorImpl(clock, metricsFactory, workflowsByName, customSwf.build(), config);
     }
 
     @Override

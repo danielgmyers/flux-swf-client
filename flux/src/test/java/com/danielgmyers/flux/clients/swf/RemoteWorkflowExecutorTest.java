@@ -16,6 +16,7 @@
 
 package com.danielgmyers.flux.clients.swf;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +26,7 @@ import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.poller.TaskNaming;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithPartitionedStep;
+import com.danielgmyers.flux.clients.swf.util.ManualClock;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
@@ -39,6 +41,7 @@ import software.amazon.awssdk.services.swf.model.WorkflowExecutionAlreadyStarted
 
 public class RemoteWorkflowExecutorTest {
 
+    private ManualClock clock;
     private IMocksControl mockery;
     private SwfClient swf;
     private RemoteWorkflowExecutorImpl rwe;
@@ -48,6 +51,8 @@ public class RemoteWorkflowExecutorTest {
 
     @BeforeEach
     public void setup() {
+        clock = new ManualClock(Instant.now());
+
         workflow = new TestWorkflow();
 
         mockery = EasyMock.createControl();
@@ -59,7 +64,7 @@ public class RemoteWorkflowExecutorTest {
         config = new FluxCapacitorConfig();
         config.setSwfDomain("test");
 
-        rwe = new RemoteWorkflowExecutorImpl(new NoopMetricRecorderFactory(), workflowsByName, swf, config);
+        rwe = new RemoteWorkflowExecutorImpl(clock, new NoopMetricRecorderFactory(), workflowsByName, swf, config);
     }
 
     @Test

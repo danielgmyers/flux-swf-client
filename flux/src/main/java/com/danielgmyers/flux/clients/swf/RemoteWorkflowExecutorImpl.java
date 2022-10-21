@@ -16,6 +16,7 @@
 
 package com.danielgmyers.flux.clients.swf;
 
+import java.time.Clock;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -31,7 +32,6 @@ import software.amazon.awssdk.services.swf.SwfClient;
 import software.amazon.awssdk.services.swf.model.StartWorkflowExecutionRequest;
 import software.amazon.awssdk.services.swf.model.StartWorkflowExecutionResponse;
 import software.amazon.awssdk.services.swf.model.WorkflowExecutionAlreadyStartedException;
-import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Real implementation of the RemoteWorkflowExecutor interface.
@@ -40,13 +40,15 @@ public class RemoteWorkflowExecutorImpl implements RemoteWorkflowExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(RemoteWorkflowExecutorImpl.class);
 
+    private final Clock clock;
     private final MetricRecorderFactory metricsFactory;
     private final Map<String, Workflow> workflowsByName;
     private final SwfClient swf;
     private final FluxCapacitorConfig config;
 
-    RemoteWorkflowExecutorImpl(MetricRecorderFactory metricsFactory, Map<String, Workflow> workflowsByName,
+    RemoteWorkflowExecutorImpl(Clock clock, MetricRecorderFactory metricsFactory, Map<String, Workflow> workflowsByName,
                                SwfClient swf, FluxCapacitorConfig config) {
+        this.clock = clock;
         this.metricsFactory = metricsFactory;
         this.swf = swf;
         this.config = config;
@@ -88,28 +90,14 @@ public class RemoteWorkflowExecutorImpl implements RemoteWorkflowExecutor {
             log.debug("Started remote workflow {} with id {}: received execution id {}.",
                       workflowName, workflowId, workflowRun.runId());
 
-            return new WorkflowStatusCheckerImpl(swf, config.getSwfDomain(), workflowId, workflowRun.runId());
+            return new WorkflowStatusCheckerImpl(clock, swf, config.getSwfDomain(), workflowId, workflowRun.runId());
         } catch (WorkflowExecutionAlreadyStartedException e) {
             // swallow, we're ok with this happening
             log.debug("Attempted to start remote workflow {} with id {} but it was already started.",
                       workflowName, workflowId, e);
 
-            // TODO - figure out how to get the execution id in this case, for now just always show an UNKNOWN status.
-            return new WorkflowStatusChecker() {
-                @Override
-                public WorkflowStatus checkStatus() {
-                    return WorkflowStatus.UNKNOWN;
-                }
-
-                @Override
-                public WorkflowExecutionInfo getExecutionInfo() {
-                    return null;
-                }
-
-                public SwfClient getSwfClient() {
-                    return swf;
-                }
-            };
+            // TODO - figure out how to get the execution id in this case, for now we don't have a way to query status
+            return () -> null;
         } catch (Exception e) {
             String message = String.format("Got exception attempting to start remote workflow %s with id %s",
                                            workflowName, workflowId);

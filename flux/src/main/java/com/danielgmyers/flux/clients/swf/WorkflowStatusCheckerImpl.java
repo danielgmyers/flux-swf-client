@@ -16,14 +16,15 @@
 
 package com.danielgmyers.flux.clients.swf;
 
+import java.time.Clock;
+
+import com.danielgmyers.flux.clients.swf.wf.WorkflowInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import software.amazon.awssdk.services.swf.SwfClient;
 import software.amazon.awssdk.services.swf.model.DescribeWorkflowExecutionRequest;
-import software.amazon.awssdk.services.swf.model.ExecutionStatus;
 import software.amazon.awssdk.services.swf.model.WorkflowExecution;
-import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;
 
 /**
  * Implements the WorkflowStatusChecker interface.
@@ -32,6 +33,7 @@ public class WorkflowStatusCheckerImpl implements WorkflowStatusChecker {
 
     private static final Logger log = LoggerFactory.getLogger(WorkflowStatusCheckerImpl.class);
 
+    private final Clock clock;
     private final SwfClient swf;
     private final String workflowDomain;
     private final String workflowId;
@@ -41,7 +43,8 @@ public class WorkflowStatusCheckerImpl implements WorkflowStatusChecker {
      * Constructs a WorkflowStatusCheckerImpl object. Package-private since it should only be created
      * by internal Flux code.
      */
-    WorkflowStatusCheckerImpl(SwfClient swf, String workflowDomain, String workflowId, String runId) {
+    WorkflowStatusCheckerImpl(Clock clock, SwfClient swf, String workflowDomain, String workflowId, String runId) {
+        this.clock = clock;
         this.swf = swf;
         this.workflowDomain = workflowDomain;
         this.workflowId = workflowId;
@@ -49,34 +52,7 @@ public class WorkflowStatusCheckerImpl implements WorkflowStatusChecker {
     }
 
     @Override
-    public WorkflowStatus checkStatus() {
-        WorkflowExecutionInfo executionInfo = getExecutionInfo();
-
-        if (executionInfo == null) {
-            return WorkflowStatus.UNKNOWN;
-        } else if (ExecutionStatus.OPEN == executionInfo.executionStatus()) {
-            return WorkflowStatus.IN_PROGRESS;
-        }
-
-        switch (executionInfo.closeStatus()) {
-            case FAILED:
-                return WorkflowStatus.FAILED;
-            case CANCELED:
-                return WorkflowStatus.CANCELED;
-            case TERMINATED:
-                return WorkflowStatus.TERMINATED;
-            case TIMED_OUT:
-                return WorkflowStatus.TIMED_OUT;
-            case COMPLETED:
-            case CONTINUED_AS_NEW:
-            case UNKNOWN_TO_SDK_VERSION: // we'll treat this as completed since we don't know what else to do.
-            default:
-                return WorkflowStatus.COMPLETED;
-        }
-    }
-
-    @Override
-    public WorkflowExecutionInfo getExecutionInfo() {
+    public WorkflowInfo getWorkflowInfo() {
         WorkflowExecution execution = WorkflowExecution.builder().workflowId(workflowId).runId(runId).build();
 
         DescribeWorkflowExecutionRequest request
@@ -86,17 +62,12 @@ public class WorkflowStatusCheckerImpl implements WorkflowStatusChecker {
                 .build();
 
         try {
-            return swf.describeWorkflowExecution(request).executionInfo();
+            return new SwfWorkflowInfo(clock.instant(), swf.describeWorkflowExecution(request).executionInfo());
         } catch (Exception e) {
             log.info("Error retrieving workflow status", e);
         }
 
         log.info("Unable to determine workflow status for remote workflow (id: {}, run id: {})", workflowId, runId);
         return null;
-    }
-
-    @Override
-    public SwfClient getSwfClient() {
-        return swf;
     }
 }
