@@ -23,7 +23,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
 import com.danielgmyers.flux.clients.swf.step.Attribute;
 import com.danielgmyers.flux.clients.swf.step.PartitionIdGenerator;
 import com.danielgmyers.flux.clients.swf.step.PartitionIdGeneratorResult;
@@ -31,6 +30,7 @@ import com.danielgmyers.flux.clients.swf.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.clients.swf.step.StepApply;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
 import com.danielgmyers.flux.clients.swf.step.StepResult;
+import com.danielgmyers.metrics.MetricRecorder;
 import org.junit.jupiter.api.Assertions;
 
 public class TestPartitionedStep implements PartitionedWorkflowStep {

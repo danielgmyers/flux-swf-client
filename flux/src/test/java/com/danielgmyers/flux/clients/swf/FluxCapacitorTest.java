@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.poller.TaskNaming;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPeriodicWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepOne;
@@ -39,6 +38,7 @@ import com.danielgmyers.flux.clients.swf.step.StepAttributes;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphNode;
+import com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;

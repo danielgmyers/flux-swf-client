@@ -21,7 +21,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPartitionedStep;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPostStepHook;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPreAndPostStepHook;
@@ -36,6 +35,7 @@ import com.danielgmyers.flux.clients.swf.step.StepHook;
 import com.danielgmyers.flux.clients.swf.step.StepResult;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStepHook;
+import com.danielgmyers.metrics.MetricRecorder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

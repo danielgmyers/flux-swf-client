@@ -22,12 +22,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.poller.TaskNaming;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithPartitionedStep;
 import com.danielgmyers.flux.clients.swf.util.ManualClock;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
+import com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
 import org.junit.jupiter.api.Assertions;

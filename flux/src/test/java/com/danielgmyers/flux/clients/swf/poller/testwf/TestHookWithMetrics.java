@@ -16,9 +16,9 @@
 
 package com.danielgmyers.flux.clients.swf.poller.testwf;
 
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
 import com.danielgmyers.flux.clients.swf.step.StepHook;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStepHook;
+import com.danielgmyers.metrics.MetricRecorder;
 
 public class TestHookWithMetrics implements WorkflowStepHook {
 

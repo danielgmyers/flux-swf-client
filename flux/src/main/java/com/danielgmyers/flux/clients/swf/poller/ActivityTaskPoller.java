@@ -20,12 +20,12 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.step.StepResult;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.util.RetryUtils;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
+import com.danielgmyers.metrics.MetricRecorder;
+import com.danielgmyers.metrics.MetricRecorderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

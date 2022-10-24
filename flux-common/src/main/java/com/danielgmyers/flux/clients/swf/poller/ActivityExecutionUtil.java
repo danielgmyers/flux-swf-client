@@ -4,11 +4,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
 
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
 import com.danielgmyers.flux.clients.swf.step.StepApply;
 import com.danielgmyers.flux.clients.swf.step.StepResult;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStepUtil;
+import com.danielgmyers.metrics.MetricRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

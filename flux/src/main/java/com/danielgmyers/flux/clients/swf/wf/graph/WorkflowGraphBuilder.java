@@ -31,7 +31,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
 import com.danielgmyers.flux.clients.swf.step.Attribute;
 import com.danielgmyers.flux.clients.swf.step.CloseWorkflow;
 import com.danielgmyers.flux.clients.swf.step.PartitionIdGenerator;
@@ -44,6 +43,7 @@ import com.danielgmyers.flux.clients.swf.step.StepResult;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStepHook;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStepUtil;
+import com.danielgmyers.metrics.MetricRecorder;
 
 /**
  * Helper to build a WorkflowGraph object without needing to figure out its internals.

@@ -17,6 +17,7 @@
 package com.danielgmyers.flux.clients.swf.poller;
 
 import java.net.SocketException;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -27,9 +28,6 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
-import com.danielgmyers.flux.clients.swf.metrics.InMemoryMetricRecorder;
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.step.StepApply;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
 import com.danielgmyers.flux.clients.swf.step.StepResult;
@@ -37,6 +35,9 @@ import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
+import com.danielgmyers.metrics.MetricRecorder;
+import com.danielgmyers.metrics.MetricRecorderFactory;
+import com.danielgmyers.metrics.recorders.InMemoryMetricRecorder;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
 import org.junit.jupiter.api.Assertions;
@@ -172,7 +173,7 @@ public class ActivityTaskPollerTest {
         metricsFactory = new MetricRecorderFactory() {
             private int requestNo = 0;
             @Override
-            public MetricRecorder newMetricRecorder(String operation) {
+            public MetricRecorder newMetricRecorder(String operation, Clock clock) {
                 requestNo++;
                 if (requestNo == 1) {
                     return pollThreadMetrics;

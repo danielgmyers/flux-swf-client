@@ -23,8 +23,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
-import com.danielgmyers.flux.clients.swf.metrics.InMemoryMetricRecorder;
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestHookWithMetrics;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPostStepHook;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPreAndPostStepHook;
@@ -43,6 +41,8 @@ import com.danielgmyers.flux.clients.swf.wf.graph.PostWorkflowHookAnchor;
 import com.danielgmyers.flux.clients.swf.wf.graph.PreWorkflowHookAnchor;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
+import com.danielgmyers.metrics.MetricRecorder;
+import com.danielgmyers.metrics.recorders.InMemoryMetricRecorder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -71,7 +71,7 @@ public class ActivityExecutorTest {
     @Test
     public void appliesStepIfInputIsNull() {
         PollForActivityTaskResponse task = makeTask(null, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
 
         Map<String, String> output = Collections.emptyMap();
         StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
@@ -79,6 +79,10 @@ public class ActivityExecutorTest {
 
         executor.run();
         Assertions.assertTrue(step.didThing());
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Map<String, String> fullOutput = new HashMap<>(output);
         fullOutput.put(StepAttributes.ACTIVITY_COMPLETION_MESSAGE, result.getMessage());
@@ -103,13 +107,17 @@ public class ActivityExecutorTest {
         Map<String, String> output = Collections.emptyMap();
 
         PollForActivityTaskResponse task = makeTask(input, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
         step.setStepResult(result);
 
         executor.run();
         Assertions.assertTrue(step.didThing());
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Map<String, String> fullOutput = new HashMap<>();
         fullOutput.putAll(input);
@@ -136,13 +144,17 @@ public class ActivityExecutorTest {
         Map<String, String> output = Collections.emptyMap();
 
         PollForActivityTaskResponse task = makeTask(input, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
         step.setStepResult(result);
 
         executor.run();
         Assertions.assertTrue(step.didThing());
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Map<String, String> fullOutput = new HashMap<>();
         fullOutput.putAll(input);
@@ -168,13 +180,17 @@ public class ActivityExecutorTest {
         Map<String, String> input = new HashMap<>();
 
         PollForActivityTaskResponse task = makeTask(input, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.RETRY, null, "hmm", Collections.emptyMap());
         step.setStepResult(result);
 
         executor.run();
         Assertions.assertTrue(step.didThing()); // true because the step did a thing before specifically deciding to return retry
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Assertions.assertNull(executor.getOutput()); // null because retry doesn't support output attributes, and there was no exception stack trace to record
 
@@ -193,13 +209,17 @@ public class ActivityExecutorTest {
         Map<String, String> input = new HashMap<>();
 
         PollForActivityTaskResponse task = makeTask(input, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
 
         RuntimeException e = new RuntimeException("message!");
         step.setExceptionToThrow(e);
 
         executor.run();
         Assertions.assertFalse(step.didThing()); // false because the step threw an exception in the middle of doing the thing
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         StringWriter sw = new StringWriter();
         e.printStackTrace(new PrintWriter(sw));
@@ -244,6 +264,10 @@ public class ActivityExecutorTest {
         // The stub step has a return type of void, so it should always just be a plain success result.
         Assertions.assertEquals(StepResult.success(), ActivityExecutionUtil.executeActivity(stub, activityName, fluxMetrics, stepMetrics, input));
 
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
+
         Assertions.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(activityName,
                                 StepResult.SUCCEED_RESULT_CODE)).intValue());
     }
@@ -265,6 +289,14 @@ public class ActivityExecutorTest {
 
         // The stub step has a return type of void, so it should always just be a plain success result.
         Assertions.assertEquals(StepResult.success(), ActivityExecutionUtil.executeActivity(stepWithMetrics, activityName, fluxMetrics, stepMetrics, Collections.emptyMap()));
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
+
+        // stepMetrics is usually closed by the ActivityTaskExecutor, outside the executeActivity call.
+        // We need to close it so we can query its data.
+        stepMetrics.close();
 
         Assertions.assertTrue(stepMetrics.getCounts().containsKey(stepMetric));
         Assertions.assertEquals(1, stepMetrics.getCounts().get(stepMetric).longValue());
@@ -297,7 +329,7 @@ public class ActivityExecutorTest {
         };
 
         PollForActivityTaskResponse task = makeTask(input, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
         step.setStepResult(result);
@@ -308,6 +340,10 @@ public class ActivityExecutorTest {
         Assertions.assertEquals(1, hook2.getPostStepHookCallCount());
         Assertions.assertEquals(1, hook3.getPreStepHookCallCount());
         Assertions.assertEquals(1, hook3.getPostStepHookCallCount());
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Map<String, String> fullOutput = new HashMap<>();
         fullOutput.putAll(input);
@@ -358,13 +394,17 @@ public class ActivityExecutorTest {
         };
 
         PollForActivityTaskResponse task = makeTask(input, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
         step.setStepResult(result);
 
         executor.run();
         Assertions.assertTrue(step.didThing());
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Assertions.assertTrue(stepMetrics.isClosed());
         Assertions.assertTrue(stepMetrics.getCounts().containsKey(TestHookWithMetrics.PRE_HOOK_METRIC_NAME));
@@ -423,13 +463,17 @@ public class ActivityExecutorTest {
         Assertions.assertEquals(PreWorkflowHookAnchor.class, anchorStep.getClass());
 
         PollForActivityTaskResponse task = makeTask(input, TaskNaming.activityName(TaskNaming.workflowName(workflow.getClass()), anchorStep));
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, anchorStep, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, anchorStep, fluxMetrics,  (o, c) -> stepMetrics);
 
         executor.run();
         Assertions.assertEquals(1, hook.getPreStepHookCallCount());
         Assertions.assertEquals(0, hook2.getPostStepHookCallCount());
         Assertions.assertEquals(1, hook3.getPreStepHookCallCount());
         Assertions.assertEquals(0, hook3.getPostStepHookCallCount());
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Map<String, String> fullOutput = new HashMap<>();
         fullOutput.putAll(input);
@@ -482,13 +526,17 @@ public class ActivityExecutorTest {
         Assertions.assertNotNull(anchorStep);
 
         PollForActivityTaskResponse task = makeTask(input, TaskNaming.activityName(TaskNaming.workflowName(workflow.getClass()), anchorStep));
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, anchorStep, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, anchorStep, fluxMetrics,  (o, c) -> stepMetrics);
 
         executor.run();
         Assertions.assertEquals(0, hook.getPreStepHookCallCount());
         Assertions.assertEquals(1, hook2.getPostStepHookCallCount());
         Assertions.assertEquals(0, hook3.getPreStepHookCallCount());
         Assertions.assertEquals(1, hook3.getPostStepHookCallCount());
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Map<String, String> fullOutput = new HashMap<>();
         fullOutput.putAll(input);
@@ -587,13 +635,17 @@ public class ActivityExecutorTest {
         };
 
         PollForActivityTaskResponse task = makeTask(input, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
         step.setStepResult(result);
 
         executor.run();
         Assertions.assertTrue(step.didThing());
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Map<String, String> fullOutput = new HashMap<>();
         fullOutput.putAll(input);
@@ -639,13 +691,17 @@ public class ActivityExecutorTest {
         };
 
         PollForActivityTaskResponse task = makeTask(input, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
         step.setStepResult(result);
 
         executor.run();
         Assertions.assertFalse(step.didThing()); // false because the pre-hook required a retry on failure, so the step never ran
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Assertions.assertNull(executor.getOutput()); // null because retry doesn't support output attributes, and there was no exception stack trace to record
 
@@ -681,13 +737,17 @@ public class ActivityExecutorTest {
         };
 
         PollForActivityTaskResponse task = makeTask(input, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
         step.setStepResult(result);
 
         executor.run();
         Assertions.assertTrue(step.didThing());
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Map<String, String> fullOutput = new HashMap<>();
         fullOutput.putAll(input);
@@ -733,13 +793,17 @@ public class ActivityExecutorTest {
         };
 
         PollForActivityTaskResponse task = makeTask(input, STEP_NAME);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics, (o) -> stepMetrics);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, workflow, step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
         step.setStepResult(result);
 
         executor.run();
         Assertions.assertTrue(step.didThing()); // true because we did the thing
+
+        // fluxMetrics is usually closed by the ActivityTaskPoller.
+        // We need to close it so we can query its data.
+        fluxMetrics.close();
 
         Assertions.assertNull(executor.getOutput()); // null because retry doesn't support output attributes, and there was no exception stack trace to record
 
