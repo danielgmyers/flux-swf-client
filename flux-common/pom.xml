@@ -38,6 +38,12 @@
             <version>${slf4j.version}</version>
             <optional>false</optional>
         </dependency>
+        <dependency>
+            <artifactId>recorder-core</artifactId>
+            <groupId>com.danielgmyers.metrics</groupId>
+            <version>${metricrecorder.version}</version>
+            <optional>false</optional>
+        </dependency>
 
         <!-- test dependencies -->
         <dependency>

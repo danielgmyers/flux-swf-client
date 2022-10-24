@@ -44,6 +44,12 @@
             <version>${awssdk.version}</version>
             <optional>false</optional>
         </dependency>
+        <dependency>
+            <artifactId>recorder-core</artifactId>
+            <groupId>com.danielgmyers.metrics</groupId>
+            <version>${metricrecorder.version}</version>
+            <optional>false</optional>
+        </dependency>
 
         <!-- flux internal dependencies -->
         <dependency>
@@ -70,6 +76,12 @@
             <artifactId>slf4j-nop</artifactId>
             <groupId>org.slf4j</groupId>
             <version>${slf4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <artifactId>in-memory-recorder</artifactId>
+            <groupId>com.danielgmyers.metrics</groupId>
+            <version>${metricrecorder.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

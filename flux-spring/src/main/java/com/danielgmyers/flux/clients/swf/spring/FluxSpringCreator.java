@@ -3,7 +3,7 @@ package com.danielgmyers.flux.clients.swf.spring;
 import com.danielgmyers.flux.clients.swf.FluxCapacitor;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorConfig;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorFactory;
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorderFactory;
+import com.danielgmyers.metrics.MetricRecorderFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;

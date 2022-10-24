@@ -26,7 +26,6 @@ import com.danielgmyers.flux.clients.swf.util.ThreadUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * This class enforces that any attempt to submit a task to the pool will only proceed if there is a free thread.
  * It does this using a semaphore, rather than trying to figure out how many active threads the pool reports.

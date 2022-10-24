@@ -39,8 +39,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.poller.ActivityTaskPoller;
 import com.danielgmyers.flux.clients.swf.poller.BlockOnSubmissionThreadPoolExecutor;
 import com.danielgmyers.flux.clients.swf.poller.DecisionTaskPoller;
@@ -52,6 +50,8 @@ import com.danielgmyers.flux.clients.swf.util.ThreadUtils;
 import com.danielgmyers.flux.clients.swf.wf.Periodic;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphNode;
+import com.danielgmyers.metrics.MetricRecorder;
+import com.danielgmyers.metrics.MetricRecorderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

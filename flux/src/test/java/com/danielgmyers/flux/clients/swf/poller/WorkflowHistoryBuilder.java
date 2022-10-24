@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
-import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.poller.signals.BaseSignalData;
 import com.danielgmyers.flux.clients.swf.poller.signals.DelayRetrySignalData;
 import com.danielgmyers.flux.clients.swf.poller.signals.ForceResultSignalData;
@@ -44,6 +43,7 @@ import com.danielgmyers.flux.clients.swf.util.ManualClock;
 import com.danielgmyers.flux.clients.swf.wf.Periodic;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphNode;
+import com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 import software.amazon.awssdk.services.swf.model.ActivityTaskCanceledEventAttributes;

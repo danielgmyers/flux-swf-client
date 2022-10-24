@@ -22,14 +22,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorderFactory;
-import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.poller.ActivityExecutionUtil;
 import com.danielgmyers.flux.clients.swf.step.StepAttributes;
 import com.danielgmyers.flux.clients.swf.step.StepResult;
 import com.danielgmyers.flux.clients.swf.step.StepResult.ResultAction;
 import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
+import com.danielgmyers.metrics.MetricRecorder;
+import com.danielgmyers.metrics.MetricRecorderFactory;
+import com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory;
 
 /**
  * Helper class for validating WorkflowStep apply/rollback behavior.

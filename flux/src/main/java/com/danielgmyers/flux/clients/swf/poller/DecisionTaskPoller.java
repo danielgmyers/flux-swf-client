@@ -31,8 +31,6 @@ import java.util.TreeMap;
 import java.util.concurrent.RejectedExecutionException;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorder;
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorderFactory;
 import com.danielgmyers.flux.clients.swf.poller.signals.BaseSignalData;
 import com.danielgmyers.flux.clients.swf.poller.signals.DelayRetrySignalData;
 import com.danielgmyers.flux.clients.swf.poller.signals.ScheduleDelayedRetrySignalData;
@@ -51,6 +49,8 @@ import com.danielgmyers.flux.clients.swf.wf.Periodic;
 import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphNode;
+import com.danielgmyers.metrics.MetricRecorder;
+import com.danielgmyers.metrics.MetricRecorderFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
