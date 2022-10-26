@@ -1,18 +1,17 @@
 package com.danielgmyers.flux.clients.swf.tests;
 
-import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.danielgmyers.flux.clients.swf.FluxCapacitor;
+import com.danielgmyers.flux.FluxCapacitor;
+import com.danielgmyers.flux.RemoteWorkflowExecutor;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorConfig;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorFactory;
-import com.danielgmyers.flux.clients.swf.RemoteWorkflowExecutor;
 import com.danielgmyers.flux.clients.swf.TestConfig;
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
+import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;

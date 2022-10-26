@@ -25,8 +25,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import com.danielgmyers.flux.clients.swf.step.PartitionIdGeneratorResult;
-import com.danielgmyers.flux.clients.swf.step.StepAttributes;
+import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
+import com.danielgmyers.flux.step.StepAttributes;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;

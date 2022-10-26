@@ -20,7 +20,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
+import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
 
 /**
  * Represents a single workflow step and its possible step transitions in the graph.

@@ -18,13 +18,13 @@ package com.danielgmyers.flux.clients.swf.poller.testwf;
 
 import java.util.Set;
 
-import com.danielgmyers.flux.clients.swf.step.Attribute;
-import com.danielgmyers.flux.clients.swf.step.PartitionIdGenerator;
-import com.danielgmyers.flux.clients.swf.step.PartitionIdGeneratorResult;
-import com.danielgmyers.flux.clients.swf.step.PartitionedWorkflowStep;
-import com.danielgmyers.flux.clients.swf.step.StepApply;
-import com.danielgmyers.flux.clients.swf.step.StepAttributes;
-import com.danielgmyers.flux.clients.swf.step.StepResult;
+import com.danielgmyers.flux.step.Attribute;
+import com.danielgmyers.flux.step.PartitionIdGenerator;
+import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
+import com.danielgmyers.flux.step.PartitionedWorkflowStep;
+import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.StepAttributes;
+import com.danielgmyers.flux.step.StepResult;
 
 public class TestPartitionedStepWithExtraInput implements PartitionedWorkflowStep {
 

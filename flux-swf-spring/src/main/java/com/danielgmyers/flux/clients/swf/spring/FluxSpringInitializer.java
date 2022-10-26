@@ -2,8 +2,8 @@ package com.danielgmyers.flux.clients.swf.spring;
 
 import java.util.List;
 
-import com.danielgmyers.flux.clients.swf.FluxCapacitor;
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
+import com.danielgmyers.flux.FluxCapacitor;
+import com.danielgmyers.flux.wf.Workflow;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**

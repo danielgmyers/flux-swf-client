@@ -20,8 +20,8 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.danielgmyers.flux.clients.swf.wf.WorkflowInfo;
-import com.danielgmyers.flux.clients.swf.wf.WorkflowStatus;
+import com.danielgmyers.flux.wf.WorkflowInfo;
+import com.danielgmyers.flux.wf.WorkflowStatus;
 
 import software.amazon.awssdk.services.swf.model.ExecutionStatus;
 import software.amazon.awssdk.services.swf.model.WorkflowExecutionInfo;

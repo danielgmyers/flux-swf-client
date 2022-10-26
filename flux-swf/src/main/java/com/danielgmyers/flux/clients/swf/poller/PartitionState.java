@@ -21,8 +21,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.danielgmyers.flux.clients.swf.step.StepAttributes;
-import com.danielgmyers.flux.clients.swf.step.StepResult;
+import com.danielgmyers.flux.step.StepAttributes;
+import com.danielgmyers.flux.step.StepResult;
 
 import software.amazon.awssdk.services.swf.model.EventType;
 import software.amazon.awssdk.services.swf.model.HistoryEvent;

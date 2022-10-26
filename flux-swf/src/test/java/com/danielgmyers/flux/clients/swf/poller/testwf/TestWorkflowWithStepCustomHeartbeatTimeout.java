@@ -16,10 +16,10 @@
 
 package com.danielgmyers.flux.clients.swf.poller.testwf;
 
-import com.danielgmyers.flux.clients.swf.step.CloseWorkflow;
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
-import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
+import com.danielgmyers.flux.step.CloseWorkflow;
+import com.danielgmyers.flux.wf.Workflow;
+import com.danielgmyers.flux.wf.graph.WorkflowGraph;
 
 public class TestWorkflowWithStepCustomHeartbeatTimeout implements Workflow {
 

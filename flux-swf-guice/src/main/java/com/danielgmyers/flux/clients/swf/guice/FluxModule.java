@@ -22,11 +22,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
-import com.danielgmyers.flux.clients.swf.FluxCapacitor;
+import com.danielgmyers.flux.FluxCapacitor;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorConfig;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorFactory;
 import com.danielgmyers.flux.clients.swf.TaskListConfig;
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
+import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.AbstractModule;

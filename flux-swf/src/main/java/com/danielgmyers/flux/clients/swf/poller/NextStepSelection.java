@@ -16,7 +16,7 @@
 
 package com.danielgmyers.flux.clients.swf.poller;
 
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
+import com.danielgmyers.flux.step.WorkflowStep;
 
 /**
  * Utility class for the DecisionTaskPoller to choose what step to execute next (if any).

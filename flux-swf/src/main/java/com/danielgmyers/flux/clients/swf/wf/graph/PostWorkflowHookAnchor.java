@@ -16,8 +16,8 @@
 
 package com.danielgmyers.flux.clients.swf.wf.graph;
 
-import com.danielgmyers.flux.clients.swf.step.StepApply;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
+import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.WorkflowStep;
 
 /**
  * This step acts as an anchor for post-workflow hooks.

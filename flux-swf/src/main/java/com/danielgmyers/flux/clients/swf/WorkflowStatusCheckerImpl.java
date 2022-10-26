@@ -18,7 +18,8 @@ package com.danielgmyers.flux.clients.swf;
 
 import java.time.Clock;
 
-import com.danielgmyers.flux.clients.swf.wf.WorkflowInfo;
+import com.danielgmyers.flux.WorkflowStatusChecker;
+import com.danielgmyers.flux.wf.WorkflowInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

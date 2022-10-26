@@ -16,10 +16,10 @@
 
 package com.danielgmyers.flux.clients.swf.poller.testwf;
 
-import com.danielgmyers.flux.clients.swf.step.Attribute;
-import com.danielgmyers.flux.clients.swf.step.StepAttributes;
-import com.danielgmyers.flux.clients.swf.step.StepHook;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStepHook;
+import com.danielgmyers.flux.step.Attribute;
+import com.danielgmyers.flux.step.StepAttributes;
+import com.danielgmyers.flux.step.StepHook;
+import com.danielgmyers.flux.step.WorkflowStepHook;
 
 public class TestPostStepHook implements WorkflowStepHook {
 
