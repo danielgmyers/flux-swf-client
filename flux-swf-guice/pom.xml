@@ -3,11 +3,12 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>com.danielgmyers.flux.clients.swf</groupId>
-        <artifactId>flux-swf-client-pom</artifactId>
+        <groupId>com.danielgmyers.flux</groupId>
+        <artifactId>flux-base-pom</artifactId>
         <version>2.1.0</version>
     </parent>
-    <artifactId>flux-guice</artifactId>
+    <groupId>com.danielgmyers.flux.clients.swf</groupId>
+    <artifactId>flux-swf-guice</artifactId>
     <name>Flux SWF Client Guice Helper</name>
     <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>
@@ -33,7 +34,7 @@
 
         <!-- flux internal dependencies -->
         <dependency>
-            <artifactId>flux</artifactId>
+            <artifactId>flux-swf</artifactId>
             <groupId>com.danielgmyers.flux.clients.swf</groupId>
             <version>${flux.version}</version>
             <optional>false</optional>

@@ -2,12 +2,12 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.danielgmyers.flux.clients.swf</groupId>
-    <artifactId>flux-swf-client-pom</artifactId>
+    <groupId>com.danielgmyers.flux</groupId>
+    <artifactId>flux-base-pom</artifactId>
     <version>2.1.0</version>
     <packaging>pom</packaging>
-    <name>Flux SWF Client POM</name>
-    <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
+    <name>Flux Base POM</name>
+    <description>Flux is a workflow client library to simplify writing asynchronous workflows.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>
     <licenses>
         <license>
@@ -28,12 +28,15 @@
     </developers>
 
     <modules>
-        <module>flux</module>
+        <!-- base framework -->
         <module>flux-common</module>
-        <module>flux-guice</module>
-        <module>flux-integration-tests</module>
-        <module>flux-spring</module>
         <module>flux-testutils</module>
+
+        <!-- swf implementation -->
+        <module>flux-swf</module>
+        <module>flux-swf-guice</module>
+        <module>flux-swf-integration-tests</module>
+        <module>flux-swf-spring</module>
     </modules>
 
     <scm>
