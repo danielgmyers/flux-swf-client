@@ -19,7 +19,6 @@ package com.danielgmyers.flux.clients.swf;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 
@@ -157,111 +156,6 @@ public class FluxCapacitorConfig {
 
     public TaskListConfig getTaskListConfig(String taskList) {
         return taskListConfigs.computeIfAbsent(taskList, name -> new TaskListConfig());
-    }
-
-    /**
-     * Please retrieve this data using getTaskListConfig.
-     */
-    @Deprecated
-    public Map<String, Integer> getTaskListWorkerThreadCount() {
-        return taskListConfigs.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getActivityTaskThreadCount()));
-    }
-
-    /**
-     * Please configure using putTaskListConfig.
-     */
-    @Deprecated
-    public void setTaskListWorkerThreadCount(Map<String, Integer> taskListWorkerThreadCount) {
-        if (taskListWorkerThreadCount != null) {
-            for (Map.Entry<String, Integer> entry : taskListWorkerThreadCount.entrySet()) {
-                getTaskListConfig(entry.getKey()).setActivityTaskThreadCount(entry.getValue());
-            }
-        }
-    }
-
-    /**
-     * Please retrieve this data using getTaskListConfig.
-     */
-    @Deprecated
-    public Map<String, Integer> getTaskListActivityTaskPollerThreadCount() {
-        return taskListConfigs.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getActivityTaskPollerThreadCount()));
-    }
-
-    /**
-     * Please configure using putTaskListConfig.
-     */
-    @Deprecated
-    public void setTaskListActivityTaskPollerThreadCount(Map<String, Integer> taskListActivityTaskPollerThreadCount) {
-        if (taskListActivityTaskPollerThreadCount != null) {
-            for (Map.Entry<String, Integer> entry : taskListActivityTaskPollerThreadCount.entrySet()) {
-                getTaskListConfig(entry.getKey()).setActivityTaskPollerThreadCount(entry.getValue());
-            }
-        }
-    }
-
-    /**
-     * Please retrieve this data using getTaskListConfig.
-     */
-    @Deprecated
-    public Map<String, Integer> getTaskListDeciderThreadCount() {
-        return taskListConfigs.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getDecisionTaskThreadCount()));
-    }
-
-    /**
-     * Please configure using putTaskListConfig.
-     */
-    @Deprecated
-    public void setTaskListDeciderThreadCount(Map<String, Integer> taskListDeciderThreadCount) {
-        if (taskListDeciderThreadCount != null) {
-            for (Map.Entry<String, Integer> entry : taskListDeciderThreadCount.entrySet()) {
-                getTaskListConfig(entry.getKey()).setDecisionTaskThreadCount(entry.getValue());
-            }
-        }
-    }
-
-    /**
-     * Please retrieve this data using getTaskListConfig.
-     */
-    @Deprecated
-    public Map<String, Integer> getTaskListDecisionTaskPollerThreadCount() {
-        return taskListConfigs.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getDecisionTaskPollerThreadCount()));
-    }
-
-    /**
-     * Please configure using putTaskListConfig.
-     */
-    @Deprecated
-    public void setTaskListDecisionTaskPollerThreadCount(Map<String, Integer> taskListDecisionTaskPollerThreadCount) {
-        if (taskListDecisionTaskPollerThreadCount != null) {
-            for (Map.Entry<String, Integer> entry : taskListDecisionTaskPollerThreadCount.entrySet()) {
-                getTaskListConfig(entry.getKey()).setDecisionTaskPollerThreadCount(entry.getValue());
-            }
-        }
-    }
-
-    /**
-     * Please retrieve this data using getTaskListConfig.
-     */
-    @Deprecated
-    public Map<String, Integer> getTaskListPeriodicSubmitterThreadCount() {
-        return taskListConfigs.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getPeriodicSubmitterThreadCount()));
-    }
-
-    /**
-     * Please configure using putTaskListConfig.
-     */
-    @Deprecated
-    public void setTaskListPeriodicSubmitterThreadCount(Map<String, Integer> taskListPeriodicSubmitterThreadCount) {
-        if (taskListPeriodicSubmitterThreadCount != null) {
-            for (Map.Entry<String, Integer> entry : taskListPeriodicSubmitterThreadCount.entrySet()) {
-                getTaskListConfig(entry.getKey()).setPeriodicSubmitterThreadCount(entry.getValue());
-            }
-        }
     }
 
     /**
