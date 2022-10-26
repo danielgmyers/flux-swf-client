@@ -4,7 +4,7 @@ Library initialization with Guice
 
 You'll need a dependency on `flux-guice` to make use of this example config.
 
-First, add a `FluxModule` object to your injector, where "example.flux.workflows" is the package containing your workflows. FluxModule will automatically find any classes under that package (recursively) of type `com.danielgmyers.flux.clients.swf.wf.Workflow` and initialize them with the Guice injector as singletons. You can add `@Inject` to your Workflow class constructors and they will be initialized as expected.
+First, add a `FluxModule` object to your injector, where "example.flux.workflows" is the package containing your workflows. FluxModule will automatically find any classes under that package (recursively) of type `com.danielgmyers.flux.wf.Workflow` and initialize them with the Guice injector as singletons. You can add `@Inject` to your Workflow class constructors and they will be initialized as expected.
 
 ```java
 package example.flux;
@@ -13,7 +13,7 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Stage;
 
-import com.danielgmyers.flux.clients.swf.FluxCapacitor;
+import com.danielgmyers.flux.FluxCapacitor;
 import com.danielgmyers.flux.clients.swf.guice.FluxModule;
 import example.flux.MyApplicationModule;
 
@@ -22,8 +22,8 @@ public class MyApplication {
     public static void main() {
 
         Injector injector = Guice.createInjector(Stage.PRODUCTION,
-                new MyApplicationModule(),
-                new FluxModule("example.flux.workflows")
+                                                 new MyApplicationModule(),
+                                                 new FluxModule("example.flux.workflows")
         );
 
         FluxCapacitor flux = injector.getInstance(FluxCapacitor.class);

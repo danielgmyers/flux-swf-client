@@ -28,8 +28,8 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.danielgmyers.flux.clients.swf.IdUtils;
-import com.danielgmyers.flux.clients.swf.step.PartitionIdGeneratorResult;
-import com.danielgmyers.flux.clients.swf.step.StepAttributes;
+import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
+import com.danielgmyers.flux.step.StepAttributes;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

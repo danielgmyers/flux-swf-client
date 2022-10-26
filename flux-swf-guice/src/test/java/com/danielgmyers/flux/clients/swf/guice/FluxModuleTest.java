@@ -18,9 +18,9 @@ package com.danielgmyers.flux.clients.swf.guice;
 
 import java.util.List;
 
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.guice.workflowone.WorkflowOne;
 import com.danielgmyers.flux.clients.swf.guice.workflowtwo.WorkflowTwo;
+import com.danielgmyers.flux.wf.Workflow;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

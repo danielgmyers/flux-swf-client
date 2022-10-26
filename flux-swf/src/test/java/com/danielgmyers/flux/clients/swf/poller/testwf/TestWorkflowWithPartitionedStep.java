@@ -19,9 +19,9 @@ package com.danielgmyers.flux.clients.swf.poller.testwf;
 import java.util.Arrays;
 import java.util.Collection;
 
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
-import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
+import com.danielgmyers.flux.wf.Workflow;
+import com.danielgmyers.flux.wf.graph.WorkflowGraph;
 
 public class TestWorkflowWithPartitionedStep implements Workflow {
 

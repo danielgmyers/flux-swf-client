@@ -28,19 +28,21 @@ import com.danielgmyers.flux.clients.swf.poller.testwf.TestPostStepHook;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPreAndPostStepHook;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPreStepHook;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflow;
-import com.danielgmyers.flux.clients.swf.step.Attribute;
-import com.danielgmyers.flux.clients.swf.step.StepApply;
-import com.danielgmyers.flux.clients.swf.step.StepAttributes;
-import com.danielgmyers.flux.clients.swf.step.StepHook;
-import com.danielgmyers.flux.clients.swf.step.StepResult;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStepHook;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStepUtil;
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
 import com.danielgmyers.flux.clients.swf.wf.graph.PostWorkflowHookAnchor;
 import com.danielgmyers.flux.clients.swf.wf.graph.PreWorkflowHookAnchor;
-import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
+import com.danielgmyers.flux.poller.ActivityExecutionUtil;
+import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.step.Attribute;
+import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.StepAttributes;
+import com.danielgmyers.flux.step.StepHook;
+import com.danielgmyers.flux.step.StepResult;
+import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.step.WorkflowStepHook;
+import com.danielgmyers.flux.step.WorkflowStepUtil;
+import com.danielgmyers.flux.wf.Workflow;
+import com.danielgmyers.flux.wf.graph.WorkflowGraph;
 import com.danielgmyers.metrics.MetricRecorder;
 import com.danielgmyers.metrics.recorders.InMemoryMetricRecorder;
 import org.junit.jupiter.api.Assertions;
@@ -98,7 +100,7 @@ public class ActivityExecutorTest {
         Assertions.assertEquals(task.workflowExecution().runId(), stepMetrics.getProperties().get(ActivityExecutor.WORKFLOW_RUN_ID_METRIC_NAME));
 
         Assertions.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(task.activityType().name(),
-                                result.getResultCode())).intValue());
+                                                                                                                      result.getResultCode())).intValue());
     }
 
     @Test
@@ -272,16 +274,24 @@ public class ActivityExecutorTest {
                                 StepResult.SUCCEED_RESULT_CODE)).intValue());
     }
 
+    public static class StepWithMetrics implements WorkflowStep {
+
+        private final String metricName;
+
+        public StepWithMetrics(String metricName) {
+            this.metricName = metricName;
+        }
+        @StepApply
+        public void doThing(MetricRecorder metrics) {
+            metrics.addCount(metricName, 1.0);
+        }
+    }
+
     @Test
     public void passesInStepMetrics() {
         final String stepMetric = "foo";
 
-        WorkflowStep stepWithMetrics = new WorkflowStep() {
-            @StepApply
-            public void doThing(MetricRecorder metrics) {
-                metrics.addCount(stepMetric, 1.0);
-            }
-        };
+        WorkflowStep stepWithMetrics = new StepWithMetrics(stepMetric);
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(stepWithMetrics);
         builder.alwaysClose(stepWithMetrics);
 

@@ -22,8 +22,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStepHook;
+import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.step.WorkflowStepHook;
+import com.danielgmyers.flux.wf.graph.WorkflowGraph;
+import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
 
 /**
  * A graph representation of how Flux should proceed through the workflow.

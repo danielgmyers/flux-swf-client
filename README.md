@@ -16,7 +16,7 @@ Prerequisites
 
 Flux uses the AWS SDK for Java v2.
 
-Flux uses a custom `MetricRecorder` interface to emit workflow metrics; if you do not want Flux to emit metrics, you may provide Flux with a `com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory` object. If you want a different metrics implementation, you will need to provide an alternate implementation of the `com.danielgmyers.flux.clients.swf.metrics.MetricRecorder` interface.
+Flux uses `com.danielgmyers.metrics:recorder-core` to emit workflow metrics; if you do not want Flux to emit metrics, you may provide Flux with a `com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory` object. If you want a different metrics implementation, you will need to provide an alternate implementation of the `com.danielgmyers.metrics.MetricRecorder` interface.
 
 Writing a basic workflow
 ------------------------
@@ -26,8 +26,8 @@ We'll start by writing a pair of workflow steps. First up is Hello:
 ```java
 package example.flux;
 
-import com.danielgmyers.flux.clients.swf.step.StepApply;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
+import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.WorkflowStep;
 
 public class Hello implements WorkflowStep {
     
@@ -49,10 +49,10 @@ Now, let's implement the second step, `Goodbye`:
 ```java
 package example.flux;
 
-import com.danielgmyers.flux.clients.swf.step.Attribute;
-import com.danielgmyers.flux.clients.swf.step.StepApply;
-import com.danielgmyers.flux.clients.swf.step.StepResult;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
+import com.danielgmyers.flux.step.Attribute;
+import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.StepResult;
+import com.danielgmyers.flux.step.WorkflowStep;
 
 public class Goodbye implements WorkflowStep {
     
@@ -88,9 +88,9 @@ Finally, we need to create the workflow itself:
 ```java
 package example.flux;
 
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
-import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
-import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
+import com.danielgmyers.flux.wf.Workflow;
+import com.danielgmyers.flux.wf.graph.WorkflowGraph;
+import com.danielgmyers.flux.wf.graph.WorkflowGraphBuilder;
 
 // If you're using Spring, you should consider annotating this class with @Component for convenience.
 public class HelloGoodbye implements Workflow {
@@ -265,12 +265,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.danielgmyers.flux.clients.swf.FluxCapacitor;
+import com.danielgmyers.flux.FluxCapacitor;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorConfig;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorFactory;
-import com.danielgmyers.flux.clients.swf.metrics.MetricRecorderFactory;
-import com.danielgmyers.flux.clients.swf.metrics.NoopMetricRecorderFactory;
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
+import com.danielgmyers.flux.wf.Workflow;
+import com.danielgmyers.metrics.MetricRecorderFactory;
+import com.danielgmyers.metrics.NoopMetricRecorderFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
@@ -315,8 +315,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
-import com.danielgmyers.flux.clients.swf.testutil.StepValidator;
+import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.testutil.StepValidator;
 
 import org.junit.Test;
 
@@ -356,7 +356,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorFactory;
-import com.danielgmyers.flux.clients.swf.testutil.StubFluxCapacitor;
+import com.danielgmyers.flux.testutil.StubFluxCapacitor;
 
 import org.junit.Assert;
 import org.junit.Test;

@@ -16,9 +16,9 @@
 
 package com.danielgmyers.flux.clients.swf.poller.testwf;
 
-import com.danielgmyers.flux.clients.swf.step.StepApply;
-import com.danielgmyers.flux.clients.swf.step.StepResult;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
+import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.StepResult;
+import com.danielgmyers.flux.step.WorkflowStep;
 
 public class TestOtherBranchStep implements WorkflowStep {
     @StepApply

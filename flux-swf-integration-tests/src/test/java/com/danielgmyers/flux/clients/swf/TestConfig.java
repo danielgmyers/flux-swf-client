@@ -1,6 +1,6 @@
 package com.danielgmyers.flux.clients.swf;
 
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
+import com.danielgmyers.flux.wf.Workflow;
 
 /**
  * Utility class to store/access configuration data provided to the tests.

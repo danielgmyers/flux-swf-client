@@ -16,6 +16,7 @@
 
 package com.danielgmyers.flux.clients.swf;
 
+import com.danielgmyers.flux.FluxCapacitor;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;

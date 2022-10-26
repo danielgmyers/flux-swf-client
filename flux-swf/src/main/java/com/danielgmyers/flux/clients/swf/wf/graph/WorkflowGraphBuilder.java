@@ -31,18 +31,20 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.danielgmyers.flux.clients.swf.step.Attribute;
-import com.danielgmyers.flux.clients.swf.step.CloseWorkflow;
-import com.danielgmyers.flux.clients.swf.step.PartitionIdGenerator;
-import com.danielgmyers.flux.clients.swf.step.PartitionIdGeneratorResult;
-import com.danielgmyers.flux.clients.swf.step.PartitionedWorkflowStep;
-import com.danielgmyers.flux.clients.swf.step.StepApply;
-import com.danielgmyers.flux.clients.swf.step.StepAttributes;
-import com.danielgmyers.flux.clients.swf.step.StepHook;
-import com.danielgmyers.flux.clients.swf.step.StepResult;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStepHook;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStepUtil;
+import com.danielgmyers.flux.step.Attribute;
+import com.danielgmyers.flux.step.CloseWorkflow;
+import com.danielgmyers.flux.step.PartitionIdGenerator;
+import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
+import com.danielgmyers.flux.step.PartitionedWorkflowStep;
+import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.StepAttributes;
+import com.danielgmyers.flux.step.StepHook;
+import com.danielgmyers.flux.step.StepResult;
+import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.step.WorkflowStepHook;
+import com.danielgmyers.flux.step.WorkflowStepUtil;
+import com.danielgmyers.flux.wf.graph.WorkflowGraph;
+import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
 import com.danielgmyers.metrics.MetricRecorder;
 
 /**

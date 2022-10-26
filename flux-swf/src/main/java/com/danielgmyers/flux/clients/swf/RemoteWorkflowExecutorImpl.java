@@ -22,8 +22,10 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.danielgmyers.flux.clients.swf.poller.TaskNaming;
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
+import com.danielgmyers.flux.RemoteWorkflowExecutor;
+import com.danielgmyers.flux.WorkflowStatusChecker;
+import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

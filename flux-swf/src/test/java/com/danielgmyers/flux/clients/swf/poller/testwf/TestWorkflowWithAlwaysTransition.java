@@ -16,10 +16,10 @@
 
 package com.danielgmyers.flux.clients.swf.poller.testwf;
 
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
-import com.danielgmyers.flux.clients.swf.wf.Workflow;
-import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph;
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
+import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.wf.Workflow;
+import com.danielgmyers.flux.wf.graph.WorkflowGraph;
 
 public class TestWorkflowWithAlwaysTransition implements Workflow {
 

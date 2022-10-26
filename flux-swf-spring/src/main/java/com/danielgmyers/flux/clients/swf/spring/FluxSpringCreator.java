@@ -1,6 +1,6 @@
 package com.danielgmyers.flux.clients.swf.spring;
 
-import com.danielgmyers.flux.clients.swf.FluxCapacitor;
+import com.danielgmyers.flux.FluxCapacitor;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorConfig;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorFactory;
 import com.danielgmyers.metrics.MetricRecorderFactory;

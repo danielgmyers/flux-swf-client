@@ -16,6 +16,7 @@
 
 package com.danielgmyers.flux.clients.swf;
 
+import com.danielgmyers.flux.FluxCapacitor;
 import com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

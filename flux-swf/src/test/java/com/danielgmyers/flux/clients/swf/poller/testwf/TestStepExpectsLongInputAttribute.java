@@ -16,9 +16,9 @@
 
 package com.danielgmyers.flux.clients.swf.poller.testwf;
 
-import com.danielgmyers.flux.clients.swf.step.Attribute;
-import com.danielgmyers.flux.clients.swf.step.StepApply;
-import com.danielgmyers.flux.clients.swf.step.WorkflowStep;
+import com.danielgmyers.flux.step.Attribute;
+import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.WorkflowStep;
 
 public class TestStepExpectsLongInputAttribute implements WorkflowStep {
     public static final String INPUT_ATTR = "FOO";
