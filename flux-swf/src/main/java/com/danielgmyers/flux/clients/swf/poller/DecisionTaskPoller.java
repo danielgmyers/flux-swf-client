@@ -31,15 +31,14 @@ import java.util.TreeMap;
 import java.util.concurrent.RejectedExecutionException;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
-import com.danielgmyers.flux.clients.swf.poller.signals.BaseSignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.DelayRetrySignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.ScheduleDelayedRetrySignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.SignalType;
-import com.danielgmyers.flux.clients.swf.poller.signals.SignalUtils;
 import com.danielgmyers.flux.clients.swf.poller.timers.TimerData;
 import com.danielgmyers.flux.clients.swf.util.RetryUtils;
 import com.danielgmyers.flux.clients.swf.util.ThreadUtils;
 import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.signals.BaseSignalData;
+import com.danielgmyers.flux.signals.DelayRetrySignalData;
+import com.danielgmyers.flux.signals.ScheduleDelayedRetrySignalData;
+import com.danielgmyers.flux.signals.SignalType;
 import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
 import com.danielgmyers.flux.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.step.StepAttributes;
@@ -1025,7 +1024,7 @@ public class DecisionTaskPoller implements Runnable {
             throws JsonProcessingException {
         return SignalExternalWorkflowExecutionDecisionAttributes.builder()
                 .signalName(SignalType.SCHEDULE_DELAYED_RETRY.getFriendlyName())
-                .input(SignalUtils.encodeSignal(new ScheduleDelayedRetrySignalData(originalSignal)))
+                .input(new ScheduleDelayedRetrySignalData(originalSignal).toJson())
                 .workflowId(state.getWorkflowId())
                 .runId(state.getWorkflowRunId())
                 .build();

@@ -14,7 +14,7 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.signals;
+package com.danielgmyers.flux.signals;
 
 /**
  * The supported types of signals. Each signal expects specific input fields, in a json blob.
@@ -22,7 +22,7 @@ package com.danielgmyers.flux.clients.swf.poller.signals;
  * Note that nothing special needs to be done for partitioned steps, since an activity id uniquely identifies a specific
  * attempt of a specific partition of the step.
  *
- * SWF's SignalName field on the SignalWorkflowExecution API should match one of these signal types.
+ * The signal identification field supported by the workflow engine should map to one of these signal types.
  *
  * DelayRetry:
  *     Tells Flux to reschedule an open retry timer to use a specified delay (starting from when the signal is processed).

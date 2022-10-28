@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
-import com.danielgmyers.flux.clients.swf.poller.signals.SignalType;
+import com.danielgmyers.flux.signals.SignalType;
 import com.danielgmyers.flux.step.Attribute;
 import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepAttributes;

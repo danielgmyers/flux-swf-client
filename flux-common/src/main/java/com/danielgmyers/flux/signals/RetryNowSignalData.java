@@ -14,33 +14,23 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.signals;
+package com.danielgmyers.flux.signals;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
- * Stores the data related to a DelayRetry signal.
+ * Stores the data related to a RetryNow signal.
  */
-public class DelayRetrySignalData extends BaseSignalData {
-
-    private Integer delayInSeconds;
-
-    public Integer getDelayInSeconds() {
-        return delayInSeconds;
-    }
-
-    public void setDelayInSeconds(Integer delayInSeconds) {
-        this.delayInSeconds = delayInSeconds;
-    }
+public class RetryNowSignalData extends BaseSignalData {
 
     @Override
     @JsonIgnore
     public SignalType getSignalType() {
-        return SignalType.DELAY_RETRY;
+        return SignalType.RETRY_NOW;
     }
 
     @Override
     public boolean isValidSignalInput() {
-        return super.isValidSignalInput() && (delayInSeconds != null && delayInSeconds >= 0);
+        return super.isValidSignalInput();
     }
 }

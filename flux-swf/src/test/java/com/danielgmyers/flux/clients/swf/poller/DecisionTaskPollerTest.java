@@ -34,7 +34,6 @@ import javax.net.ssl.SSLException;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
 import com.danielgmyers.flux.clients.swf.IdUtils;
-import com.danielgmyers.flux.clients.swf.poller.signals.DelayRetrySignalData;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestBranchStep;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestBranchingWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPartitionedStep;
@@ -54,6 +53,7 @@ import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithStepCusto
 import com.danielgmyers.flux.clients.swf.util.RetryUtils;
 import com.danielgmyers.flux.clients.swf.util.ManualClock;
 import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.signals.DelayRetrySignalData;
 import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
 import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepAttributes;

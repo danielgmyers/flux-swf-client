@@ -29,9 +29,6 @@ import java.util.Set;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
 import com.danielgmyers.flux.clients.swf.IdUtils;
-import com.danielgmyers.flux.clients.swf.poller.signals.DelayRetrySignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.ForceResultSignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.SignalType;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestBranchingWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPartitionedStep;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepOne;
@@ -42,6 +39,9 @@ import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithPartition
 import com.danielgmyers.flux.clients.swf.poller.timers.TimerData;
 import com.danielgmyers.flux.clients.swf.util.ManualClock;
 import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.signals.DelayRetrySignalData;
+import com.danielgmyers.flux.signals.ForceResultSignalData;
+import com.danielgmyers.flux.signals.SignalType;
 import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepResult;
