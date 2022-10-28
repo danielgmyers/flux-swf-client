@@ -25,12 +25,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.danielgmyers.flux.clients.swf.poller.signals.BaseSignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.ForceResultSignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.SignalType;
-import com.danielgmyers.flux.clients.swf.poller.signals.SignalUtils;
 import com.danielgmyers.flux.clients.swf.poller.timers.TimerData;
 import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.signals.BaseSignalData;
+import com.danielgmyers.flux.signals.ForceResultSignalData;
+import com.danielgmyers.flux.signals.SignalType;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -40,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.swf.model.EventType;
 import software.amazon.awssdk.services.swf.model.HistoryEvent;
 import software.amazon.awssdk.services.swf.model.PollForDecisionTaskResponse;
+import software.amazon.awssdk.services.swf.model.WorkflowExecutionSignaledEventAttributes;
 
 // package-private, we don't want anyone except DecisionTaskPoller using this
 final class WorkflowState {
@@ -377,7 +377,8 @@ final class WorkflowState {
             } else if (SIGNAL_EVENTS.contains(event.eventType())) {
                 SignalType type = SignalType.fromFriendlyName(event.workflowExecutionSignaledEventAttributes().signalName());
                 if (type != null) {
-                    BaseSignalData signalData = SignalUtils.decodeSignal(event.workflowExecutionSignaledEventAttributes());
+                    WorkflowExecutionSignaledEventAttributes signal = event.workflowExecutionSignaledEventAttributes();
+                    BaseSignalData signalData = BaseSignalData.fromJson(signal.signalName(), signal.input());
                     if (signalData != null) {
                         // since these events are in reverse-chronological order, we can guarantee we only keep the most recent
                         // event of each type by only saving this signal if we don't already have one.

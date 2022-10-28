@@ -27,14 +27,13 @@ import java.util.List;
 import java.util.Map;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
-import com.danielgmyers.flux.clients.swf.poller.signals.BaseSignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.DelayRetrySignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.ForceResultSignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.RetryNowSignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.ScheduleDelayedRetrySignalData;
-import com.danielgmyers.flux.clients.swf.poller.signals.SignalUtils;
 import com.danielgmyers.flux.clients.swf.util.ManualClock;
 import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.signals.BaseSignalData;
+import com.danielgmyers.flux.signals.DelayRetrySignalData;
+import com.danielgmyers.flux.signals.ForceResultSignalData;
+import com.danielgmyers.flux.signals.RetryNowSignalData;
+import com.danielgmyers.flux.signals.ScheduleDelayedRetrySignalData;
 import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
 import com.danielgmyers.flux.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.step.StepAttributes;
@@ -792,7 +791,7 @@ public class WorkflowHistoryBuilder {
     }
 
     private HistoryEvent buildSignalEvent(Instant eventTime, BaseSignalData signalData) throws JsonProcessingException {
-        return buildSignalEvent(eventTime, signalData.getSignalType().getFriendlyName(), SignalUtils.encodeSignal(signalData));
+        return buildSignalEvent(eventTime, signalData.getSignalType().getFriendlyName(), signalData.toJson());
     }
 
     private HistoryEvent buildSignalEvent(Instant eventTime, String rawSignalType, String rawSignalData) {

@@ -14,12 +14,15 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.signals;
+package com.danielgmyers.flux.signals;
 
+import java.io.IOException;
 import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Contains data required for all events.
@@ -35,6 +38,9 @@ public abstract class BaseSignalData {
 
     @JsonIgnore
     private Instant signalEventTime;
+
+    @JsonIgnore
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private String activityId;
 
@@ -70,6 +76,35 @@ public abstract class BaseSignalData {
      */
     public void setActivityId(String activityId) {
         this.activityId = activityId;
+    }
+
+    /**
+     * Decodes the data contained in the specified signalData into a subclass of BaseSignalData based on the signal name.
+     * If the data is invalid, or not recognized, or missing, returns null.
+     */
+    public static BaseSignalData fromJson(String signalName, String signalData) {
+        SignalType signalType = SignalType.fromFriendlyName(signalName);
+        if (signalType == null) {
+            return null;
+        }
+        try {
+            BaseSignalData data = MAPPER.readValue(signalData, signalType.getSignalDataType());
+            if (!data.isValidSignalInput()) {
+                return null;
+            }
+            return data;
+        } catch (IOException e) {
+            // if we get this exception, the signal data was malformed, and we'll ignore the signal.
+            return null;
+        }
+    }
+
+    /**
+     * Returns a JSON-encoded string representing this signal's data.
+     */
+    @JsonIgnore
+    public String toJson() throws JsonProcessingException {
+        return MAPPER.writeValueAsString(this);
     }
 
     @JsonIgnore

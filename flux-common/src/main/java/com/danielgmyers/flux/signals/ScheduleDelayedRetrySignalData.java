@@ -14,7 +14,7 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.signals;
+package com.danielgmyers.flux.signals;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
