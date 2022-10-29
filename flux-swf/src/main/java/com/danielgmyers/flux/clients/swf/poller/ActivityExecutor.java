@@ -22,8 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.danielgmyers.flux.clients.swf.wf.graph.PostWorkflowHookAnchor;
-import com.danielgmyers.flux.clients.swf.wf.graph.PreWorkflowHookAnchor;
 import com.danielgmyers.flux.poller.ActivityExecutionUtil;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepHook;
@@ -32,6 +30,8 @@ import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.step.WorkflowStepHook;
 import com.danielgmyers.flux.step.WorkflowStepUtil;
 import com.danielgmyers.flux.wf.Workflow;
+import com.danielgmyers.flux.wf.graph.PostWorkflowHookAnchor;
+import com.danielgmyers.flux.wf.graph.PreWorkflowHookAnchor;
 import com.danielgmyers.metrics.MetricRecorder;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 import org.slf4j.Logger;

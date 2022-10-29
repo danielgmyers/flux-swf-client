@@ -14,26 +14,15 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.testwf;
-
-import java.util.HashMap;
-import java.util.Map;
+package com.danielgmyers.flux.wf.graph.teststeps;
 
 import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
 
-public class TestStepDeclaresOutputAttribute implements WorkflowStep {
-
+public class TestStepTwo implements WorkflowStep {
     @StepApply
     public StepResult apply() {
-        return StepResult.success().withAttribute(TestStepHasInputAttribute.INPUT_ATTR, "foo");
-    }
-
-    @Override
-    public Map<String, Class<?>> declaredOutputAttributes() {
-        Map<String, Class<?>> attrs = new HashMap<>();
-        attrs.put(TestStepHasInputAttribute.INPUT_ATTR, String.class);
-        return attrs;
+        return null;
     }
 }

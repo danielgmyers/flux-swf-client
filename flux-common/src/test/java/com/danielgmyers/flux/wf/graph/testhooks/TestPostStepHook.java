@@ -14,19 +14,24 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.testwf;
-
-import java.util.Date;
+package com.danielgmyers.flux.wf.graph.testhooks;
 
 import com.danielgmyers.flux.step.Attribute;
-import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepAttributes;
-import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.step.StepHook;
+import com.danielgmyers.flux.step.WorkflowStepHook;
 
-public class TestStepExpectsStartTimeAttributesAsDate implements WorkflowStep {
+public class TestPostStepHook implements WorkflowStepHook {
 
-    @StepApply
-    public void apply(@Attribute(StepAttributes.WORKFLOW_START_TIME) Date workflowStart,
-                      @Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Date activityInitialStart) {
+    private int postStepHookCallCount = 0;
+
+    @StepHook(hookType = StepHook.HookType.POST)
+    public void postStepHook(@Attribute(StepAttributes.RESULT_CODE) String resultCode,
+                             @Attribute(StepAttributes.ACTIVITY_COMPLETION_MESSAGE) String completionMessage) {
+        postStepHookCallCount += 1;
+    }
+
+    public int getPostStepHookCallCount() {
+        return postStepHookCallCount;
     }
 }

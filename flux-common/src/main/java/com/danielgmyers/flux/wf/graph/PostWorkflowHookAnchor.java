@@ -14,16 +14,16 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.testwf;
+package com.danielgmyers.flux.wf.graph;
 
-import com.danielgmyers.flux.step.Attribute;
 import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.WorkflowStep;
 
-public class TestStepHasInputAttribute implements WorkflowStep {
-    public static final String INPUT_ATTR = "FOO";
-
+/**
+ * This step acts as an anchor for post-workflow hooks.
+ */
+public class PostWorkflowHookAnchor implements WorkflowStep {
     @StepApply
-    public void apply(@Attribute(INPUT_ATTR) String foo) {
+    public void doNothing() {
     }
 }

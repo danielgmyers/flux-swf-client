@@ -14,7 +14,7 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.wf.graph;
+package com.danielgmyers.flux.wf.graph;
 
 import java.util.Collections;
 import java.util.Date;
@@ -25,20 +25,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestBranchStep;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestOtherBranchStep;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestPartitionedStep;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestPartitionedStepUsesPartitionIdGeneratorResult;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestPartitionedStepWithExtraInput;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepAlsoDeclaresOutputAttribute;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepDeclaresOutputAttribute;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepExpectsLongInputAttribute;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepExpectsStartTimeAttributesAsDate;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepExpectsStartTimeAttributesAsInstant;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepHasInputAttribute;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepHasOptionalInputAttribute;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepOne;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepTwo;
 import com.danielgmyers.flux.step.Attribute;
 import com.danielgmyers.flux.step.CloseWorkflow;
 import com.danielgmyers.flux.step.PartitionIdGenerator;
@@ -48,8 +34,19 @@ import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
-import com.danielgmyers.flux.wf.graph.WorkflowGraph;
-import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
+import com.danielgmyers.flux.wf.graph.teststeps.TestOtherBranchStep;
+import com.danielgmyers.flux.wf.graph.teststeps.TestPartitionedStep;
+import com.danielgmyers.flux.wf.graph.teststeps.TestPartitionedStepUsesPartitionIdGeneratorResult;
+import com.danielgmyers.flux.wf.graph.teststeps.TestPartitionedStepWithExtraInput;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepAlsoDeclaresOutputAttribute;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepDeclaresOutputAttribute;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepExpectsLongInputAttribute;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepExpectsStartTimeAttributesAsDate;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepExpectsStartTimeAttributesAsInstant;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepHasInputAttribute;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepHasOptionalInputAttribute;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepOne;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepTwo;
 import com.danielgmyers.metrics.MetricRecorder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

@@ -14,8 +14,9 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.testwf;
+package com.danielgmyers.flux.wf.graph.teststeps;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,6 +39,10 @@ public class TestPartitionedStep implements PartitionedWorkflowStep {
 
     private final Set<String> partitionIds;
     private final Map<String, Object> additionalAttributes;
+
+    public TestPartitionedStep() {
+        this(Arrays.asList("1", "2"));
+    }
 
     public TestPartitionedStep(Collection<String> partitionIds) {
         this(partitionIds, new HashMap<>());
@@ -67,10 +72,5 @@ public class TestPartitionedStep implements PartitionedWorkflowStep {
     public void setPartitionIds(Collection<String> partitionIds) {
         this.partitionIds.clear();
         this.partitionIds.addAll(partitionIds);
-    }
-
-    public void setAdditionalAttributes(Map<String, Object> additionalAttributes) {
-        this.additionalAttributes.clear();
-        this.additionalAttributes.putAll(additionalAttributes);
     }
 }
