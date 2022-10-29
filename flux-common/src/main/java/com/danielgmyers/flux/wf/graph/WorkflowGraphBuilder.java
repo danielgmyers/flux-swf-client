@@ -14,7 +14,7 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.wf.graph;
+package com.danielgmyers.flux.wf.graph;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -43,8 +43,6 @@ import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.step.WorkflowStepHook;
 import com.danielgmyers.flux.step.WorkflowStepUtil;
-import com.danielgmyers.flux.wf.graph.WorkflowGraph;
-import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
 import com.danielgmyers.metrics.MetricRecorder;
 
 /**

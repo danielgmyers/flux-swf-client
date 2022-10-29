@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
-import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 import com.danielgmyers.flux.poller.ActivityExecutionUtil;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.StepApply;
@@ -37,6 +36,7 @@ import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.flux.wf.graph.WorkflowGraph;
+import com.danielgmyers.flux.wf.graph.WorkflowGraphBuilder;
 import com.danielgmyers.metrics.MetricRecorder;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 import com.danielgmyers.metrics.recorders.InMemoryMetricRecorder;

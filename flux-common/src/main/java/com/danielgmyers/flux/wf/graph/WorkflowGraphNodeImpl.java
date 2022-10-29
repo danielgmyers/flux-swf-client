@@ -14,14 +14,13 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.wf.graph;
+package com.danielgmyers.flux.wf.graph;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import com.danielgmyers.flux.step.WorkflowStep;
-import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
 
 /**
  * Represents a single workflow step and its possible step transitions in the graph.

@@ -14,28 +14,27 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.wf.graph;
+package com.danielgmyers.flux.wf.graph;
 
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestPartitionedStep;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestPostStepHook;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestPreAndPostStepHook;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestPreStepHook;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepDeclaresOutputAttribute;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepHasInputAttribute;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepOne;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepTwo;
 import com.danielgmyers.flux.step.Attribute;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepHook;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.step.WorkflowStepHook;
-import com.danielgmyers.flux.wf.graph.WorkflowGraph;
+import com.danielgmyers.flux.wf.graph.testhooks.TestPostStepHook;
+import com.danielgmyers.flux.wf.graph.testhooks.TestPreAndPostStepHook;
+import com.danielgmyers.flux.wf.graph.testhooks.TestPreStepHook;
+import com.danielgmyers.flux.wf.graph.teststeps.TestPartitionedStep;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepDeclaresOutputAttribute;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepHasInputAttribute;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepOne;
+import com.danielgmyers.flux.wf.graph.teststeps.TestStepTwo;
 import com.danielgmyers.metrics.MetricRecorder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

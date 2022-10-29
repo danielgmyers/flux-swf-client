@@ -14,16 +14,19 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.wf.graph;
+package com.danielgmyers.flux.wf.graph.teststeps;
 
+import java.util.Date;
+
+import com.danielgmyers.flux.step.Attribute;
 import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.WorkflowStep;
 
-/**
- * This step acts as an anchor for pre-workflow hooks.
- */
-public class PreWorkflowHookAnchor implements WorkflowStep {
+public class TestStepExpectsStartTimeAttributesAsDate implements WorkflowStep {
+
     @StepApply
-    public void doNothing() {
+    public void apply(@Attribute(StepAttributes.WORKFLOW_START_TIME) Date workflowStart,
+                      @Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Date activityInitialStart) {
     }
 }

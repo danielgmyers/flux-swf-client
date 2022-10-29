@@ -14,15 +14,16 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.testwf;
+package com.danielgmyers.flux.wf.graph;
 
 import com.danielgmyers.flux.step.StepApply;
-import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
 
-public class TestOtherBranchStep implements WorkflowStep {
+/**
+ * This step acts as an anchor for pre-workflow hooks.
+ */
+public class PreWorkflowHookAnchor implements WorkflowStep {
     @StepApply
-    public StepResult apply() {
-        return null;
+    public void doNothing() {
     }
 }

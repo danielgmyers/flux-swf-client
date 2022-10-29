@@ -14,9 +14,8 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.wf.graph;
+package com.danielgmyers.flux.wf.graph;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -24,8 +23,6 @@ import java.util.Map;
 
 import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.step.WorkflowStepHook;
-import com.danielgmyers.flux.wf.graph.WorkflowGraph;
-import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
 
 /**
  * A graph representation of how Flux should proceed through the workflow.
@@ -41,11 +38,11 @@ public final class WorkflowGraphImpl implements WorkflowGraph {
     WorkflowGraphImpl(WorkflowStep firstStep, Map<Class<? extends WorkflowStep>, WorkflowGraphNode> steps,
                       Map<Class<? extends WorkflowStep>, List<WorkflowStepHook>> stepHooks) {
         this.firstStep = firstStep;
-        this.steps = Collections.unmodifiableMap(new HashMap<>(steps));
+        this.steps = Map.copyOf(steps);
 
         Map<Class<? extends WorkflowStep>, List<WorkflowStepHook>> stepHooksCopy = new HashMap<>();
         for (Map.Entry<Class<? extends WorkflowStep>, List<WorkflowStepHook>> step : stepHooks.entrySet()) {
-            stepHooksCopy.put(step.getKey(), Collections.unmodifiableList(new ArrayList<>(step.getValue())));
+            stepHooksCopy.put(step.getKey(), List.copyOf(step.getValue()));
         }
         this.stepHooks = Collections.unmodifiableMap(stepHooksCopy);
     }

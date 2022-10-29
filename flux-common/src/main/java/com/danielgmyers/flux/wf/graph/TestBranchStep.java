@@ -14,16 +14,15 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.testwf;
+package com.danielgmyers.flux.wf.graph;
 
-import com.danielgmyers.flux.step.Attribute;
 import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
 
-public class TestStepExpectsLongInputAttribute implements WorkflowStep {
-    public static final String INPUT_ATTR = "FOO";
-
+public class TestBranchStep implements WorkflowStep {
     @StepApply
-    public void apply(@Attribute(INPUT_ATTR) Long foo) {
+    public StepResult apply() {
+        return null;
     }
 }

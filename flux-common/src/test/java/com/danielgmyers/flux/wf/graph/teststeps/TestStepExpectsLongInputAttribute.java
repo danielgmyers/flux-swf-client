@@ -14,19 +14,16 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.testwf;
-
-import java.time.Instant;
+package com.danielgmyers.flux.wf.graph.teststeps;
 
 import com.danielgmyers.flux.step.Attribute;
 import com.danielgmyers.flux.step.StepApply;
-import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.WorkflowStep;
 
-public class TestStepExpectsStartTimeAttributesAsInstant implements WorkflowStep {
+public class TestStepExpectsLongInputAttribute implements WorkflowStep {
+    public static final String INPUT_ATTR = "FOO";
 
     @StepApply
-    public void apply(@Attribute(StepAttributes.WORKFLOW_START_TIME) Instant workflowStart,
-                      @Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Instant activityInitialStart) {
+    public void apply(@Attribute(INPUT_ATTR) Long foo) {
     }
 }

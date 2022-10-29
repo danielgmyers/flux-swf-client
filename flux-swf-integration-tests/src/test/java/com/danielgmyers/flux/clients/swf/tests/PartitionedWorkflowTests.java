@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder;
 import com.danielgmyers.flux.step.Attribute;
 import com.danielgmyers.flux.step.PartitionIdGenerator;
 import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
@@ -19,6 +18,7 @@ import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.flux.wf.graph.WorkflowGraph;
+import com.danielgmyers.flux.wf.graph.WorkflowGraphBuilder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;

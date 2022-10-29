@@ -14,7 +14,7 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller.testwf;
+package com.danielgmyers.flux.wf.graph.teststeps;
 
 import java.util.HashMap;
 import java.util.HashSet;
