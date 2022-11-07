@@ -208,6 +208,11 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
                                                  + workflowName);
         }
 
+        IdentifierValidation.validateWorkflowExecutionId(workflowId);
+        for (String tag : executionTags) {
+            IdentifierValidation.validateWorkflowExecutionTag(tag);
+        }
+
         Workflow workflow = workflowsByName.get(workflowName);
 
         Set<String> actualExecutionTags = new HashSet<>(executionTags);
@@ -379,6 +384,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     // package-private for access during unit tests
     void populateNameMaps(List<Workflow> workflows) {
         for (Workflow workflow : workflows) {
+            IdentifierValidation.validateWorkflowName(workflow.getClass());
+
             String workflowName = TaskNaming.workflowName(workflow.getClass());
             if (workflowsByName.containsKey(workflowName)) {
                 String message = "Received more than one Workflow object with the same class name: " + workflowName;
@@ -388,6 +395,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
             workflowsByName.put(workflowName, workflow);
 
             for (Entry<Class<? extends WorkflowStep>, WorkflowGraphNode> entry : workflow.getGraph().getNodes().entrySet()) {
+                IdentifierValidation.validateStepName(entry.getKey());
+
                 String activityName = TaskNaming.activityName(workflowName, entry.getValue().getStep());
                 if (activitiesByName.containsKey(activityName)) {
                     String message = "Workflow " + workflowName + " has two steps with the same name: " + activityName;
@@ -401,6 +410,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
     // package-private for testing
     void ensureDomainExists() {
+        IdentifierValidation.validateDomain(workflowDomain);
+
         try (MetricRecorder metrics = metricsFactory.newMetricRecorder("Flux.EnsureDomainExists")) {
             try {
                 log.info("Looking up SWF domain {} to see if it needs to be registered.", workflowDomain);
@@ -542,6 +553,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
         hostname = config.getHostnameTransformerForPollerIdentity().apply(hostname);
 
+        IdentifierValidation.validateHostname(hostname);
+
         decisionTaskPollerThreadsPerTaskList = new HashMap<>();
         deciderThreadsPerTaskList = new HashMap<>();
         activityTaskPollerThreadsPerTaskList = new HashMap<>();
@@ -554,6 +567,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
         Set<String> baseTaskLists = workflowsByName.values().stream().map(Workflow::taskList).collect(Collectors.toSet());
         Set<String> bucketedTaskLists = new HashSet<>(baseTaskLists);
         for (String taskList : baseTaskLists) {
+            IdentifierValidation.validateTaskListName(taskList);
+
             // We start at 2 here since we already added the base task list names to the set,
             // and bucket 1 is the base name with no suffix. See synthesizeBucketedTaskListName.
             for (int i = 2; i <= config.getTaskListConfig(taskList).getBucketCount(); i++) {

@@ -66,6 +66,7 @@ import com.danielgmyers.metrics.MetricRecorder;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 import com.danielgmyers.metrics.recorders.InMemoryMetricRecorder;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
 import org.junit.jupiter.api.Assertions;
@@ -434,7 +435,7 @@ public class DecisionTaskPollerTest {
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, workflow.getGraph().getFirstStep(),
-                                                                            input, activityId);
+                                                                            input, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -492,7 +493,7 @@ public class DecisionTaskPollerTest {
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
-                                                                            expectedInput, activityId);
+                                                                            expectedInput, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -660,7 +661,7 @@ public class DecisionTaskPollerTest {
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
-                expectedInput, activityId);
+                expectedInput, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -729,7 +730,7 @@ public class DecisionTaskPollerTest {
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
-                                                                            expectedInput, activityId);
+                                                                            expectedInput, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -803,81 +804,6 @@ public class DecisionTaskPollerTest {
 
         PartitionIdGeneratorResult expectedPartitionIdGeneratorResult
                 = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
-        PartitionMetadata expectedPartitionMetadata
-                = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
-
-        Assertions.assertEquals(TaskNaming.partitionMetadataMarkerName(TaskNaming.stepName(TestPartitionedStep.class), 0, 1),
-                            response.decisions().get(0).recordMarkerDecisionAttributes().markerName());
-        Assertions.assertEquals(expectedPartitionMetadata.toMarkerDetailsList().get(0),
-                            response.decisions().get(0).recordMarkerDecisionAttributes().details());
-
-        // second decision should always force a new decision
-        Assertions.assertEquals(DecisionTaskPoller.decisionToForceNewDecision(), response.decisions().get(1));
-    }
-
-    @Test
-    public void decide_schedulePartitionedSecondStep_TwoPartitions_ScheduleActivityFailed() throws JsonProcessingException {
-        List<String> failedPartitions = new ArrayList<>();
-        failedPartitions.add("p1");
-        failedPartitions.add("p2");
-
-        TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
-        partitionedStep.setPartitionIds(failedPartitions);
-
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
-
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
-
-        clock.forward(Duration.ofMillis(100));
-        history.scheduleStepAttempt();
-
-        Duration stepOneDuration = Duration.ofMillis(100);
-        clock.forward(stepOneDuration);
-        history.recordActivityResult(StepResult.success());
-
-        clock.forward(Duration.ofMillis(100));
-
-        for (String partitionId : failedPartitions) {
-            history.recordScheduleAttemptFailed(partitionId);
-        }
-
-        clock.forward(Duration.ofMillis(100));
-
-        WorkflowState state = history.buildCurrentState();
-
-        WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
-
-        mockery.replay();
-
-        String workflowId = state.getWorkflowId();
-        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, currentStep, workflowId, state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
-                                                                                 deciderMetrics,  (o, c) -> stepMetrics, clock);
-        WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
-        validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
-
-        // deciderMetrics is normally closed by the poll method.
-        // we need to close it here so we can query the metrics.
-        deciderMetrics.close();
-
-        String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, currentStep);
-        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
-        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
-
-        Assertions.assertEquals(failedPartitions.size(), stepMetrics.getCounts().get(TestPartitionedStep.PARTITION_ID_GENERATOR_METRIC).intValue());
-        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
-        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
-        Assertions.assertTrue(stepMetrics.isClosed());
-
-        mockery.verify();
-
-        // there should be two decisions in the response: a metadata marker, and a signal.
-        Assertions.assertEquals(2, response.decisions().size());
-        Assertions.assertEquals(DecisionType.RECORD_MARKER, response.decisions().get(0).decisionType());
-
-        PartitionIdGeneratorResult expectedPartitionIdGeneratorResult
-                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(failedPartitions));
         PartitionMetadata expectedPartitionMetadata
                 = PartitionMetadata.fromPartitionIdGeneratorResult(expectedPartitionIdGeneratorResult);
 
@@ -973,10 +899,10 @@ public class DecisionTaskPollerTest {
 
             expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
 
-            String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
+            String activityId = TaskNaming.createActivityId(stepTwo, 0, DigestUtils.sha256Hex(partitionId));
             ScheduleActivityTaskDecisionAttributes attrs
                     = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepTwo,
-                                                                                expectedInput, activityId);
+                                                                                expectedInput, activityId, partitionId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
             Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
@@ -1296,10 +1222,10 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
             expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
 
-            String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
+            String activityId = TaskNaming.createActivityId(stepTwo, 0, DigestUtils.sha256Hex(partitionId));
             ScheduleActivityTaskDecisionAttributes attrs
                     = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepTwo,
-                                                                                expectedInput, activityId);
+                                                                                expectedInput, activityId, partitionId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
             Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
@@ -1372,7 +1298,7 @@ public class DecisionTaskPollerTest {
             Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
-            String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
+            String activityId = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionId));
             Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
             // allow jitter will make the retry time inconsistent, but as long as it's within 2 seconds it's fine for this test
@@ -1452,7 +1378,7 @@ public class DecisionTaskPollerTest {
             Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
-            String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
+            String activityId = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionId));
             Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
             // allow jitter will make the retry time inconsistent, but as long as it's within 2 seconds it's fine for this test
@@ -1538,10 +1464,10 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
-        String activityId = TaskNaming.createActivityId(partitionedStep, 0, partitionId);
+        String activityId = TaskNaming.createActivityId(partitionedStep, 0, DigestUtils.sha256Hex(partitionId));
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, partitionedStep,
-                expectedInput, activityId);
+                expectedInput, activityId, partitionId);
         attrs = attrs.toBuilder().control(partitionId).build();
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
@@ -1616,7 +1542,7 @@ public class DecisionTaskPollerTest {
             Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
-            String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
+            String activityId = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionId));
             Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
             // allow jitter will make the retry time inconsistent, but as long as it's within 2 seconds it's fine for this test
@@ -1709,10 +1635,10 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
-            String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
+            String activityId = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionId));
             ScheduleActivityTaskDecisionAttributes attrs
                     = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, partitionedStep,
-                    expectedInput, activityId);
+                    expectedInput, activityId, partitionId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
             Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
@@ -1790,7 +1716,7 @@ public class DecisionTaskPollerTest {
         String activityId = TaskNaming.createActivityId(stepThree, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepThree,
-                expectedInput, activityId);
+                expectedInput, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -1865,7 +1791,7 @@ public class DecisionTaskPollerTest {
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
-                                                                            expectedInput, activityId);
+                                                                            expectedInput, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -1975,7 +1901,7 @@ public class DecisionTaskPollerTest {
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, workflow.getGraph().getFirstStep(),
-                input, activityId);
+                input, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -2024,7 +1950,7 @@ public class DecisionTaskPollerTest {
         String activityId = TaskNaming.createActivityId(currentStep, 1, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, workflow.getGraph().getFirstStep(),
-                                                                            input, activityId);
+                                                                            input, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -2156,7 +2082,8 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
-                                                                            TaskNaming.createActivityId(currentStep, 1, null));
+                                                                            TaskNaming.createActivityId(currentStep, 1, null),
+                                                                            null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -2297,7 +2224,8 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
-                                                                            TaskNaming.createActivityId(currentStep, 1, null));
+                                                                            TaskNaming.createActivityId(currentStep, 1, null),
+                                                                            null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -2440,7 +2368,7 @@ public class DecisionTaskPollerTest {
         String activityIdSecondAttempt = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 1, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, workflow.getGraph().getFirstStep(),
-                                                                            input, activityIdSecondAttempt);
+                                                                            input, activityIdSecondAttempt, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -2597,7 +2525,7 @@ public class DecisionTaskPollerTest {
         String activityId = TaskNaming.createActivityId(nextStep.getStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, nextStep.getStep(),
-                                                                            expectedInput, activityId);
+                                                                            expectedInput, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
     }
@@ -2695,7 +2623,7 @@ public class DecisionTaskPollerTest {
         String activityId = TaskNaming.createActivityId(nextStep.getStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, nextStep.getStep(),
-                expectedInput, activityId);
+                expectedInput, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
     }
@@ -2830,7 +2758,7 @@ public class DecisionTaskPollerTest {
         // first decision should be to schedule the retry timer for partition p1
         Assertions.assertEquals(DecisionType.START_TIMER, decisions.get(0).decisionType());
 
-        String activityP1Id = TaskNaming.createActivityId(partitionedStep, 1, partitionToReschedule);
+        String activityP1Id = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionToReschedule));
         long delayInSeconds = RetryUtils.calculateRetryBackoffInSeconds(partitionedStep, 1,
                                                                         FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
         StartTimerDecisionAttributes attrs = DecisionTaskPoller.buildStartTimerDecisionAttrs(activityP1Id, delayInSeconds, null);
@@ -2921,10 +2849,10 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
-        String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionToReschedule);
+        String activityId = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionToReschedule));
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, partitionedStep,
-                                                                            expectedInput, activityId);
+                                                                            expectedInput, activityId, partitionToReschedule);
         attrs = attrs.toBuilder().control(partitionToReschedule).build();
 
         Assertions.assertEquals(attrs, decisions.get(0).scheduleActivityTaskDecisionAttributes());
