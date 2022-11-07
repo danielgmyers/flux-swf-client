@@ -34,6 +34,7 @@ import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.wf.graph.teststeps.TestBranchStep;
 import com.danielgmyers.flux.wf.graph.teststeps.TestOtherBranchStep;
 import com.danielgmyers.flux.wf.graph.teststeps.TestPartitionedStep;
 import com.danielgmyers.flux.wf.graph.teststeps.TestPartitionedStepUsesPartitionIdGeneratorResult;
