@@ -14,7 +14,7 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.wf.graph;
+package com.danielgmyers.flux.wf.graph.teststeps;
 
 import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepResult;
