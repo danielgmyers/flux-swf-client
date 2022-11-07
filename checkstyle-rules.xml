@@ -118,11 +118,6 @@
 
         <!--  config_misc -->
         <module name="ArrayTypeStyle"/>
-        <module name="AvoidEscapedUnicodeCharacters">
-            <property name="allowEscapesForControlCharacters" value="true"/>
-            <property name="allowByTailComment" value="true"/>
-            <property name="allowNonPrintableEscapes" value="true"/>
-        </module>
         <module name="Indentation">
             <property name="basicOffset" value="4"/>
             <property name="braceAdjustment" value="0"/>

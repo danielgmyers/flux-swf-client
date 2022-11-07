@@ -19,7 +19,6 @@ package com.danielgmyers.flux.clients.swf.poller;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -102,7 +101,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_WorkflowStarted() {
+    public void testBuild_WorkflowStarted() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -132,7 +131,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_ActivityCompleted_Success() {
+    public void testBuild_ActivityCompleted_Success() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -179,7 +178,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_ActivityCompleted_Failed() {
+    public void testBuild_ActivityCompleted_Failed() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -225,7 +224,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_ActivityCompleted_CustomResultCode() {
+    public void testBuild_ActivityCompleted_CustomResultCode() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -334,11 +333,11 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_PartitionedStep_BothPartitionActivitiesRetried() {
+    public void testBuild_PartitionedStep_BothPartitionActivitiesRetried() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
-        List<String> partitionIds = Arrays.asList("p1", "p2");
+        Set<String> partitionIds = Set.of("p1", "p2");
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
@@ -351,6 +350,10 @@ public class WorkflowStateTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        history.recordPartitionMetadataMarkers(clock.forward(Duration.ofMillis(100)),
+                                               TaskNaming.stepName(TestPartitionedStep.class),
+                                               PartitionIdGeneratorResult.create(partitionIds));
 
         Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt("p1");
@@ -389,11 +392,11 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_PartitionedStep_OnePartitionSucceededAndOneRetried() {
+    public void testBuild_PartitionedStep_OnePartitionSucceededAndOneRetried() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
-        List<String> partitionIds = Arrays.asList("p1", "p2");
+        Set<String> partitionIds = Set.of("p1", "p2");
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
@@ -406,6 +409,10 @@ public class WorkflowStateTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        history.recordPartitionMetadataMarkers(clock.forward(Duration.ofMillis(100)),
+                                               TaskNaming.stepName(TestPartitionedStep.class),
+                                               PartitionIdGeneratorResult.create(partitionIds));
 
         Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt("p1");
@@ -444,11 +451,11 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_PartitionedStep_OnePartitionFailedAndOneRetried() {
+    public void testBuild_PartitionedStep_OnePartitionFailedAndOneRetried() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
-        List<String> partitionIds = Arrays.asList("p1", "p2");
+        Set<String> partitionIds = Set.of("p1", "p2");
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
@@ -461,6 +468,10 @@ public class WorkflowStateTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        history.recordPartitionMetadataMarkers(clock.forward(Duration.ofMillis(100)),
+                                               TaskNaming.stepName(TestPartitionedStep.class),
+                                               PartitionIdGeneratorResult.create(partitionIds));
 
         Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt("p1");
@@ -499,11 +510,11 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_PartitionedStep_FirstPartitionSucceededAndSecondFailedToSchedule() {
+    public void testBuild_PartitionedStep_FirstPartitionSucceededAndSecondFailedToSchedule() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
-        List<String> partitionIds = Arrays.asList("p1", "p2");
+        Set<String> partitionIds = Set.of("p1", "p2");
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
@@ -516,6 +527,10 @@ public class WorkflowStateTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        history.recordPartitionMetadataMarkers(clock.forward(Duration.ofMillis(100)),
+                                               TaskNaming.stepName(TestPartitionedStep.class),
+                                               PartitionIdGeneratorResult.create(partitionIds));
 
         Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt("p1");
@@ -556,11 +571,11 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_PartitionedStep_FirstFailedToScheduleAndSecondSucceeded() {
+    public void testBuild_PartitionedStep_FirstFailedToScheduleAndSecondSucceeded() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
-        List<String> partitionIds = Arrays.asList("p1", "p2");
+        Set<String> partitionIds = Set.of("p1", "p2");
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
@@ -573,6 +588,10 @@ public class WorkflowStateTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        history.recordPartitionMetadataMarkers(clock.forward(Duration.ofMillis(100)),
+                                               TaskNaming.stepName(TestPartitionedStep.class),
+                                               PartitionIdGeneratorResult.create(partitionIds));
 
         Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
         history.recordScheduleAttemptFailed("p1");
@@ -612,11 +631,11 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_PartitionedStep_BothPartitionsFailedToSchedule() {
+    public void testBuild_PartitionedStep_BothPartitionsFailedToSchedule() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
-        List<String> partitionIds = Arrays.asList("p1", "p2");
+        Set<String> partitionIds = Set.of("p1", "p2");
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String firstStepName = TaskNaming.activityName(workflow, TestStepOne.class);
@@ -630,6 +649,10 @@ public class WorkflowStateTest {
 
         Instant stepOneEndTime = clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        history.recordPartitionMetadataMarkers(clock.forward(Duration.ofMillis(100)),
+                                               TaskNaming.stepName(TestPartitionedStep.class),
+                                               PartitionIdGeneratorResult.create(partitionIds));
 
         clock.forward(Duration.ofMillis(100));
         history.recordScheduleAttemptFailed("p1");
@@ -652,23 +675,17 @@ public class WorkflowStateTest {
         Assertions.assertEquals(0L, (long)ws.getCurrentStepMaxRetryCount());
         Assertions.assertEquals(StepResult.SUCCEED_RESULT_CODE, ws.getCurrentStepResultCode());
 
+        // It should look like we never tried to schedule this step at all yet
         Assertions.assertNotNull(ws.getLatestPartitionStates(partitionedStepName));
-        Assertions.assertFalse(ws.getLatestPartitionStates(partitionedStepName).isEmpty());
-        Assertions.assertEquals(2, ws.getLatestPartitionStates(partitionedStepName).size());
-
-        Assertions.assertTrue(ws.getLatestPartitionStates(partitionedStepName).containsKey("p1"));
-        Assertions.assertNull(ws.getLatestPartitionStates(partitionedStepName).get("p1"));
-
-        Assertions.assertTrue(ws.getLatestPartitionStates(partitionedStepName).containsKey("p2"));
-        Assertions.assertNull(ws.getLatestPartitionStates(partitionedStepName).get("p2"));
+        Assertions.assertTrue(ws.getLatestPartitionStates(partitionedStepName).isEmpty());
     }
 
     @Test
-    public void testBuild_PartitionedStep_BothPartitionsCompleted_BothSucceeded() {
+    public void testBuild_PartitionedStep_BothPartitionsCompleted_BothSucceeded() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
-        List<String> partitionIds = Arrays.asList("p1", "p2");
+        Set<String> partitionIds = Set.of("p1", "p2");
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
@@ -681,6 +698,10 @@ public class WorkflowStateTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        history.recordPartitionMetadataMarkers(clock.forward(Duration.ofMillis(100)),
+                                               TaskNaming.stepName(TestPartitionedStep.class),
+                                               PartitionIdGeneratorResult.create(partitionIds));
 
         Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt("p1");
@@ -727,11 +748,11 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_PartitionedStep_BothPartitionsCompleted_OneFailed_OneSucceeded() {
+    public void testBuild_PartitionedStep_BothPartitionsCompleted_OneFailed_OneSucceeded() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
-        List<String> partitionIds = Arrays.asList("p1", "p2");
+        Set<String> partitionIds = Set.of("p1", "p2");
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
@@ -744,6 +765,10 @@ public class WorkflowStateTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        history.recordPartitionMetadataMarkers(clock.forward(Duration.ofMillis(100)),
+                                               TaskNaming.stepName(TestPartitionedStep.class),
+                                               PartitionIdGeneratorResult.create(partitionIds));
 
         Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt("p1");
@@ -790,11 +815,11 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_PartitionedStep_BothPartitionsCompletedAfterMultipleAttempts() {
+    public void testBuild_PartitionedStep_BothPartitionsCompletedAfterMultipleAttempts() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
-        List<String> partitionIds = Arrays.asList("p1", "p2");
+        Set<String> partitionIds = Set.of("p1", "p2");
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
@@ -807,6 +832,10 @@ public class WorkflowStateTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        history.recordPartitionMetadataMarkers(clock.forward(Duration.ofMillis(100)),
+                                               TaskNaming.stepName(TestPartitionedStep.class),
+                                               PartitionIdGeneratorResult.create(partitionIds));
 
         Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt("p1");
@@ -893,11 +922,11 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_PartitionedStep_BothPartitionsCompletedAfterMultipleAttempts_OneFailed_OneSucceeded() {
+    public void testBuild_PartitionedStep_BothPartitionsCompletedAfterMultipleAttempts_OneFailed_OneSucceeded() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
-        List<String> partitionIds = Arrays.asList("p1", "p2");
+        Set<String> partitionIds = Set.of("p1", "p2");
 
         Workflow workflow = new TestWorkflowWithPartitionedStep(partitionIds);
         String partitionedStepName = TaskNaming.activityName(workflow, TestPartitionedStep.class);
@@ -910,6 +939,10 @@ public class WorkflowStateTest {
 
         clock.forward(Duration.ofMillis(100));
         history.recordActivityResult(StepResult.success());
+
+        history.recordPartitionMetadataMarkers(clock.forward(Duration.ofMillis(100)),
+                                               TaskNaming.stepName(TestPartitionedStep.class),
+                                               PartitionIdGeneratorResult.create(partitionIds));
 
         Instant stepTwoStartTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt("p1");
@@ -995,7 +1028,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_ActivityTimedOut_Retry() {
+    public void testBuild_ActivityTimedOut_Retry() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1036,7 +1069,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_ActivityCanceled_Retry() {
+    public void testBuild_ActivityCanceled_Retry() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1077,7 +1110,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_MultipleStepAttemptsPresent_Success() {
+    public void testBuild_MultipleStepAttemptsPresent_Success() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1154,7 +1187,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_UsesMostRecentStepWhenMultipleStepsInHistory_Success() {
+    public void testBuild_UsesMostRecentStepWhenMultipleStepsInHistory_Success() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1205,7 +1238,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsOpenTimer() {
+    public void testBuild_DetectsOpenTimer() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1251,7 +1284,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsTimerFired() {
+    public void testBuild_DetectsTimerFired() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1299,7 +1332,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsTimerCancelled() {
+    public void testBuild_DetectsTimerCancelled() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1346,7 +1379,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsTimerThatWasCancelledAndRestarted() {
+    public void testBuild_DetectsTimerThatWasCancelledAndRestarted() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1396,7 +1429,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsTimerThatWasCancelledAndRestartedAndFiredNormally() {
+    public void testBuild_DetectsTimerThatWasCancelledAndRestartedAndFiredNormally() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1863,7 +1896,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_IgnoresInvalidSignalData() {
+    public void testBuild_IgnoresInvalidSignalData() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1911,7 +1944,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsWorkflowCancelRequest() {
+    public void testBuild_DetectsWorkflowCancelRequest() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1945,7 +1978,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsWorkflowCancelRequest_FirstStepInProgress() {
+    public void testBuild_DetectsWorkflowCancelRequest_FirstStepInProgress() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -1982,7 +2015,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsWorkflowCompletion_ExecutionCanceled() {
+    public void testBuild_DetectsWorkflowCompletion_ExecutionCanceled() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -2019,7 +2052,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsWorkflowCompletion_ExecutionCompleted() {
+    public void testBuild_DetectsWorkflowCompletion_ExecutionCompleted() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -2076,7 +2109,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsWorkflowCompletion_ExecutionFailed() {
+    public void testBuild_DetectsWorkflowCompletion_ExecutionFailed() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -2133,7 +2166,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsWorkflowCompletion_ExecutionTerminated() {
+    public void testBuild_DetectsWorkflowCompletion_ExecutionTerminated() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -2167,7 +2200,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testBuild_DetectsWorkflowCompletion_ExecutionTimedOut() {
+    public void testBuild_DetectsWorkflowCompletion_ExecutionTimedOut() throws JsonProcessingException {
         Map<String, String> input = new HashMap<>();
         input.put("foo", "bar");
 
@@ -2383,7 +2416,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testGetPartitionMetadata_NoMetadataMarker() {
+    public void testGetPartitionMetadata_NoMetadataMarker() throws JsonProcessingException {
         Set<String> partitionIds = new HashSet<>();
         partitionIds.add("p1");
         partitionIds.add("p2");
@@ -2472,7 +2505,7 @@ public class WorkflowStateTest {
     }
 
     @Test
-    public void testGetPartitionMetadata_InvalidMetadataMarker() {
+    public void testGetPartitionMetadata_InvalidMetadataMarker() throws JsonProcessingException {
         Set<String> partitionIds = new HashSet<>();
         partitionIds.add("p1");
         partitionIds.add("p2");

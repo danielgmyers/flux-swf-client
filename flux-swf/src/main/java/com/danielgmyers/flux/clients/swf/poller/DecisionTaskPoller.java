@@ -31,6 +31,7 @@ import java.util.TreeMap;
 import java.util.concurrent.RejectedExecutionException;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
+import com.danielgmyers.flux.clients.swf.IdentifierValidation;
 import com.danielgmyers.flux.clients.swf.poller.timers.TimerData;
 import com.danielgmyers.flux.clients.swf.util.RetryUtils;
 import com.danielgmyers.flux.clients.swf.util.ThreadUtils;
@@ -52,6 +53,7 @@ import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
 import com.danielgmyers.metrics.MetricRecorder;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -175,7 +177,7 @@ public class DecisionTaskPoller implements Runnable {
     }
 
     private Runnable pollForDecisionTask(MetricRecorder metrics) {
-        try {
+        try (metrics) {
             Duration waitTime = metrics.endDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
             // emit the wait time metric again, under this poller's task list name.
             metrics.addDuration(DECIDER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName, waitTime);
@@ -205,8 +207,6 @@ public class DecisionTaskPoller implements Runnable {
         } catch (Throwable e) {
             log.warn("Got an unexpected exception when polling for an decision task.", e);
             throw e;
-        } finally {
-            metrics.close();
         }
     }
 
@@ -500,6 +500,10 @@ public class DecisionTaskPoller implements Runnable {
                                                                          workflowId, metricsFactory);
             PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(result);
 
+            for (String partitionId : metadata.getPartitionIds()) {
+                IdentifierValidation.validatePartitionId(partitionId);
+            }
+
             List<String> markerDetailsList = metadata.toMarkerDetailsList();
             for (int i = 0; i < markerDetailsList.size(); i++) {
                 String markerDetails = markerDetailsList.get(i);
@@ -567,10 +571,23 @@ public class DecisionTaskPoller implements Runnable {
                 retrying = true;
             }
 
-            String activityId = TaskNaming.createActivityId(nextStep, attemptNumber, partitionId);
+            String partitionIdHash = null;
+            if (partitionId != null) {
+                partitionIdHash = DigestUtils.sha256Hex(partitionId);
+            }
+            String activityId = TaskNaming.createActivityId(nextStep, attemptNumber, partitionIdHash);
+
+            // We might be transitioning from pre-2.1 workflows, in which case there might be an open timer
+            // or a signal named using the unhashed partition ID. we'll need to check for that as well.
+            String activityIdWithUnhashedPartitionIdDoNotStore = TaskNaming.createActivityId(nextStep, attemptNumber, partitionId);
+
+            BaseSignalData signal = state.getSignalsByActivityId().get(activityId);
+            if (signal == null) {
+                signal = state.getSignalsByActivityId().get(activityIdWithUnhashedPartitionIdDoNotStore);
+            }
+
             boolean hasForceResultSignal = false;
-            if (state.getSignalsByActivityId().containsKey(activityId)
-                    && state.getSignalsByActivityId().get(activityId).getSignalType() == SignalType.FORCE_RESULT) {
+            if (signal != null && signal.getSignalType() == SignalType.FORCE_RESULT) {
                 hasForceResultSignal = true;
                 retrying = false;
             }
@@ -583,14 +600,14 @@ public class DecisionTaskPoller implements Runnable {
             // - Otherwise, schedule the next attempt.
             if (attemptNumber > 0) {
                 // this is a retry if we get in here.
-                BaseSignalData signal = state.getSignalsByActivityId().get(activityId);
-                if (state.getOpenTimers().containsKey(activityId)) {
+                if (state.getOpenTimers().containsKey(activityId)
+                    || state.getOpenTimers().containsKey(activityIdWithUnhashedPartitionIdDoNotStore)) {
                     if (signal != null) {
                         // The retry timer id matches the next attempt's activity id, which matches the signal's activity id.
                         // ScheduleDelayedRetry events need to be ignored if the timer is still open.
 
                         // first check if the signal is older than the scheduled event for the retry timer, if so ignore it.
-                        TimerData openTimer = state.getOpenTimers().get(activityId);
+                        TimerData openTimer = state.getOpenTimers().get(signal.getActivityId());
                         if (signal.getSignalEventId() > openTimer.getStartTimerEventId()) {
                             decisions.addAll(handleSignal(state, signal, partitionId, nextActivityName, fluxMetrics));
                         }
@@ -608,8 +625,8 @@ public class DecisionTaskPoller implements Runnable {
                 } else if (signal != null) { // if there isn't an open timer but we have a ScheduleDelayedRetry signal
                     if (signal.getSignalType() == SignalType.SCHEDULE_DELAYED_RETRY) {
                         // first check if the signal is older than the close event for the last retry timer, if so ignore it.
-                        if (!state.getClosedTimers().containsKey(activityId)
-                                || signal.getSignalEventId() > state.getClosedTimers().get(activityId)) {
+                        if (!state.getClosedTimers().containsKey(signal.getActivityId())
+                                || signal.getSignalEventId() > state.getClosedTimers().get(signal.getActivityId())) {
                             decisions.addAll(handleSignal(state, signal, partitionId, nextActivityName, fluxMetrics));
                             // continue to the next partition, we don't want to make any more decisions for this one
                             continue;
@@ -621,8 +638,10 @@ public class DecisionTaskPoller implements Runnable {
                     }
                 }
 
-                // check whether we've already closed the retry timer. If not, start it.
-                if (!state.getClosedTimers().containsKey(activityId) && !state.getOpenTimers().containsKey(activityId)) {
+                // check whether we've already started and fired the retry timer. If not, start it.
+                if (!state.getClosedTimers().containsKey(activityId) && !state.getOpenTimers().containsKey(activityId)
+                    && !state.getClosedTimers().containsKey(activityIdWithUnhashedPartitionIdDoNotStore)
+                    && !state.getOpenTimers().containsKey(activityIdWithUnhashedPartitionIdDoNotStore)) {
                     long delayInSeconds = RetryUtils.calculateRetryBackoffInSeconds(nextStep, attemptNumber,
                                                                                     exponentialBackoffBase);
                     StartTimerDecisionAttributes attrs = buildStartTimerDecisionAttrs(activityId, delayInSeconds, partitionId);
@@ -679,11 +698,7 @@ public class DecisionTaskPoller implements Runnable {
             actualInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(firstAttemptDate));
 
             ScheduleActivityTaskDecisionAttributes attrs
-                    = buildScheduleActivityTaskDecisionAttrs(workflow, nextStep, actualInput, activityId);
-
-            // We'll save the partition id in the control field for convenience in debugging and testing,
-            // and to reference when rebuilding partition state to avoid having to inspect the step's input attributes.
-            attrs = attrs.toBuilder().control(partitionId).build();
+                    = buildScheduleActivityTaskDecisionAttrs(workflow, nextStep, actualInput, activityId, partitionId);
 
             Decision decision = Decision.builder().decisionType(DecisionType.SCHEDULE_ACTIVITY_TASK)
                                                   .scheduleActivityTaskDecisionAttributes(attrs)
@@ -957,7 +972,7 @@ public class DecisionTaskPoller implements Runnable {
     // package-private for use in tests
     static ScheduleActivityTaskDecisionAttributes
             buildScheduleActivityTaskDecisionAttrs(Workflow workflow, WorkflowStep nextStep,
-                                                   Map<String, String> nextStepInput, String activityId) {
+                                                   Map<String, String> nextStepInput, String activityId, String partitionId) {
         String activityName = TaskNaming.activityName(workflow, nextStep);
         return ScheduleActivityTaskDecisionAttributes.builder()
                 .taskList(TaskList.builder().name(workflow.taskList()).build())
@@ -966,6 +981,9 @@ public class DecisionTaskPoller implements Runnable {
                 .scheduleToStartTimeout("NONE")
                 .scheduleToCloseTimeout("NONE")
                 .startToCloseTimeout("NONE")
+                // We'll save the partition id in the control field for convenience in debugging and testing,
+                // and to reference when rebuilding partition state to avoid having to inspect the step's input attributes.
+                .control(partitionId)
                 .activityType(ActivityType.builder().name(activityName).version(FluxCapacitorImpl.WORKFLOW_VERSION).build())
                 .activityId(activityId)
                 .build();

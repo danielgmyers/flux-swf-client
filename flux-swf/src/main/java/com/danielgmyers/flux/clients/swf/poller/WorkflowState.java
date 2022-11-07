@@ -258,50 +258,9 @@ final class WorkflowState {
                 // and SWF failed to schedule it as requested (e.g. we may have exceeded their rate limit
                 // for scheduling activities).
 
-                // The decider will deal with this in a couple of ways depending on the exact details,
-                // but for our purposes here we just need to do the following:
-                // 1. If the retry attempt for this partition is larger than 0, ignore the event entirely.
-                // 2. If the retry attempt for this partition is zero, and this is the first time we've seen this partition id
-                //    (which will happen if only one attempt to schedule this partition was made, and it failed),
-                //    then we need to track that we've seen this partition id but have no metadata for it.
-                // See https://github.com/danielgmyers/flux-swf-client/issues/33 for details on why this is important.
-
-                // We'll deal with this by treating it as if we know the partition id but have not yet scheduled it.
-                // We also have to extract the partition id from the activity id since it's not stored in the event data.
-                String activityName = event.scheduleActivityTaskFailedEventAttributes().activityType().name();
-                String stepName = TaskNaming.stepNameFromActivityName(activityName);
-                String activityId = event.scheduleActivityTaskFailedEventAttributes().activityId();
-                String retryAttemptAndPartitionId = activityId.substring(stepName.length() + 1); // skip the step name and first _
-                String partitionId;
-
-                // If the step is partitioned, the remainder of the activity id is of the form "{retryAttempt}_{partitionId}".
-                // If the step isn't partitioned, we can just ignore this event. It'll get rescheduled properly.
-                if (retryAttemptAndPartitionId.contains("_")) {
-                    int underscorePos = retryAttemptAndPartitionId.indexOf("_");
-                    int retryAttempt = Integer.parseInt(retryAttemptAndPartitionId.substring(0, underscorePos));
-                    if (retryAttempt > 0) {
-                        // Since the retry attempt is nonzero, we can ignore this event entirely.
-                        continue;
-                    }
-
-                    partitionId = retryAttemptAndPartitionId.substring(underscorePos + 1);
-
-                    if (!ws.latestPartitionStates.containsKey(activityName)) {
-                        ws.latestPartitionStates.put(activityName, new HashMap<>());
-                    }
-
-                    // the retry attempt is 0, so we need to check if we previously saw state for this workflow step.
-                    // if we see an entry for the partition id already, then either:
-                    // a) we've seen a successful execution of the partition
-                    // b) we've seen a failed attempt to execute attempt 0 of the partition
-                    // In both cases we can skip this event.
-                    if (ws.latestPartitionStates.get(activityName).containsKey(partitionId)) {
-                        continue;
-                    }
-
-                    // If we get here, we need to store the partition id with no state so that we know we've seen this case.
-                    ws.latestPartitionStates.get(activityName).put(partitionId, null);
-                }
+                // For the most part we don't care, but eventually we'll want to track that this has happened
+                // so that the decider can do proper exponential backoff if desired.
+                // See https://github.com/danielgmyers/flux-swf-client/issues/32 for details.
             } else if (MARKER_EVENTS.contains(event.eventType())) {
                 // There may be markers we don't care about in the history, such as the "unknown result code" marker that Flux adds,
                 // or markers added by other tools.
@@ -418,6 +377,19 @@ final class WorkflowState {
             ws.currentStepCompletionTime = null;
             ws.currentStepLastActivityCompletionMessage = null;
             ws.currentStepMaxRetryCount = 0L;
+
+            String currentStepName = TaskNaming.stepNameFromActivityName(ws.currentActivityName);
+            PartitionMetadata metadata = ws.getPartitionMetadata(currentStepName);
+            // Ensure we have an entry for every partition ID, even if scheduling failed for some of them.
+            // Note that this doesn't help if _all_ of the first attempts failed to schedule, but in that case Flux
+            // can just behave as if it hasn't tried at all yet.
+            if (metadata != null) {
+                for (String partitionId : metadata.getPartitionIds()) {
+                    if (!currentStepPartitions.containsKey(partitionId)) {
+                        currentStepPartitions.put(partitionId, null);
+                    }
+                }
+            }
 
             boolean hasPartitionNeedingRetry = false;
 

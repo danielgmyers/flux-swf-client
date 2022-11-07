@@ -28,16 +28,14 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import com.danielgmyers.flux.FluxCapacitor;
+import com.danielgmyers.flux.clients.swf.poller.testwf.TestBranchingWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestPeriodicWorkflow;
-import com.danielgmyers.flux.clients.swf.poller.testwf.TestStepOne;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowCustomStartToCloseDuration;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowCustomTaskList;
 import com.danielgmyers.flux.poller.TaskNaming;
-import com.danielgmyers.flux.step.CloseWorkflow;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.wf.Workflow;
-import com.danielgmyers.flux.wf.graph.WorkflowGraphBuilder;
 import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
 import com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory;
 import org.easymock.Capture;
@@ -374,16 +372,16 @@ public class FluxCapacitorTest {
 
         FluxCapacitorConfig config  = new FluxCapacitorConfig();
         config.setSwfDomain(DOMAIN);
-        FluxCapacitor fcNoWorkflows = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config, Clock.systemUTC());
+        FluxCapacitorImpl fcNoWorkflows = new FluxCapacitorImpl(new NoopMetricRecorderFactory(), swf, config, Clock.systemUTC());
 
-        Workflow temp = () -> new WorkflowGraphBuilder(new TestStepOne()).successTransition(TestStepOne.class, CloseWorkflow.class).build();
-        fc.populateNameMaps(Collections.singletonList(temp));
+        fcNoWorkflows.populateNameMaps(List.of(new TestBranchingWorkflow()));
 
         mockery.replay();
         try {
             fcNoWorkflows.executeWorkflow(TestWorkflow.class, workflowId, input);
             Assertions.fail();
         } catch(WorkflowExecutionException e) {
+            Assertions.assertTrue(e.getMessage().contains("not provided"));
             // expected
         }
         mockery.verify();
@@ -403,6 +401,7 @@ public class FluxCapacitorTest {
             fcNoWorkflows.executeWorkflow(TestWorkflow.class, workflowId, input);
             Assertions.fail();
         } catch(WorkflowExecutionException e) {
+            Assertions.assertTrue(e.getMessage().contains("initialized"));
             // expected
         }
         mockery.verify();
