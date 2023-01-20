@@ -560,10 +560,6 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
         activityTaskPollerThreadsPerTaskList = new HashMap<>();
         workerThreadsPerTaskList = new HashMap<>();
 
-        final double exponentialBackoffCoefficient = (config.getExponentialBackoffBase() != null
-                                                        ? config.getExponentialBackoffBase()
-                                                        : DEFAULT_EXPONENTIAL_BACKOFF_BASE);
-
         Set<String> baseTaskLists = workflowsByName.values().stream().map(Workflow::taskList).collect(Collectors.toSet());
         Set<String> bucketedTaskLists = new HashSet<>(baseTaskLists);
         for (String taskList : baseTaskLists) {
@@ -583,8 +579,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
             poolSize = config.getTaskListConfig(taskList).getDecisionTaskPollerThreadCount();
             ScheduledExecutorService service = createExecutorService(taskList, hostname, "decisionPoller", poolSize,
-                deciderName -> new DecisionTaskPoller(metricsFactory, swf, workflowDomain, taskList, deciderName,
-                                                      exponentialBackoffCoefficient, workflowsByName,
+                deciderName -> new DecisionTaskPoller(metricsFactory, swf, config, taskList, deciderName, workflowsByName,
                                                       activitiesByName, deciderThreadsPerTaskList.get(taskList),
                                                       clock));
             decisionTaskPollerThreadsPerTaskList.put(taskList, service);

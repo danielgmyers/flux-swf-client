@@ -91,7 +91,7 @@ public class ActivityTaskPoller implements Runnable {
         this.domain = workflowDomain;
         this.taskListName = taskListName;
 
-        if (identity == null || identity.length() <= 0 || identity.length() > 256) {
+        if (identity == null || identity.isEmpty() || identity.length() > 256) {
             throw new IllegalArgumentException("Invalid identity for task poller, must be 1-256 characters: " + identity);
         }
         this.identity = identity;
@@ -120,7 +120,7 @@ public class ActivityTaskPoller implements Runnable {
     }
 
     private Runnable pollForActivityTask(MetricRecorder metrics) {
-        try {
+        try (metrics) {
             Duration waitTime = metrics.endDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME);
             // emit the wait time metric again, under this poller's task list name.
             metrics.addDuration(WORKER_THREAD_AVAILABILITY_WAIT_TIME_METRIC_NAME + "." + taskListName, waitTime);
@@ -162,8 +162,6 @@ public class ActivityTaskPoller implements Runnable {
         } catch (Throwable e) {
             log.warn("Got an unexpected exception when polling for an activity task.", e);
             throw e;
-        } finally {
-            metrics.close();
         }
     }
 

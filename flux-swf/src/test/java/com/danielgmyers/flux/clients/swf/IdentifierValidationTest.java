@@ -48,31 +48,41 @@ public class IdentifierValidationTest {
     @Test
     public void testDomain() {
         doCommonTests(IdentifierValidation::validateDomain, IdentifierValidation.MAX_DOMAIN_NAME_LENGTH, false);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> IdentifierValidation.validateDomain("arn"));
     }
 
     @Test
     public void testTaskListName() {
         doCommonTests(IdentifierValidation::validateTaskListName, IdentifierValidation.MAX_TASK_LIST_NAME_LENGTH, false);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> IdentifierValidation.validateTaskListName("arn"));
     }
 
     @Test
     public void testWorkflowExecutionId() {
         doCommonTests(IdentifierValidation::validateWorkflowExecutionId, IdentifierValidation.MAX_WORKFLOW_EXECUTION_ID_LENGTH, false);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> IdentifierValidation.validateWorkflowExecutionId("arn"));
     }
 
     @Test
     public void testHostname() {
         doCommonTests(IdentifierValidation::validateHostname, IdentifierValidation.MAX_HOSTNAME_LENGTH, true);
+        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateHostname("arn"));
     }
 
     @Test
     public void testWorkflowExecutionTag() {
         doCommonTests(IdentifierValidation::validateWorkflowExecutionTag, IdentifierValidation.MAX_WORKFLOW_EXECUTION_TAG_LENGTH, true);
+        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateWorkflowExecutionTag("arn"));
     }
 
     @Test
     public void testPartitionId() {
-        doCommonTests(IdentifierValidation::validatePartitionId, IdentifierValidation.MAX_PARTITION_ID_LENGTH, true);
+        doCommonTests((s) -> IdentifierValidation.validatePartitionId(s, true), IdentifierValidation.MAX_PARTITION_ID_LENGTH_HASHING_ENABLED, true);
+        doCommonTests((s) -> IdentifierValidation.validatePartitionId(s, false), IdentifierValidation.MAX_PARTITION_ID_LENGTH_HASHING_DISABLED, false);
+
+        // "arn" should be allowed either way, even though invalid characters aren't allowed with hashing disabled.
+        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validatePartitionId("arn", true));
+        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validatePartitionId("arn", false));
     }
 
     public static class TestWorkflowWithValidClassName implements Workflow {
@@ -140,14 +150,14 @@ public class IdentifierValidationTest {
         for (int i = 0; i < invalidCharacters.length(); i++) {
             String id = invalidCharacters.substring(i, i+1);
             Assertions.assertThrows(IllegalArgumentException.class,
-                                    () -> IdentifierValidation.validate("test", id, 256, true));
+                                    () -> IdentifierValidation.validate("test", id, 256, true, true));
         }
     }
     @Test
     public void testInternalValidate_AllowsEachInvalidCharacterIfFlagDisabled() {
         for (int i = 0; i < invalidCharacters.length(); i++) {
             String id = invalidCharacters.substring(i, i+1);
-            Assertions.assertDoesNotThrow(() -> IdentifierValidation.validate("test", id, 256, false));
+            Assertions.assertDoesNotThrow(() -> IdentifierValidation.validate("test", id, 256, false, false));
         }
     }
 

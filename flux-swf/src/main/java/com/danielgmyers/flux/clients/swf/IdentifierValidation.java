@@ -113,42 +113,47 @@ public final class IdentifierValidation {
     static final int MAX_TASK_LIST_NAME_LENGTH = 76;
     static final int MAX_WORKFLOW_EXECUTION_ID_LENGTH = 256;
     static final int MAX_WORKFLOW_EXECUTION_TAG_LENGTH = 256;
-    static final int MAX_PARTITION_ID_LENGTH = 256;
+    static final int MAX_PARTITION_ID_LENGTH_HASHING_DISABLED = 123;
+    static final int MAX_PARTITION_ID_LENGTH_HASHING_ENABLED = 256;
 
     private static final Pattern INVALID_CHARACTERS = Pattern.compile("[:/|\u0000-\u001f\u007f-\u009f]+");
 
     private IdentifierValidation() {}
 
     public static void validateDomain(String domain) {
-        validate("Domains", domain, MAX_DOMAIN_NAME_LENGTH, true);
+        validate("Domains", domain, MAX_DOMAIN_NAME_LENGTH, true, true);
     }
 
     public static void validateWorkflowName(Class<? extends Workflow> clazz) {
-        validate("Workflow class names", TaskNaming.workflowName(clazz), MAX_WORKFLOW_CLASS_NAME_LENGTH, true);
+        validate("Workflow class names", TaskNaming.workflowName(clazz), MAX_WORKFLOW_CLASS_NAME_LENGTH, true, true);
     }
 
     public static void validateStepName(Class<? extends WorkflowStep> clazz) {
-        validate("WorkflowStep class names", TaskNaming.stepName(clazz), MAX_WORKFLOW_STEP_CLASS_NAME_LENGTH, true);
+        validate("WorkflowStep class names", TaskNaming.stepName(clazz), MAX_WORKFLOW_STEP_CLASS_NAME_LENGTH, true, true);
     }
 
     public static void validateHostname(String hostname) {
-        validate("Hostnames", hostname, MAX_HOSTNAME_LENGTH, false);
+        validate("Hostnames", hostname, MAX_HOSTNAME_LENGTH, false, false);
     }
 
     public static void validateTaskListName(String taskListName) {
-        validate("Task list names", taskListName, MAX_TASK_LIST_NAME_LENGTH, true);
+        validate("Task list names", taskListName, MAX_TASK_LIST_NAME_LENGTH, true, true);
     }
 
     public static void validateWorkflowExecutionId(String executionId) {
-        validate("Workflow Execution IDs", executionId, MAX_WORKFLOW_EXECUTION_ID_LENGTH, true);
+        validate("Workflow Execution IDs", executionId, MAX_WORKFLOW_EXECUTION_ID_LENGTH, true, true);
     }
 
     public static void validateWorkflowExecutionTag(String executionTag) {
-        validate("Workflow Execution Tags", executionTag, MAX_WORKFLOW_EXECUTION_TAG_LENGTH, false);
+        validate("Workflow Execution Tags", executionTag, MAX_WORKFLOW_EXECUTION_TAG_LENGTH, false, false);
     }
 
-    public static void validatePartitionId(String partitionId) {
-        validate("Partition IDs", partitionId, MAX_PARTITION_ID_LENGTH, false);
+    public static void validatePartitionId(String partitionId, boolean hashingEnabled) {
+        if (hashingEnabled) {
+            validate("Partition IDs", partitionId, MAX_PARTITION_ID_LENGTH_HASHING_ENABLED, false, false);
+        } else {
+            validate("Partition IDs", partitionId, MAX_PARTITION_ID_LENGTH_HASHING_DISABLED, true, false);
+        }
     }
 
     /**
@@ -161,7 +166,8 @@ public final class IdentifierValidation {
      *
      * Package-private for testing.
      */
-    static void validate(String description, String inputToValidate, int max, boolean enforceCharacterConstraints) {
+    static void validate(String description, String inputToValidate, int max, boolean enforceCharacterConstraints,
+                         boolean disallowExactStringArn) {
         if (inputToValidate == null || inputToValidate.isEmpty()) {
             throw new IllegalArgumentException(description + " must contain at least one character.");
         }
@@ -172,7 +178,7 @@ public final class IdentifierValidation {
             if (INVALID_CHARACTERS.matcher(inputToValidate).find()) {
                 throw new IllegalArgumentException(description + " must not contain not contain a : (colon), / (slash),"
                                        + " | (vertical bar), or any control characters (\\u0000-\\u001f | \\u007f-\\u009f).");
-            } else if ("arn".equals(inputToValidate)) {
+            } else if (disallowExactStringArn && "arn".equals(inputToValidate)) {
                 throw new IllegalArgumentException(description + " must not be the literal string 'arn'.");
             }
         }

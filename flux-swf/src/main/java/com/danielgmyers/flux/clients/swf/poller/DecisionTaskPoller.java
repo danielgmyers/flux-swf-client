@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.RejectedExecutionException;
 
+import com.danielgmyers.flux.clients.swf.FluxCapacitorConfig;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
 import com.danielgmyers.flux.clients.swf.IdentifierValidation;
 import com.danielgmyers.flux.clients.swf.poller.timers.TimerData;
@@ -119,29 +120,29 @@ public class DecisionTaskPoller implements Runnable {
     private final Map<String, WorkflowStep> workflowSteps;
 
     private final BlockOnSubmissionThreadPoolExecutor deciderThreadPool;
+    private final FluxCapacitorConfig config;
 
     private final Clock clock;
 
     /**
      * Constructs a decision poller.
      *
-     * @param metricsFactory - A factory that produces MetricRecorder objects for emitting workflow metrics.
+     * @param metricsFactory A factory that produces MetricRecorder objects for emitting workflow metrics.
      * @param swfClient      An already-configured SWF client to be used for polling.
-     * @param workflowDomain The workflow domain that should be polled for tasks.
+     * @param config         The FluxCapacitorConfig containing runtime configuration for Flux.
      * @param taskListName   The task list that should be polled for tasks.
      * @param identity       The worker identity that the poller should report to SWF for this poller.
-     * @param exponentialBackoffBase The base to use in the exponential backoff calculations.
      * @param workflows      A map of workflow names to workflow objects to be used by the decision logic.
      * @param workflowSteps  A map of workflow step names to WorkflowStep objects to be used by the decision logic.
      * @param deciderThreadPool The pool of threads available to hand decision tasks off to.
      */
-    public DecisionTaskPoller(MetricRecorderFactory metricsFactory, SwfClient swfClient, String workflowDomain,
-                              String taskListName, String identity, double exponentialBackoffBase,
+    public DecisionTaskPoller(MetricRecorderFactory metricsFactory, SwfClient swfClient, FluxCapacitorConfig config,
+                              String taskListName, String identity,
                               Map<String, Workflow> workflows, Map<String, WorkflowStep> workflowSteps,
                               BlockOnSubmissionThreadPoolExecutor deciderThreadPool, Clock clock) {
         this.metricsFactory = metricsFactory;
         this.swf = swfClient;
-        this.domain = workflowDomain;
+        this.domain = config.getSwfDomain();
         this.taskListName = taskListName;
 
         if (identity == null || identity.length() <= 0 || identity.length() > 256) {
@@ -149,12 +150,16 @@ public class DecisionTaskPoller implements Runnable {
         }
         this.identity = identity;
 
-        this.exponentialBackoffBase = exponentialBackoffBase;
+        this.exponentialBackoffBase = (config.getExponentialBackoffBase() != null
+                                       ? config.getExponentialBackoffBase()
+                                       : FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
 
         this.workflows = workflows;
         this.workflowSteps = workflowSteps;
 
         this.deciderThreadPool = deciderThreadPool;
+
+        this.config = config;
 
         this.clock = clock;
     }
@@ -228,7 +233,8 @@ public class DecisionTaskPoller implements Runnable {
 
             RespondDecisionTaskCompletedRequest response = decide(workflow, currentStep,
                                                                   taskWithFullHistory.workflowExecution().workflowId(),
-                                                                  state, exponentialBackoffBase, metrics, metricsFactory,
+                                                                  state, exponentialBackoffBase,
+                                                                  config.getEnablePartitionIdHashing(), metrics, metricsFactory,
                                                                   clock);
             RespondDecisionTaskCompletedRequest responseWithToken
                     = response.toBuilder().taskToken(taskWithFullHistory.taskToken()).build();
@@ -325,6 +331,7 @@ public class DecisionTaskPoller implements Runnable {
      */
     static RespondDecisionTaskCompletedRequest decide(Workflow workflow, WorkflowStep currentStep, String workflowId,
                                                       WorkflowState state, double exponentialBackoffBase,
+                                                      boolean enablePartitionIdHashing,
                                                       MetricRecorder metrics, MetricRecorderFactory metricsFactory,
                                                       Clock clock)
             throws JsonProcessingException {
@@ -437,7 +444,8 @@ public class DecisionTaskPoller implements Runnable {
                 log.warn("Workflow {} is already closed, so no new tasks can be scheduled.", workflowId);
             } else {
                 decisions.addAll(handleStepScheduling(workflow, workflowId, selection.getNextStep(), state, nextStepInput,
-                                                      exponentialBackoffBase, metrics, metricsFactory, clock));
+                                                      exponentialBackoffBase, enablePartitionIdHashing,
+                                                      metrics, metricsFactory, clock));
 
                 nextStepNameForContext = selection.getNextStep().getClass().getSimpleName();
 
@@ -474,8 +482,8 @@ public class DecisionTaskPoller implements Runnable {
 
     private static List<Decision> handleStepScheduling(Workflow workflow, String workflowId, WorkflowStep nextStep,
                                                        WorkflowState state, Map<String, String> nextStepInput,
-                                                       double exponentialBackoffBase, MetricRecorder fluxMetrics,
-                                                       MetricRecorderFactory metricsFactory,
+                                                       double exponentialBackoffBase, boolean enablePartitionIdHashing,
+                                                       MetricRecorder fluxMetrics, MetricRecorderFactory metricsFactory,
                                                        Clock clock) throws JsonProcessingException {
         List<Decision> decisions = new LinkedList<>();
 
@@ -501,7 +509,7 @@ public class DecisionTaskPoller implements Runnable {
             PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(result);
 
             for (String partitionId : metadata.getPartitionIds()) {
-                IdentifierValidation.validatePartitionId(partitionId);
+                IdentifierValidation.validatePartitionId(partitionId, enablePartitionIdHashing);
             }
 
             List<String> markerDetailsList = metadata.toMarkerDetailsList();
@@ -556,13 +564,8 @@ public class DecisionTaskPoller implements Runnable {
                 continue;
             } else if (lastAttempt != null) {
                 // This is a retry.
-                // We need to check for a timer for this particular retry.
-                String encoded = lastAttempt.getAttemptInput().get(StepAttributes.RETRY_ATTEMPT);
-                if (encoded != null) {
-                    attemptNumber = StepAttributes.decode(Long.class, encoded);
-                }
                 // We're going to schedule the next attempt, so we need to bump the attempt number.
-                attemptNumber += 1L;
+                attemptNumber = lastAttempt.getRetryAttempt() + 1;
                 retrying = true;
             } else { // lastAttempt == null
                 // We can get here if we tried to schedule the first attempt of a step
@@ -577,13 +580,23 @@ public class DecisionTaskPoller implements Runnable {
             }
             String activityId = TaskNaming.createActivityId(nextStep, attemptNumber, partitionIdHash);
 
-            // We might be transitioning from pre-2.1 workflows, in which case there might be an open timer
-            // or a signal named using the unhashed partition ID. we'll need to check for that as well.
-            String activityIdWithUnhashedPartitionIdDoNotStore = TaskNaming.createActivityId(nextStep, attemptNumber, partitionId);
+            // We might be transitioning from pre-2.1 workflows or toggling the enableHashedPartitionIds flag, so there may be an
+            // existing activity or a signal named using the unhashed partition ID. we'll need to check for that as well.
+            String activityIdWithUnhashedPartitionId = TaskNaming.createActivityId(nextStep, attemptNumber, partitionId);
 
+            String activityIdForScheduling = (enablePartitionIdHashing ? activityId : activityIdWithUnhashedPartitionId);
+
+            // For compatibility, we'll check for both activity Ids wherever practical; if we find something using the hashed id,
+            // we'll use it, otherwise we'll check for anything with the unhashed id.
+            // This way we can process the existing workflow state regardless of whether the flag is being toggled on or off,
+            // we only need to consider the flag when scheduling new decisions.
+
+            // For now, the signal matching is done by the specific activity ID in the signal; this means if a signal is addressed
+            // to the unhashed activity id, but the hashing flag was enabled when the activity was scheduled, it may not work.
+            // https://github.com/danielgmyers/flux-swf-client/issues/104 should address this.
             BaseSignalData signal = state.getSignalsByActivityId().get(activityId);
             if (signal == null) {
-                signal = state.getSignalsByActivityId().get(activityIdWithUnhashedPartitionIdDoNotStore);
+                signal = state.getSignalsByActivityId().get(activityIdWithUnhashedPartitionId);
             }
 
             boolean hasForceResultSignal = false;
@@ -601,7 +614,7 @@ public class DecisionTaskPoller implements Runnable {
             if (attemptNumber > 0) {
                 // this is a retry if we get in here.
                 if (state.getOpenTimers().containsKey(activityId)
-                    || state.getOpenTimers().containsKey(activityIdWithUnhashedPartitionIdDoNotStore)) {
+                    || state.getOpenTimers().containsKey(activityIdWithUnhashedPartitionId)) {
                     if (signal != null) {
                         // The retry timer id matches the next attempt's activity id, which matches the signal's activity id.
                         // ScheduleDelayedRetry events need to be ignored if the timer is still open.
@@ -633,25 +646,26 @@ public class DecisionTaskPoller implements Runnable {
                         }
                     } else {
                         log.debug("Processed a decision for workflow {} activity {} but there was no open timer,"
-                                  + " no action taken.", workflowId, activityId);
+                                  + " no action taken.", workflowId, activityIdForScheduling);
                         // no continue here, we may want to schedule a normal retry timer, or the next step.
                     }
                 }
 
                 // check whether we've already started and fired the retry timer. If not, start it.
                 if (!state.getClosedTimers().containsKey(activityId) && !state.getOpenTimers().containsKey(activityId)
-                    && !state.getClosedTimers().containsKey(activityIdWithUnhashedPartitionIdDoNotStore)
-                    && !state.getOpenTimers().containsKey(activityIdWithUnhashedPartitionIdDoNotStore)) {
+                    && !state.getClosedTimers().containsKey(activityIdWithUnhashedPartitionId)
+                    && !state.getOpenTimers().containsKey(activityIdWithUnhashedPartitionId)) {
                     long delayInSeconds = RetryUtils.calculateRetryBackoffInSeconds(nextStep, attemptNumber,
                                                                                     exponentialBackoffBase);
-                    StartTimerDecisionAttributes attrs = buildStartTimerDecisionAttrs(activityId, delayInSeconds, partitionId);
+                    StartTimerDecisionAttributes attrs = buildStartTimerDecisionAttrs(activityIdForScheduling, delayInSeconds,
+                                                                                      partitionId);
 
                     Decision decision = Decision.builder().decisionType(DecisionType.START_TIMER)
                                                           .startTimerDecisionAttributes(attrs)
                                                           .build();
 
                     log.debug("Workflow {} will have activity {} scheduled after a delay of {} seconds.",
-                              workflowId, activityId, delayInSeconds);
+                              workflowId, activityIdForScheduling, delayInSeconds);
 
                     decisions.add(decision);
                     // continue to the next partition, we don't want to make any more decisions for this one
@@ -698,14 +712,14 @@ public class DecisionTaskPoller implements Runnable {
             actualInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(firstAttemptDate));
 
             ScheduleActivityTaskDecisionAttributes attrs
-                    = buildScheduleActivityTaskDecisionAttrs(workflow, nextStep, actualInput, activityId, partitionId);
+                    = buildScheduleActivityTaskDecisionAttrs(workflow, nextStep, actualInput, activityIdForScheduling, partitionId);
 
             Decision decision = Decision.builder().decisionType(DecisionType.SCHEDULE_ACTIVITY_TASK)
                                                   .scheduleActivityTaskDecisionAttributes(attrs)
                                                   .build();
             decisions.add(decision);
 
-            log.debug("Workflow {} will have activity {} scheduled for execution.", workflowId, activityId);
+            log.debug("Workflow {} will have activity {} scheduled for execution.", workflowId, activityIdForScheduling);
 
         }
         return decisions;

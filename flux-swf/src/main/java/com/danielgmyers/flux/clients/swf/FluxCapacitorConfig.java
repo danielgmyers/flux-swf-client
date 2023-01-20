@@ -35,6 +35,7 @@ public class FluxCapacitorConfig {
     private ClientOverrideConfiguration clientOverrideConfiguration;
     private final Map<String, TaskListConfig> taskListConfigs = new HashMap<>();
     private Boolean automaticallyTagExecutionsWithTaskList;
+    private Boolean enablePartitionIdHashing;
     private Function<String, RemoteSwfClientConfig> remoteSwfClientConfigProvider;
 
     public String getAwsRegion() {
@@ -169,6 +170,21 @@ public class FluxCapacitorConfig {
 
     public Boolean getAutomaticallyTagExecutionsWithTaskList() {
         return automaticallyTagExecutionsWithTaskList;
+    }
+
+    /**
+     * Controls whether Flux will use a hash of the user-provided partition IDs when generating activity IDs.
+     * If not specified, this flag is disabled.
+     *
+     * If disabled, user-provided partition IDs will be limited to a length of 123 characters, and may not contain ":", "/", or "|".
+     * If enabled, user-provided partition IDs will be limited to a length of 256 characters, with no content constraints.
+     */
+    public void setEnablePartitionIdHashing(Boolean enablePartitionIdHashing) {
+        this.enablePartitionIdHashing = enablePartitionIdHashing;
+    }
+
+    public boolean getEnablePartitionIdHashing() {
+        return (enablePartitionIdHashing != null ? enablePartitionIdHashing : false);
     }
 
     /**
