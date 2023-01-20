@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLException;
 
+import com.danielgmyers.flux.clients.swf.FluxCapacitorConfig;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
 import com.danielgmyers.flux.clients.swf.IdUtils;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestBranchStep;
@@ -109,7 +110,6 @@ public class DecisionTaskPollerTest {
     private String workflowWithPartitionedStepName;
 
     private Workflow workflowWithCustomHeartbeatTimeout;
-    private String workflowWithCustomHeartbeatTimeoutName;
 
     private MetricRecorderFactory metricsFactory;
     private InMemoryMetricRecorder pollMetrics;
@@ -122,6 +122,7 @@ public class DecisionTaskPollerTest {
     private IMocksControl mockery;
     private SwfClient swf;
 
+    private FluxCapacitorConfig config;
     private DecisionTaskPoller poller;
 
     private BlockOnSubmissionThreadPoolExecutor executor;
@@ -140,7 +141,6 @@ public class DecisionTaskPollerTest {
         workflowWithPartitionedStepName = TaskNaming.workflowName(workflowWithPartitionedStep);
 
         workflowWithCustomHeartbeatTimeout = new TestWorkflowWithStepCustomHeartbeatTimeout();
-        workflowWithCustomHeartbeatTimeoutName = TaskNaming.workflowName(workflowWithCustomHeartbeatTimeout);
 
         pollMetrics = new InMemoryMetricRecorder("ActivityTaskPoller");
 
@@ -188,8 +188,10 @@ public class DecisionTaskPollerTest {
         clock = new ManualClock();
 
         executor = new BlockOnSubmissionThreadPoolExecutor(1, "executor");
-        poller = new DecisionTaskPoller(metricsFactory, swf, DOMAIN, Workflow.DEFAULT_TASK_LIST_NAME, IDENTITY,
-                                        FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, workflows, activities,
+        config = new FluxCapacitorConfig();
+        config.setSwfDomain(DOMAIN);
+        config.setEnablePartitionIdHashing(false);
+        poller = new DecisionTaskPoller(metricsFactory, swf, config, Workflow.DEFAULT_TASK_LIST_NAME, IDENTITY, workflows, activities,
                                         executor, clock);
     }
 
@@ -374,9 +376,8 @@ public class DecisionTaskPollerTest {
             activities.put(TaskNaming.activityName(workflowWithCustomTaskListName, impl), impl);
         }
 
-        DecisionTaskPoller pollerCustomTaskList = new DecisionTaskPoller(metricsFactory, swf, DOMAIN,
+        DecisionTaskPoller pollerCustomTaskList = new DecisionTaskPoller(metricsFactory, swf, config,
                                                                          customTaskListName, IDENTITY,
-                                                                         FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
                                                                          workflows, activities, executor, clock);
 
         WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithCustomTaskList, clock);
@@ -421,7 +422,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, null, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics, (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, workflow.getGraph().getFirstStep());
         Decision decision = response.decisions().get(0);
@@ -470,7 +471,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
@@ -530,7 +531,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                                                                                  deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
 
         // deciderMetrics is normally closed by the poll method.
@@ -585,7 +586,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                                                                                  deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
 
         // deciderMetrics is normally closed by the poll method.
@@ -635,7 +636,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, firstStep, state.getWorkflowId(), state,
-                FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
 
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
@@ -705,7 +706,7 @@ public class DecisionTaskPollerTest {
 
         // we expect two decisions: one for scheduling the next step, and one for canceling the retry timer for the current step.
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
@@ -778,7 +779,7 @@ public class DecisionTaskPollerTest {
 
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, currentStep, workflowId, state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                                                                                  deciderMetrics,  (o, c) -> stepMetrics, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
@@ -860,7 +861,7 @@ public class DecisionTaskPollerTest {
 
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, currentStep, workflowId, state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                                                                                  deciderMetrics,
                  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
@@ -899,7 +900,7 @@ public class DecisionTaskPollerTest {
 
             expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
 
-            String activityId = TaskNaming.createActivityId(stepTwo, 0, DigestUtils.sha256Hex(partitionId));
+            String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
                     = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepTwo,
                                                                                 expectedInput, activityId, partitionId);
@@ -943,7 +944,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                                                                                  deciderMetrics,  (o, c) -> stepMetrics, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
@@ -1013,7 +1014,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                                                                                  deciderMetrics,  (o, c) -> stepMetrics, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
@@ -1103,7 +1104,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                                                                                  deciderMetrics,  (o, c) -> stepMetrics, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
@@ -1184,7 +1185,98 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
+                                                                                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
+        WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
+
+        // deciderMetrics is normally closed by the poll method.
+        // we need to close it here so we can query the metrics.
+        deciderMetrics.close();
+
+        String activityName = TaskNaming.activityName(workflowWithPartitionedStepName, firstStep);
+        Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
+        Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(activityName)).longValue());
+
+        Assertions.assertEquals(state.getWorkflowId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_ID_METRIC_NAME));
+        Assertions.assertEquals(state.getWorkflowRunId(), deciderMetrics.getProperties().get(DecisionTaskPoller.WORKFLOW_RUN_ID_METRIC_NAME));
+
+        mockery.verify();
+
+        Assertions.assertEquals(partitionIds.size(), response.decisions().size());
+        Set<String> remainingPartitionsToSchedule = new HashSet<>(partitionIds);
+        for (Decision decision : response.decisions()) {
+            String partitionId = decision.scheduleActivityTaskDecisionAttributes().control();
+            Assertions.assertNotNull(partitionId);
+            Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
+            remainingPartitionsToSchedule.remove(partitionId);
+
+            Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
+
+            Map<String, String> expectedInput = new TreeMap<>(input);
+            expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
+            expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
+            expectedInput.putAll(output);
+
+            expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
+            expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
+            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
+
+            String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
+            ScheduleActivityTaskDecisionAttributes attrs
+                    = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepTwo,
+                                                                                expectedInput, activityId, partitionId);
+            attrs = attrs.toBuilder().control(partitionId).build();
+
+            Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
+        }
+
+        Assertions.assertTrue(remainingPartitionsToSchedule.isEmpty());
+    }
+
+    @Test
+    public void decide_schedulePartitionedSecondStepWhenFirstStepSucceeds_MarkerAlreadyPresent_HashPartitionIdsWhenConfigEnabled() throws JsonProcessingException {
+        List<String> partitionIds = new ArrayList<>();
+        partitionIds.add("p1");
+        partitionIds.add("p2");
+        partitionIds.add("p3");
+
+        TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
+        partitionedStep.setPartitionIds(partitionIds);
+
+        Map<String, String> input = new TreeMap<>();
+        input.put("SomeInput", "Value");
+
+        Map<String, String> output = new TreeMap<>();
+        output.put("ExtraOutput", "AnotherValue");
+
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+
+        clock.forward(Duration.ofMillis(100));
+        history.scheduleStepAttempt();
+
+        Duration stepOneDuration = Duration.ofMillis(100);
+        clock.forward(stepOneDuration);
+        history.recordActivityResult(StepResult.success("finished!").withAttributes(output));
+
+        clock.forward(Duration.ofMillis(100));
+        PartitionIdGeneratorResult partitionIdGeneratorResult
+                = PartitionIdGeneratorResult.create().withPartitionIds(new HashSet<>(partitionIds));
+
+        history.recordPartitionMetadataMarkers(clock.instant(), TaskNaming.stepName(partitionedStep), partitionIdGeneratorResult);
+
+        Instant stepTwoInitialAttemptTime = clock.forward(Duration.ofMillis(100));
+
+        WorkflowState state = history.buildCurrentState();
+
+        mockery.replay();
+
+        config.setEnablePartitionIdHashing(true);
+
+        WorkflowStep firstStep = workflowWithPartitionedStep.getGraph().getFirstStep();
+        RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, firstStep, state.getWorkflowId(), state,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                                                                                  deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
@@ -1283,7 +1375,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
@@ -1298,7 +1390,7 @@ public class DecisionTaskPollerTest {
             Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
-            String activityId = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionId));
+            String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
             Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
             // allow jitter will make the retry time inconsistent, but as long as it's within 2 seconds it's fine for this test
@@ -1363,7 +1455,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
@@ -1378,7 +1470,7 @@ public class DecisionTaskPollerTest {
             Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
-            String activityId = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionId));
+            String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
             Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
             // allow jitter will make the retry time inconsistent, but as long as it's within 2 seconds it's fine for this test
@@ -1439,7 +1531,7 @@ public class DecisionTaskPollerTest {
 
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, workflowId, state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
@@ -1464,7 +1556,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
-        String activityId = TaskNaming.createActivityId(partitionedStep, 0, DigestUtils.sha256Hex(partitionId));
+        String activityId = TaskNaming.createActivityId(partitionedStep, 0, partitionId);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, partitionedStep,
                 expectedInput, activityId, partitionId);
@@ -1527,7 +1619,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
@@ -1542,7 +1634,7 @@ public class DecisionTaskPollerTest {
             Assertions.assertTrue(remainingPartitionsToSchedule.contains(partitionId));
             remainingPartitionsToSchedule.remove(partitionId);
 
-            String activityId = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionId));
+            String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
             Assertions.assertEquals(DecisionType.START_TIMER, decision.decisionType());
 
             // allow jitter will make the retry time inconsistent, but as long as it's within 2 seconds it's fine for this test
@@ -1607,7 +1699,7 @@ public class DecisionTaskPollerTest {
 
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, workflowId, state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepTwo);
@@ -1635,7 +1727,7 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
-            String activityId = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionId));
+            String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
                     = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, partitionedStep,
                     expectedInput, activityId, partitionId);
@@ -1691,7 +1783,7 @@ public class DecisionTaskPollerTest {
 
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, workflowId, state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> stepMetrics, clock);
         WorkflowStep stepThree = workflowWithPartitionedStep.getGraph().getNodes().get(TestStepHasOptionalInputAttribute.class).getStep();
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, stepThree);
@@ -1768,7 +1860,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         validateExecutionContext(response.executionContext(), workflow, stepTwo);
@@ -1814,7 +1906,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithCustomHeartbeatTimeout, null, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> stepMetrics, clock);
         validateExecutionContext(response.executionContext(), workflowWithCustomHeartbeatTimeout, workflowWithCustomHeartbeatTimeout.getGraph().getFirstStep());
 
@@ -1849,7 +1941,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> stepMetrics, clock);
 
         validateExecutionContext(response.executionContext(), workflow, currentStep);
@@ -1885,7 +1977,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, null, state.getWorkflowId(), state,
-                FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> stepMetrics, clock);
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
@@ -1935,7 +2027,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> stepMetrics, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
@@ -1983,7 +2075,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         List<Decision> decisions = response.decisions();
@@ -2022,7 +2114,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
@@ -2069,7 +2161,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
@@ -2116,7 +2208,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         List<Decision> decisions = response.decisions();
@@ -2161,7 +2253,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
@@ -2211,7 +2303,7 @@ public class DecisionTaskPollerTest {
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, workflowId, state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
@@ -2264,7 +2356,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         Decision decision = response.decisions().get(0);
@@ -2305,7 +2397,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, currentStep);
         List<Decision> decisions = response.decisions();
@@ -2352,7 +2444,7 @@ public class DecisionTaskPollerTest {
         String workflowId = state.getWorkflowId();
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, workflowId, state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
 
         validateExecutionContext(response.executionContext(), workflow, currentStep);
@@ -2427,7 +2519,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, partitionedStep);
         List<Decision> decisions = response.decisions();
@@ -2495,7 +2587,7 @@ public class DecisionTaskPollerTest {
 
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, workflowId, state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowGraphNode nextStep = workflowWithPartitionedStep.getGraph().getNodes().get(TestStepHasOptionalInputAttribute.class);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, nextStep.getStep());
@@ -2593,7 +2685,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         WorkflowGraphNode nextStep = workflowWithPartitionedStep.getGraph().getNodes().get(TestStepHasOptionalInputAttribute.class);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, nextStep.getStep());
@@ -2681,7 +2773,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, partitionedStep);
         Decision decision = response.decisions().get(0);
@@ -2747,7 +2839,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, partitionedStep);
         List<Decision> decisions = response.decisions();
@@ -2758,7 +2850,7 @@ public class DecisionTaskPollerTest {
         // first decision should be to schedule the retry timer for partition p1
         Assertions.assertEquals(DecisionType.START_TIMER, decisions.get(0).decisionType());
 
-        String activityP1Id = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionToReschedule));
+        String activityP1Id = TaskNaming.createActivityId(partitionedStep, 1, partitionToReschedule);
         long delayInSeconds = RetryUtils.calculateRetryBackoffInSeconds(partitionedStep, 1,
                                                                         FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE);
         StartTimerDecisionAttributes attrs = DecisionTaskPoller.buildStartTimerDecisionAttrs(activityP1Id, delayInSeconds, null);
@@ -2828,7 +2920,7 @@ public class DecisionTaskPollerTest {
 
         String workflowId = state.getWorkflowId();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithPartitionedStep, partitionedStep, workflowId, state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithPartitionedStep, partitionedStep);
         List<Decision> decisions = response.decisions();
@@ -2849,7 +2941,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
 
-        String activityId = TaskNaming.createActivityId(partitionedStep, 1, DigestUtils.sha256Hex(partitionToReschedule));
+        String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionToReschedule);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, partitionedStep,
                                                                             expectedInput, activityId, partitionToReschedule);
@@ -2889,7 +2981,7 @@ public class DecisionTaskPollerTest {
         Assertions.assertEquals(TaskNaming.activityName(workflow, TestStepOne.class), state.getCurrentActivityName());
         WorkflowStep currentStep = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
         Decision decision = response.decisions().get(0);
@@ -2934,7 +3026,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep stepOne = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, stepOne, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
 
@@ -2993,7 +3085,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep stepOne = workflow.getGraph().getNodes().get(TestStepOne.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, stepOne, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
 
@@ -3056,7 +3148,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
 
@@ -3116,7 +3208,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep stepTwo = workflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflow, stepTwo, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflow, null);
         Decision decision = response.decisions().get(0);
@@ -3166,7 +3258,7 @@ public class DecisionTaskPollerTest {
         mockery.replay();
 
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(workflowWithFailureTransition, currentStep, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), workflowWithFailureTransition, null);
         Decision decision = response.decisions().get(0);
@@ -3178,7 +3270,7 @@ public class DecisionTaskPollerTest {
 
         Assertions.assertNotNull(decision.failWorkflowExecutionDecisionAttributes().reason());
         Assertions.assertTrue(decision.failWorkflowExecutionDecisionAttributes().reason().startsWith(activityName + " failed after"));
-        Assertions.assertNotNull("FailWorkflowExecutionDecision detail should not be null!", decision.failWorkflowExecutionDecisionAttributes().details());
+        Assertions.assertNotNull(decision.failWorkflowExecutionDecisionAttributes().details(), "FailWorkflowExecutionDecision detail should not be null!");
 
         Assertions.assertEquals(workflowDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatWorkflowCompletionTimeMetricName(workflowWithFailureTransitionName)));
         Assertions.assertEquals(stepOneDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(activityName)));
@@ -3217,7 +3309,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep stepTwo = periodicWorkflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(periodicWorkflow, stepTwo, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicWorkflow, null);
         Decision decision = response.decisions().get(0);
@@ -3280,7 +3372,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep stepTwo = periodicWorkflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(periodicWorkflow, stepTwo, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicWorkflow, null);
         Decision decision = response.decisions().get(0);
@@ -3338,7 +3430,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep stepTwo = periodicWorkflow.getGraph().getNodes().get(TestStepTwo.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(periodicWorkflow, stepTwo, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                 deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicWorkflow, null);
         Decision decision = response.decisions().get(0);
@@ -3397,7 +3489,7 @@ public class DecisionTaskPollerTest {
 
         WorkflowStep stepTwo = periodicCustomTaskList.getGraph().getNodes().get(TestStepTwo.class).getStep();
         RespondDecisionTaskCompletedRequest response = DecisionTaskPoller.decide(periodicCustomTaskList, stepTwo, state.getWorkflowId(), state,
-                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE,
+                                                                                 FluxCapacitorImpl.DEFAULT_EXPONENTIAL_BACKOFF_BASE, config.getEnablePartitionIdHashing(),
                                                                                  deciderMetrics,  (o, c) -> { throw new RuntimeException("shouldn't request stepMetrics"); }, clock);
         validateExecutionContext(response.executionContext(), periodicCustomTaskList, null);
 

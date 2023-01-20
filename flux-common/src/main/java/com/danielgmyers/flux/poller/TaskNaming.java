@@ -123,7 +123,7 @@ public final class TaskNaming {
     }
 
     /**
-     * Given a full partition metadata marker name (as produced by {@link #activityName}),
+     * Given a full partition metadata marker name (as produced by {@link #partitionMetadataMarkerName}),
      * extracts the step name.
      */
     public static String extractPartitionMetadataMarkerStepName(String metadataMarkerName) {
@@ -135,7 +135,7 @@ public final class TaskNaming {
     }
 
     /**
-     * Given a full partition metadata marker name (as produced by {@link #activityName}),
+     * Given a full partition metadata marker name (as produced by {@link #partitionMetadataMarkerName}),
      * extracts the marker subset id number.
      */
     public static Long extractPartitionMetadataMarkerSubsetId(String metadataMarkerName) {
@@ -147,7 +147,7 @@ public final class TaskNaming {
     }
 
     /**
-     * Given a full partition metadata marker name (as produced by {@link #activityName}),
+     * Given a full partition metadata marker name (as produced by {@link #partitionMetadataMarkerName}),
      * extracts the marker count.
      */
     public static Long extractPartitionMetadataMarkerCount(String metadataMarkerName) {
