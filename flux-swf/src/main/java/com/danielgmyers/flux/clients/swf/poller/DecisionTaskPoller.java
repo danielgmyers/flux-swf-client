@@ -399,11 +399,19 @@ public class DecisionTaskPoller implements Runnable {
                     if (partition != null && partition.getAttemptResult() == null) {
                         decisions.add(buildRequestCancelActivityTaskDecision(partition.getActivityId()));
                     }
-                }
 
-                // Also cancel any open retry timers.
-                for (String timerId : state.getOpenTimers().keySet()) {
-                    decisions.add(buildCancelTimerDecision(timerId));
+                    // If there is an open retry timer for a partition, we need to cancel it.
+                    String partitionIdHash = null;
+                    if (partition.getPartitionId() != null) {
+                        partitionIdHash = DigestUtils.sha256Hex(partition.getPartitionId());
+                    }
+
+                    String currentStepName = TaskNaming.stepNameFromActivityName(state.getCurrentActivityName());
+                    TimerData openTimer = state.getOpenTimer(currentStepName, partition.getRetryAttempt() + 1,
+                                                             partition.getPartitionId(), partitionIdHash);
+                    if (openTimer != null) {
+                        decisions.add(buildCancelTimerDecision(openTimer.getTimerId()));
+                    }
                 }
             }
 
@@ -586,18 +594,7 @@ public class DecisionTaskPoller implements Runnable {
 
             String activityIdForScheduling = (enablePartitionIdHashing ? activityId : activityIdWithUnhashedPartitionId);
 
-            // For compatibility, we'll check for both activity Ids wherever practical; if we find something using the hashed id,
-            // we'll use it, otherwise we'll check for anything with the unhashed id.
-            // This way we can process the existing workflow state regardless of whether the flag is being toggled on or off,
-            // we only need to consider the flag when scheduling new decisions.
-
-            // For now, the signal matching is done by the specific activity ID in the signal; this means if a signal is addressed
-            // to the unhashed activity id, but the hashing flag was enabled when the activity was scheduled, it may not work.
-            // https://github.com/danielgmyers/flux-swf-client/issues/104 should address this.
-            BaseSignalData signal = state.getSignalsByActivityId().get(activityId);
-            if (signal == null) {
-                signal = state.getSignalsByActivityId().get(activityIdWithUnhashedPartitionId);
-            }
+            BaseSignalData signal = state.getSignal(nextStepName, attemptNumber, partitionId, partitionIdHash);
 
             boolean hasForceResultSignal = false;
             if (signal != null && signal.getSignalType() == SignalType.FORCE_RESULT) {
@@ -613,16 +610,18 @@ public class DecisionTaskPoller implements Runnable {
             // - Otherwise, schedule the next attempt.
             if (attemptNumber > 0) {
                 // this is a retry if we get in here.
-                if (state.getOpenTimers().containsKey(activityId)
-                    || state.getOpenTimers().containsKey(activityIdWithUnhashedPartitionId)) {
+                TimerData openTimer = state.getOpenTimer(nextStepName, attemptNumber, partitionId, partitionIdHash);
+                Long closedTimerEventId = state.getClosedTimerEventId(nextStepName, attemptNumber, partitionId, partitionIdHash);
+
+                if (openTimer != null) {
                     if (signal != null) {
                         // The retry timer id matches the next attempt's activity id, which matches the signal's activity id.
                         // ScheduleDelayedRetry events need to be ignored if the timer is still open.
 
                         // first check if the signal is older than the scheduled event for the retry timer, if so ignore it.
-                        TimerData openTimer = state.getOpenTimers().get(signal.getActivityId());
                         if (signal.getSignalEventId() > openTimer.getStartTimerEventId()) {
-                            decisions.addAll(handleSignal(state, signal, partitionId, nextActivityName, fluxMetrics));
+                            decisions.addAll(handleSignal(state, signal, partitionId, partitionIdHash, nextActivityName,
+                                                          attemptNumber, fluxMetrics));
                         }
                         // If the signal was not ForceResult, we don't want to make any more decisions for this partition.
                         // If it was ForceResult, we may or may not need to schedule the next step, we need to let that code decide.
@@ -638,9 +637,9 @@ public class DecisionTaskPoller implements Runnable {
                 } else if (signal != null) { // if there isn't an open timer but we have a ScheduleDelayedRetry signal
                     if (signal.getSignalType() == SignalType.SCHEDULE_DELAYED_RETRY) {
                         // first check if the signal is older than the close event for the last retry timer, if so ignore it.
-                        if (!state.getClosedTimers().containsKey(signal.getActivityId())
-                                || signal.getSignalEventId() > state.getClosedTimers().get(signal.getActivityId())) {
-                            decisions.addAll(handleSignal(state, signal, partitionId, nextActivityName, fluxMetrics));
+                        if (closedTimerEventId == null || signal.getSignalEventId() > closedTimerEventId) {
+                            decisions.addAll(handleSignal(state, signal, partitionId, partitionIdHash, nextActivityName,
+                                                          attemptNumber, fluxMetrics));
                             // continue to the next partition, we don't want to make any more decisions for this one
                             continue;
                         }
@@ -652,9 +651,7 @@ public class DecisionTaskPoller implements Runnable {
                 }
 
                 // check whether we've already started and fired the retry timer. If not, start it.
-                if (!state.getClosedTimers().containsKey(activityId) && !state.getOpenTimers().containsKey(activityId)
-                    && !state.getClosedTimers().containsKey(activityIdWithUnhashedPartitionId)
-                    && !state.getOpenTimers().containsKey(activityIdWithUnhashedPartitionId)) {
+                if (openTimer == null && closedTimerEventId == null) {
                     long delayInSeconds = RetryUtils.calculateRetryBackoffInSeconds(nextStep, attemptNumber,
                                                                                     exponentialBackoffBase);
                     StartTimerDecisionAttributes attrs = buildStartTimerDecisionAttrs(activityIdForScheduling, delayInSeconds,
@@ -679,12 +676,17 @@ public class DecisionTaskPoller implements Runnable {
                 Map<String, PartitionState> prevStep = state.getLatestPartitionStates(state.getCurrentActivityName());
                 for (Map.Entry<String, PartitionState> prevPartition : prevStep.entrySet()) {
                     PartitionState prevState = prevPartition.getValue();
+                    String prevPartitionId = prevState.getPartitionId();
+                    String prevPartitionIdHash = null;
+                    if (prevPartitionId != null) {
+                        prevPartitionIdHash = DigestUtils.sha256Hex(prevPartitionId);
+                    }
 
                     String currentStepName = TaskNaming.stepNameFromActivityName(state.getCurrentActivityName());
-                    String prevActivityId = TaskNaming.createActivityId(currentStepName, prevState.getRetryAttempt() + 1,
-                                                                        prevPartition.getKey());
-                    if (state.getOpenTimers().containsKey(prevActivityId)) {
-                        decisions.add(buildCancelTimerDecision(prevActivityId));
+                    TimerData openTimer = state.getOpenTimer(currentStepName, prevState.getRetryAttempt() + 1,
+                                                             prevPartitionId, prevPartitionIdHash);
+                    if (openTimer != null) {
+                        decisions.add(buildCancelTimerDecision(openTimer.getTimerId()));
                     }
                 }
             }
@@ -726,9 +728,12 @@ public class DecisionTaskPoller implements Runnable {
     }
 
     private static List<Decision> handleSignal(WorkflowState state, BaseSignalData signal,
-                                               String partitionId, String activityName, MetricRecorder metrics)
+                                               String partitionId, String partitionIdHash,
+                                               String activityName, long attemptNumber, MetricRecorder metrics)
             throws JsonProcessingException {
         List<Decision> decisions = new LinkedList<>();
+        String stepName = TaskNaming.stepNameFromActivityName(activityName);
+        TimerData openTimer = state.getOpenTimer(stepName, attemptNumber, partitionId, partitionIdHash);
         switch (signal.getSignalType()) {
             case DELAY_RETRY:
                 // cancel the timer...
@@ -748,7 +753,7 @@ public class DecisionTaskPoller implements Runnable {
                 metrics.addCount(formatSignalProcessedForActivityMetricName(activityName, signal.getSignalType()), 1);
                 break;
             case SCHEDULE_DELAYED_RETRY:
-                if (!state.getOpenTimers().containsKey(signal.getActivityId())) {
+                if (openTimer == null) {
                     int delay = ((ScheduleDelayedRetrySignalData) signal).getDelayInSeconds();
 
                     // then re-create it with the new delay.
@@ -780,8 +785,8 @@ public class DecisionTaskPoller implements Runnable {
                 metrics.addCount(formatSignalProcessedForActivityMetricName(activityName, signal.getSignalType()), 1);
                 break;
             case FORCE_RESULT:
-                if (state.getOpenTimers().containsKey(signal.getActivityId())) {
-                    decisions.add(buildCancelTimerDecision(signal.getActivityId()));
+                if (openTimer != null) {
+                    decisions.add(buildCancelTimerDecision(openTimer.getTimerId()));
                 }
                 break;
             default:
@@ -798,11 +803,11 @@ public class DecisionTaskPoller implements Runnable {
 
         // if we're completing a periodic workflow, we need to set a delayExit timer unless it has already fired
         boolean isPeriodicWorkflow = workflow.getClass().isAnnotationPresent(Periodic.class);
-        boolean delayExitTimerHasFired = state.getClosedTimers().containsKey(DELAY_EXIT_TIMER_ID);
+        boolean delayExitTimerHasFired = state.isSpecialTimerFired(DELAY_EXIT_TIMER_ID);
         if (isPeriodicWorkflow && !delayExitTimerHasFired) {
 
             // if the timer is still open we should do nothing here. Returning a null decision will do the trick.
-            if (state.getOpenTimers().containsKey(DELAY_EXIT_TIMER_ID)) {
+            if (state.getOpenSpecialTimer(DELAY_EXIT_TIMER_ID) != null) {
                 log.debug("Processed a decision for {} but there was still an open timer, no action taken.", workflowId);
                 return null;
             }
@@ -940,7 +945,8 @@ public class DecisionTaskPoller implements Runnable {
         metrics.addCount(formatUnknownResultCodeWorkflowStepMetricName(TaskNaming.activityName(workflow, currentStep)), 1);
 
         // the timer might already be open from a previous attempt to make this decision
-        if (!state.getOpenTimers().containsKey(UNKNOWN_RESULT_RETRY_TIMER_ID)) {
+        TimerData openTimer = state.getOpenSpecialTimer(UNKNOWN_RESULT_RETRY_TIMER_ID);
+        if (openTimer == null) {
             StartTimerDecisionAttributes timerAttrs
                     = buildStartTimerDecisionAttrs(UNKNOWN_RESULT_RETRY_TIMER_ID,
                                                    UNKNOWN_RESULT_RETRY_TIMER_DELAY.getSeconds(), null);

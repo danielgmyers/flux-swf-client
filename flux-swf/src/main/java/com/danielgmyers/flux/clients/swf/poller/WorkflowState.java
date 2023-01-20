@@ -176,19 +176,72 @@ final class WorkflowState {
         return stepInitialAttemptTimes.get(activityName);
     }
 
+    /**
+     * Retrieves all open timers, provided for unit testing purposes.
+     */
     public Map<String, TimerData> getOpenTimers() {
         return Collections.unmodifiableMap(openTimers);
     }
 
+    /**
+     * Retrieves the data for an open timer given a step name, attempt number, and partition id.
+     * This method finds the desired timer whether or not it was started using the hashed partition id.
+     * Returns null if no timer was found.
+     */
+    public TimerData getOpenTimer(String stepName, long attemptNumber, String partitionId, String partitionIdHash) {
+        String targetId = TaskNaming.createActivityId(stepName, attemptNumber, partitionIdHash);
+        if (!openTimers.containsKey(targetId) && partitionId != null) {
+            targetId = TaskNaming.createActivityId(stepName, attemptNumber, partitionId);
+        }
+        return openTimers.get(targetId);
+    }
+
+    public TimerData getOpenSpecialTimer(String specialTimerId) {
+        return openTimers.get(specialTimerId);
+    }
+
+    /**
+     * Retrieves all closed timers, provided for unit testing purposes.
+     */
     public Map<String, Long> getClosedTimers() {
         return Collections.unmodifiableMap(closedTimers);
     }
 
     /**
-     * Stores the latest signal received for the activity (as determined by their relative event ids).
+     * Retrieves the event id for a closed timer given a step name, attempt number, and partition id.
+     * This method finds the desired timer whether or not it was started using the hashed partition id.
+     * Returns null if no timer was found.
+     */
+    public Long getClosedTimerEventId(String stepName, long attemptNumber, String partitionId, String partitionIdHash) {
+        String targetId = TaskNaming.createActivityId(stepName, attemptNumber, partitionIdHash);
+        if (!closedTimers.containsKey(targetId) && partitionId != null) {
+            targetId = TaskNaming.createActivityId(stepName, attemptNumber, partitionId);
+        }
+        return closedTimers.get(targetId);
+    }
+
+    public boolean isSpecialTimerFired(String specialTimerId) {
+        return closedTimers.containsKey(specialTimerId);
+    }
+
+    /**
+     * Retrieves all recorded signals, provided for unit testing purposes.
      */
     public Map<String, BaseSignalData> getSignalsByActivityId() {
         return Collections.unmodifiableMap(signalsByActivityId);
+    }
+
+    /**
+     * Retrieves a signal given a step name, attempt number, and partition id.
+     * This method finds the desired signal whether or not it was sent using the hashed partition id.
+     * Returns null if no signal was found.
+     */
+    public BaseSignalData getSignal(String stepName, long attemptNumber, String partitionId, String partitionIdHash) {
+        String targetId = TaskNaming.createActivityId(stepName, attemptNumber, partitionIdHash);
+        if (!signalsByActivityId.containsKey(targetId) && partitionId != null) {
+            targetId = TaskNaming.createActivityId(stepName, attemptNumber, partitionId);
+        }
+        return signalsByActivityId.get(targetId);
     }
 
     public boolean isWorkflowCancelRequested() {
