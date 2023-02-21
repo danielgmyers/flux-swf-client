@@ -43,6 +43,6 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Run CodeBuild
-        uses: aws-actions/aws-codebuild-run-build@v1.0.3
+        uses: aws-actions/aws-codebuild-run-build@v1.0.8
         with:
           project-name: ${{ env.CODEBUILD_PROJECT_NAME }}
