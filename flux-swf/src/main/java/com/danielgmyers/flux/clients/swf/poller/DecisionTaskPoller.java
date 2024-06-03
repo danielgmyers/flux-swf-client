@@ -98,10 +98,6 @@ public class DecisionTaskPoller implements Runnable {
 
     static final String UNKNOWN_RESULT_CODE_METRIC_BASE = "Flux.UnknownResultCode";
 
-    static final String EXECUTION_CONTEXT_NEXT_STEP_NAME = "_nextStepName";
-    static final String EXECUTION_CONTEXT_NEXT_STEP_RESULT_CODES = "_nextStepSupportedResultCodes";
-    static final String EXECUTION_CONTEXT_NEXT_STEP_RESULT_WORKFLOW_ENDS = "_closeWorkflow";
-
     static final String DELAY_EXIT_TIMER_ID = "_delayExit";
     static final String UNKNOWN_RESULT_RETRY_TIMER_ID = "_unknownResultCode";
     static final String FORCE_NEW_DECISION_TIMER_ID = "_forceNewDecision";
@@ -388,8 +384,7 @@ public class DecisionTaskPoller implements Runnable {
         }
 
         NextStepSelection selection = findNextStep(workflow, currentStep, currentStepResultCode);
-        String nextStepNameForContext = null;
-        Map<String, String> contextAttributes = new HashMap<>();
+        ExecutionContextMetadata executionContext = new ExecutionContextMetadata();
         if (selection.workflowShouldClose() || state.isWorkflowCancelRequested()) {
 
             // If workflow cancellation was requested, we need to check whether any individual tasks need to be canceled.
@@ -417,18 +412,15 @@ public class DecisionTaskPoller implements Runnable {
             // if the workflow is ending and this is a periodic workflow, we set the 'next step' field in the execution context
             // to _delayExit to help indicate the reason that the workflow execution hasn't actually closed yet.
             if (workflow.getClass().isAnnotationPresent(Periodic.class)) {
-                nextStepNameForContext = DELAY_EXIT_TIMER_ID;
+                executionContext.setNextStepName(DELAY_EXIT_TIMER_ID);
             }
         } else if (selection.isNextStepUnknown()) {
             // currentStep can't be null if the next step is unknown, since if the current step is null,
             // we _always_ schedule the first step of the workflow.
-            nextStepNameForContext = currentStep.getClass().getSimpleName();
-            WorkflowGraphNode nextNode = workflow.getGraph().getNodes().get(currentStep.getClass());
-            Map<String, String> resultCodeMap = getResultCodeMapForContext(nextNode);
-            contextAttributes.put(EXECUTION_CONTEXT_NEXT_STEP_RESULT_CODES, StepAttributes.encode(resultCodeMap));
+            executionContext.populateExecutionContext(currentStep.getClass(), workflow.getGraph());
 
             decisions.addAll(handleUnknownResultCode(workflow, currentStep, currentStepResultCode, state,
-                                                     resultCodeMap.keySet(), metrics));
+                                                     executionContext.getResultCodeMap().keySet(), metrics));
         } else {
             if (currentStep != null && currentStep != selection.getNextStep()) {
                 Duration stepDuration = Duration.between(state.getCurrentStepFirstScheduledTime(),
@@ -447,38 +439,15 @@ public class DecisionTaskPoller implements Runnable {
                 decisions.addAll(handleStepScheduling(workflow, workflowId, selection.getNextStep(), state, nextStepInput,
                                                       exponentialBackoffBase, enablePartitionIdHashing,
                                                       metrics, metricsFactory, clock));
-
-                nextStepNameForContext = selection.getNextStep().getClass().getSimpleName();
-
-                WorkflowGraphNode nextNode = workflow.getGraph().getNodes().get(selection.getNextStep().getClass());
-                Map<String, String> resultCodeMap = getResultCodeMapForContext(nextNode);
-                contextAttributes.put(EXECUTION_CONTEXT_NEXT_STEP_RESULT_CODES, StepAttributes.encode(resultCodeMap));
+                executionContext.populateExecutionContext(selection.getNextStep().getClass(), workflow.getGraph());
 
             }
         }
 
-        if (nextStepNameForContext != null) {
-            contextAttributes.put(EXECUTION_CONTEXT_NEXT_STEP_NAME, StepAttributes.encode(nextStepNameForContext));
-        }
-
-        String executionContext = null;
-        if (!contextAttributes.isEmpty()) {
-            executionContext = StepAttributes.encode(contextAttributes);
-        }
-
-        return RespondDecisionTaskCompletedRequest.builder().decisions(decisions).executionContext(executionContext).build();
-    }
-
-    private static Map<String, String> getResultCodeMapForContext(WorkflowGraphNode node) {
-        Map<String, String> resultCodeMap = new HashMap<>();
-        for (Map.Entry<String, WorkflowGraphNode> entry : node.getNextStepsByResultCode().entrySet()) {
-            if (entry.getValue() == null) {
-                resultCodeMap.put(entry.getKey(), EXECUTION_CONTEXT_NEXT_STEP_RESULT_WORKFLOW_ENDS);
-            } else {
-                resultCodeMap.put(entry.getKey(), entry.getValue().getStep().getClass().getSimpleName());
-            }
-        }
-        return resultCodeMap;
+        return RespondDecisionTaskCompletedRequest.builder()
+                .decisions(decisions)
+                .executionContext(executionContext.encode())
+                .build();
     }
 
     private static List<Decision> handleStepScheduling(Workflow workflow, String workflowId, WorkflowStep nextStep,

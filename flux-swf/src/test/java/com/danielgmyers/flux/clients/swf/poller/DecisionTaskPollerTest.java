@@ -3751,35 +3751,31 @@ public class DecisionTaskPollerTest {
         Assertions.assertEquals(expected, DecisionTaskPoller.decisionToForceNewDecision());
     }
 
-    private void validateExecutionContext(String executionContext, Workflow workflow, WorkflowStep expectedNextStep) {
+    private void validateExecutionContext(String executionContext, Workflow workflow, WorkflowStep expectedNextStep)
+            throws JsonProcessingException {
         if (expectedNextStep == null) {
             if (workflow.getClass().isAnnotationPresent(Periodic.class)) {
                 Assertions.assertNotNull(executionContext);
-                Map<String, String> decodedExecutionContext = StepAttributes.decode(Map.class, executionContext);
-                Assertions.assertNotNull(decodedExecutionContext);
-                Assertions.assertEquals(1, decodedExecutionContext.size());
-                Assertions.assertEquals(DecisionTaskPoller.DELAY_EXIT_TIMER_ID, StepAttributes.decode(String.class, decodedExecutionContext.get(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_NAME)));
+                ExecutionContextMetadata ecm = ExecutionContextMetadata.decode(executionContext);
+                Assertions.assertNotNull(ecm);
+                Assertions.assertEquals(DecisionTaskPoller.DELAY_EXIT_TIMER_ID, ecm.getNextStepName());
+                Assertions.assertNull(ecm.getResultCodeMap());
             } else {
                 Assertions.assertNull(executionContext);
             }
         } else {
             Assertions.assertNotNull(executionContext);
-            Map<String, String> decodedExecutionContext = StepAttributes.decode(Map.class, executionContext);
-            Assertions.assertNotNull(decodedExecutionContext);
-            Assertions.assertEquals(2, decodedExecutionContext.size());
-            Assertions.assertEquals(expectedNextStep.getClass().getSimpleName(), StepAttributes.decode(String.class, decodedExecutionContext.get(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_NAME)));
+            ExecutionContextMetadata ecm = ExecutionContextMetadata.decode(executionContext);
+            Assertions.assertNotNull(ecm);
+            Assertions.assertEquals(expectedNextStep.getClass().getSimpleName(), ecm.getNextStepName());
 
-            String encodedResultCodes = decodedExecutionContext.get(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_RESULT_CODES);
-            Assertions.assertNotNull(encodedResultCodes);
-            Map<String, String> decodedResultCodeMap = StepAttributes.decode(Map.class, encodedResultCodes);
-            Assertions.assertNotNull(decodedResultCodeMap);
-            Assertions.assertEquals(workflow.getGraph().getNodes().get(expectedNextStep.getClass()).getNextStepsByResultCode().size(), decodedResultCodeMap.size());
+            Assertions.assertEquals(workflow.getGraph().getNodes().get(expectedNextStep.getClass()).getNextStepsByResultCode().size(), ecm.getResultCodeMap().size());
             for (Map.Entry<String, WorkflowGraphNode> resultCodes : workflow.getGraph().getNodes().get(expectedNextStep.getClass()).getNextStepsByResultCode().entrySet()) {
-                Assertions.assertTrue(decodedResultCodeMap.containsKey(resultCodes.getKey()));
+                Assertions.assertTrue(ecm.getResultCodeMap().containsKey(resultCodes.getKey()));
                 if (resultCodes.getValue() == null) {
-                    Assertions.assertEquals(DecisionTaskPoller.EXECUTION_CONTEXT_NEXT_STEP_RESULT_WORKFLOW_ENDS, decodedResultCodeMap.get(resultCodes.getKey()));
+                    Assertions.assertEquals(ExecutionContextMetadata.NEXT_STEP_RESULT_WORKFLOW_ENDS, ecm.getResultCodeMap().get(resultCodes.getKey()));
                 } else {
-                    Assertions.assertEquals(resultCodes.getValue().getStep().getClass().getSimpleName(), decodedResultCodeMap.get(resultCodes.getKey()));
+                    Assertions.assertEquals(resultCodes.getValue().getStep().getClass().getSimpleName(), ecm.getResultCodeMap().get(resultCodes.getKey()));
                 }
             }
         }
