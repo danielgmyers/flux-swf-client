@@ -72,6 +72,35 @@ Flux will attempt to properly handle any partitioned workflow steps that are run
 
 The `EnablePartitionIdHashing` feature is disabled by default in 2.1.0.
 
+Execution context changes
+----
+
+As discussed in [SIGNALS.md](./SIGNALS.md), Flux populates the workflow's execution context (accessible via the `latestExecutionContext` field in the response to the SWF `DescribeWorkflowExecution` API) with metadata intended to assist in using the `ForceResult` signal safely.
+
+Prior to 2.1.0, the execution context contained a JSON-formatted map with two string values, both of which were themselves json values encoded as strings. For example:
+
+```json
+{
+  "_nextStepName": "\"EatSandwich\"",
+  "_nextStepSupportedResultCodes": "{\"_succeed\":\"DrinkWater\",\"_fail\":\"ThrowAwayBadSandwich\"}"
+}
+```
+
+As of 2.1.0, the format of the execution context has been simplified. A version number field has been added to allow you to verify that you are parsing the context correctly, and the values of the other fields are no longer json-encoded strings. The context above would now look like this:
+
+```json
+{
+  "fluxMetadataVersion": 2,
+  "_nextStepName": "EatSandwich",
+  "_nextStepSupportedResultCodes": {
+    "_succeed": "DrinkWater",
+    "_fail": "ThrowAwayBadSandwich"
+  }
+}
+```
+
+If you currently have tools that parse the execution context, you will need to update them to support both formats during the 2.1.0 upgrade, and then remove the old parsing logic once the upgrade is complete.
+
 Input validation changes
 ----
 
