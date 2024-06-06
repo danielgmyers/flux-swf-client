@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
-import com.danielgmyers.flux.clients.swf.util.ManualClock;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.signals.BaseSignalData;
 import com.danielgmyers.flux.signals.DelayRetrySignalData;
@@ -40,6 +39,7 @@ import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.step.WorkflowStepUtil;
+import com.danielgmyers.flux.testutil.ManualClock;
 import com.danielgmyers.flux.wf.Periodic;
 import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;

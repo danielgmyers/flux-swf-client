@@ -24,8 +24,8 @@ import java.util.Set;
 
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithPartitionedStep;
-import com.danielgmyers.flux.clients.swf.util.ManualClock;
 import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.testutil.ManualClock;
 import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory;
 import org.easymock.EasyMock;

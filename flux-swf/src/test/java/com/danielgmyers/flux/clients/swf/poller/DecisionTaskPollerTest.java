@@ -52,7 +52,6 @@ import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithFailureTr
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithPartitionedStep;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithStepCustomHeartbeatTimeout;
 import com.danielgmyers.flux.clients.swf.util.RetryUtils;
-import com.danielgmyers.flux.clients.swf.util.ManualClock;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.signals.DelayRetrySignalData;
 import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
@@ -60,6 +59,8 @@ import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.testutil.ManualClock;
+import com.danielgmyers.flux.threads.BlockOnSubmissionThreadPoolExecutor;
 import com.danielgmyers.flux.wf.Periodic;
 import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
