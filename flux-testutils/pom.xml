@@ -5,12 +5,14 @@
     <parent>
         <groupId>com.danielgmyers.flux</groupId>
         <artifactId>flux-base-pom</artifactId>
-        <version>2.1.0</version>
+        <relativePath>../pom.xml</relativePath>
+        <version>0</version>
     </parent>
     <groupId>com.danielgmyers.flux</groupId>
     <artifactId>flux-testutils</artifactId>
-    <name>Flux SWF Client Test Utils</name>
-    <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
+    <version>${flux.base.version}</version>
+    <name>Flux Workflow Client Test Utils</name>
+    <description>Flux Workflow Client Test Utils provides helper code for writing tests against the Flux interfaces.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>
     <licenses>
         <license>
@@ -20,12 +22,16 @@
         </license>
     </licenses>
 
+    <properties>
+        <skip.deploy>false</skip.deploy>
+    </properties>
+
     <dependencies>
         <!-- flux internal dependencies -->
         <dependency>
             <artifactId>flux-common</artifactId>
             <groupId>com.danielgmyers.flux</groupId>
-            <version>${flux.version}</version>
+            <version>${flux.base.version}</version>
             <optional>false</optional>
         </dependency>
 
