@@ -5,12 +5,14 @@
     <parent>
         <groupId>com.danielgmyers.flux</groupId>
         <artifactId>flux-base-pom</artifactId>
-        <version>2.1.0</version>
+        <relativePath>../pom.xml</relativePath>
+        <version>0</version>
     </parent>
     <groupId>com.danielgmyers.flux.clients.swf</groupId>
     <artifactId>flux-swf-integration-tests</artifactId>
+    <version>${flux.swf.version}</version>
     <name>Flux SWF Client integration tests</name>
-    <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
+    <description>Integration tests for validating Flux SWF Client functionality.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>
     <licenses>
         <license>
@@ -25,7 +27,7 @@
         <dependency>
             <artifactId>flux-swf</artifactId>
             <groupId>com.danielgmyers.flux.clients.swf</groupId>
-            <version>${flux.version}</version>
+            <version>${flux.swf.version}</version>
             <optional>false</optional>
         </dependency>
 
@@ -66,46 +68,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <id>release</id>
-            <build>
-                <plugins>
-                    <!-- disable sources.jar generation for the integ tests -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <configuration>
-                            <skipSource>true</skipSource>
-                        </configuration>
-                    </plugin>
-                    <!-- disable javadoc.jar generation for the integ tests -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <configuration>
-                            <skip>true</skip>
-                        </configuration>
-                    </plugin>
-                    <!-- disable gpg signing for the integ tests -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <configuration>
-                            <skip>true</skip>
-                        </configuration>
-                    </plugin>
-                    <!-- disable staging/publishing for the integ tests -->
-                    <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <configuration>
-                            <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

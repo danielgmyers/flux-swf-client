@@ -5,12 +5,14 @@
     <parent>
         <groupId>com.danielgmyers.flux</groupId>
         <artifactId>flux-base-pom</artifactId>
-        <version>2.1.0</version>
+        <relativePath>../pom.xml</relativePath>
+        <version>0</version>
     </parent>
     <groupId>com.danielgmyers.flux</groupId>
     <artifactId>flux-common</artifactId>
-    <name>Flux SWF Client Common</name>
-    <description>Flux is a client library that simplifies usage of Amazon Simple Workflow Service.</description>
+    <version>${flux.base.version}</version>
+    <name>Flux Workflow Client Common</name>
+    <description>Flux is a workflow client library to simplify writing asynchronous workflows.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>
     <licenses>
         <license>
@@ -19,6 +21,10 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
+    <properties>
+        <skip.deploy>false</skip.deploy>
+    </properties>
 
     <dependencies>
         <dependency>

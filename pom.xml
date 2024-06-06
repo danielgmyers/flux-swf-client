@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.danielgmyers.flux</groupId>
     <artifactId>flux-base-pom</artifactId>
-    <version>2.1.0</version>
+    <version>0</version>
     <packaging>pom</packaging>
-    <name>Flux Base POM</name>
+    <name>Flux Workflow Client Base POM</name>
     <description>Flux is a workflow client library to simplify writing asynchronous workflows.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>
     <licenses>
@@ -45,7 +45,10 @@
         <url>https://github.com/danielgmyers/flux-swf-client</url>
     </scm>
     <properties>
-        <flux.version>${project.version}</flux.version>
+        <!-- Flux's components get their own versions so that we can release them separately as needed. -->
+        <flux.base.version>2.1.0</flux.base.version>
+        <flux.swf.version>2.1.0</flux.swf.version>
+
         <awssdk.version>2.17.293</awssdk.version>
         <commons-codec.version>1.15</commons-codec.version>
         <jackson.version>2.14.0-rc2</jackson.version>
@@ -55,6 +58,7 @@
         <junit5.version>5.9.1</junit5.version>
         <easymock.version>5.0.0</easymock.version>
 
+        <mavenplugin.flatten.version>1.6.0</mavenplugin.flatten.version>
         <mavenplugin.compiler.version>3.10.1</mavenplugin.compiler.version>
         <mavenplugin.checkstyle.version>3.2.0</mavenplugin.checkstyle.version>
         <mavenplugin.surefire.version>2.22.2</mavenplugin.surefire.version>
@@ -66,9 +70,37 @@
         <checkstyle.version>10.3.4</checkstyle.version>
 
         <jre.version>11</jre.version>
+
+        <!-- Modules (including this parent pom) won't get deployed by default,
+             they'll need to override this to get deployed. -->
+        <skip.deploy>true</skip.deploy>
     </properties>
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>${mavenplugin.flatten.version}</version>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <flattenMode>oss</flattenMode>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -164,6 +196,9 @@
                                 </goals>
                             </execution>
                         </executions>
+                        <configuration>
+                            <skipSource>${skip.deploy}</skipSource>
+                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -177,6 +212,9 @@
                                 </goals>
                             </execution>
                         </executions>
+                        <configuration>
+                            <skip>${skip.deploy}</skip>
+                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -191,6 +229,7 @@
                             </execution>
                         </executions>
                         <configuration>
+                            <skip>${skip.deploy}</skip>
                             <keyname>${env.GPG_KEY_ID}</keyname>
                             <passphrase>${env.GPG_PASSPHRASE}</passphrase>
                             <gpgArguments>
@@ -209,6 +248,7 @@
                             <serverId>sonatype-nexus-staging</serverId>
                             <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
                             <autoReleaseAfterClose>${publishing.autoReleaseAfterClose}</autoReleaseAfterClose>
+                            <skipNexusStagingDeployMojo>${skip.deploy}</skipNexusStagingDeployMojo>
                         </configuration>
                     </plugin>
                 </plugins>
