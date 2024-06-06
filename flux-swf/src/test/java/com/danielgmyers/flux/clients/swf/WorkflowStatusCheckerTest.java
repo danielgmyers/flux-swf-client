@@ -19,7 +19,7 @@ package com.danielgmyers.flux.clients.swf;
 import java.time.Instant;
 
 import com.danielgmyers.flux.WorkflowStatusChecker;
-import com.danielgmyers.flux.clients.swf.util.ManualClock;
+import com.danielgmyers.flux.testutil.ManualClock;
 import com.danielgmyers.flux.wf.WorkflowStatus;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;

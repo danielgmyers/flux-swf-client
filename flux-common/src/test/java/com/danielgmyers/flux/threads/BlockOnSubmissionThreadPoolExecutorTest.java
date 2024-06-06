@@ -14,7 +14,7 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller;
+package com.danielgmyers.flux.threads;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;

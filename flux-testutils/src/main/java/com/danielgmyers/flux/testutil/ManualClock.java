@@ -14,7 +14,7 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.util;
+package com.danielgmyers.flux.testutil;
 
 import java.time.Clock;
 import java.time.Duration;
