@@ -40,11 +40,13 @@ import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
 import com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
+import org.easymock.IArgumentMatcher;
 import org.easymock.IMocksControl;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import software.amazon.awssdk.core.SdkPojo;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.services.swf.SwfClient;
 import software.amazon.awssdk.services.swf.model.ActivityType;
@@ -566,6 +568,21 @@ public class FluxCapacitorTest {
         Assertions.assertEquals(base, FluxCapacitorImpl.shortenHostnameForIdentity(base + ".compute.internal"));
     }
 
+    static <T extends SdkPojo> T sdkFieldMatcher(T request) {
+        EasyMock.reportMatcher(new IArgumentMatcher() {
+            @Override
+            public boolean matches(Object o) {
+                return request.equalsBySdkFields(o);
+            }
+
+            @Override
+            public void appendTo(StringBuffer stringBuffer) {
+                stringBuffer.append("request{" + request + "}");
+            }
+        });
+        return request;
+    }
+
     private void expectDescribeWorkflows(boolean shouldExist) {
         ListWorkflowTypesResponse response;
         if(shouldExist) {
@@ -579,7 +596,7 @@ public class FluxCapacitorTest {
 
         ListWorkflowTypesRequest request = ListWorkflowTypesRequest.builder()
                 .registrationStatus(RegistrationStatus.REGISTERED).domain(DOMAIN).build();
-        EasyMock.expect(swf.listWorkflowTypes(request)).andReturn(response); // called internally by the iterable
+        EasyMock.expect(swf.listWorkflowTypes(sdkFieldMatcher(request))).andReturn(response); // called internally by the iterable
         EasyMock.expect(swf.listWorkflowTypesPaginator(request)).andReturn(new ListWorkflowTypesIterable(swf, request));
     }
 
@@ -601,7 +618,7 @@ public class FluxCapacitorTest {
 
         ListActivityTypesRequest request = ListActivityTypesRequest.builder()
                 .registrationStatus(RegistrationStatus.REGISTERED).domain(DOMAIN).build();
-        EasyMock.expect(swf.listActivityTypes(request)).andReturn(response); // called internally by the iterable
+        EasyMock.expect(swf.listActivityTypes(sdkFieldMatcher(request))).andReturn(response); // called internally by the iterable
         EasyMock.expect(swf.listActivityTypesPaginator(request)).andReturn(new ListActivityTypesIterable(swf, request));
     }
 
