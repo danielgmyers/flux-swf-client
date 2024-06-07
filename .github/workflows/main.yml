@@ -33,16 +33,16 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.CODEBUILD_EXECUTOR_IAM_ROLE }}
           role-session-name: ${{ env.CODEBUILD_EXECUTOR_SESSION_NAME }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Run CodeBuild
-        uses: aws-actions/aws-codebuild-run-build@v1.0.8
+        uses: aws-actions/aws-codebuild-run-build@v1
         with:
           project-name: ${{ env.CODEBUILD_PROJECT_NAME }}
