@@ -106,6 +106,14 @@ public class DecisionTaskPoller implements Runnable {
 
     static final Duration UNKNOWN_RESULT_RETRY_TIMER_DELAY = Duration.ofMinutes(1);
 
+    /**
+     * Metadata version history:
+     * 1 - Raw map of input attributes encoded as strings, with an optional version number entry.
+     *     Because the top-level object is assumed to be a map of strings to strings, the version number is also a string.
+     */
+    static final String STEP_INPUT_METADATA_VERSION_FIELD_NAME = "_fluxMetadataVersion";
+    static final Long CURRENT_STEP_INPUT_METADATA_VERSION = 1L;
+
     private static final Logger log = LoggerFactory.getLogger(DecisionTaskPoller.class);
 
     private final MetricRecorderFactory metricsFactory;
@@ -682,6 +690,9 @@ public class DecisionTaskPoller implements Runnable {
                 firstAttemptDate = clock.instant();
             }
             actualInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(firstAttemptDate));
+
+            // Ideally this wouldn't be encoded as a string, but for now the top-level object is explicitly a string map.
+            actualInput.put(STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(CURRENT_STEP_INPUT_METADATA_VERSION));
 
             ScheduleActivityTaskDecisionAttributes attrs
                     = buildScheduleActivityTaskDecisionAttrs(workflow, nextStep, actualInput, activityIdForScheduling, partitionId);
