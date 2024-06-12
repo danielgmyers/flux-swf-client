@@ -36,7 +36,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Utility class for reading and writing the data in partition metadata markers.
  *
@@ -45,14 +44,35 @@ import org.slf4j.LoggerFactory;
 @JsonIgnoreProperties(ignoreUnknown = true)
 final class PartitionMetadata {
 
+    /**
+     * Version history:
+     * 1 - The set of partition ids, and a map of additional attributes. Optional metadata version field.
+     */
+    @JsonIgnore
+    static final long CURRENT_METADATA_VERSION = 1L;
+
+    /**
+     * We'll leave ourselves a little wiggle room for our attribute names, and to simplify the logic below.
+     * This way we can overrun our length limit by one partition id without it being a problem.
+     * The actual max enforced by SWF is 32768, and partition IDs can't be longer than 250 characters anyway, since
+     * the activity ID would get too long.
+     */
+    @JsonIgnore
+    static final long MARKER_LENGTH_CUTOFF = 32000;
+
     @JsonIgnore
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @JsonIgnore
     private static final Logger log = LoggerFactory.getLogger(PartitionMetadata.class);
 
+    private final long fluxMetadataVersion;
     private final Set<String> partitionIds;
     private final Map<String, String> encodedAdditionalAttributes;
+
+    public long getFluxMetadataVersion() {
+        return fluxMetadataVersion;
+    }
 
     public Set<String> getPartitionIds() {
         return partitionIds;
@@ -63,15 +83,17 @@ final class PartitionMetadata {
     }
 
     @JsonCreator
-    PartitionMetadata(@JsonProperty("partitionIds") Set<String> partitionIds,
+    PartitionMetadata(@JsonProperty("fluxMetadataVersion") Long fluxMetadataVersion,
+                      @JsonProperty("partitionIds") Set<String> partitionIds,
                       @JsonProperty("encodedAdditionalAttributes") Map<String, String> encodedAdditionalAttributes) {
+        this.fluxMetadataVersion = (fluxMetadataVersion == null ? 1L : fluxMetadataVersion);
         // Strictly speaking this doesn't need to be sorted but it makes testing a lot easier.
         this.partitionIds = Collections.unmodifiableSortedSet(new TreeSet<>(partitionIds));
         this.encodedAdditionalAttributes = Collections.unmodifiableMap(encodedAdditionalAttributes);
     }
 
     public static PartitionMetadata fromPartitionIdGeneratorResult(PartitionIdGeneratorResult result) {
-        return new PartitionMetadata(result.getPartitionIds(),
+        return new PartitionMetadata(CURRENT_METADATA_VERSION, result.getPartitionIds(),
                                      StepAttributes.serializeMapValues(result.getAdditionalAttributes()));
     }
 
@@ -86,22 +108,16 @@ final class PartitionMetadata {
         // Most of the time, the entire thing will fit in one marker, so we'll generate that and return it if it's short enough.
         // We do this because calculating the actual size one partition ID at a time is relatively expensive.
 
-        // We'll leave ourselves a little wiggle room for our attribute names, and to simplify the logic below.
-        // This way we can overrun our length limit by one partition id without it being a problem.
-        // The actual max enforced by SWF is 32768, and partition IDs can't be longer than 250 characters anyway, since
-        // the activity ID would get too long.
-        int maxLength = 32000;
-
         String fullJson = MAPPER.writeValueAsString(this);
-        if (fullJson.length() <= maxLength) {
+        if (fullJson.length() <= MARKER_LENGTH_CUTOFF) {
             return Collections.singletonList(fullJson);
         }
 
-        // The base json looks like this, which is 52 characters long:
-        // {"partitionIds":[],"encodedAdditionalAttributes":{}}
+        // The base json looks like this, which is 76 characters long:
+        // {"fluxMetadataVersion":2,"partitionIds":[],"encodedAdditionalAttributes":{}}
         // We're going to account for the empty encodedAdditionalAttributes map below,
         // so we'll subtract two from the base length.
-        int baseJsonSize = 50;
+        int baseJsonSize = 74;
 
         Map<String, String> attributes = encodedAdditionalAttributes;
         int attributeMapSize = MAPPER.writeValueAsString(attributes).length();
@@ -125,8 +141,8 @@ final class PartitionMetadata {
             // as a whole once we have enough partition IDs.
             partitionIdSubset.add(partitionId);
 
-            if (partitionIdSubsetSize + attributeMapSize + baseJsonSize >= maxLength) {
-                PartitionMetadata subset = new PartitionMetadata(partitionIdSubset, attributes);
+            if (partitionIdSubsetSize + attributeMapSize + baseJsonSize >= MARKER_LENGTH_CUTOFF) {
+                PartitionMetadata subset = new PartitionMetadata(CURRENT_METADATA_VERSION, partitionIdSubset, attributes);
                 subsets.add(MAPPER.writeValueAsString(subset));
 
                 partitionIdSubset.clear();
@@ -142,8 +158,8 @@ final class PartitionMetadata {
             }
         }
 
-        if (partitionIdSubset.size() > 0) {
-            PartitionMetadata subset = new PartitionMetadata(partitionIdSubset, attributes);
+        if (!partitionIdSubset.isEmpty()) {
+            PartitionMetadata subset = new PartitionMetadata(CURRENT_METADATA_VERSION, partitionIdSubset, attributes);
             subsets.add(MAPPER.writeValueAsString(subset));
         }
 
@@ -162,11 +178,16 @@ final class PartitionMetadata {
         Map<String, String> encodedAdditionalAttributes = new HashMap<>();
         boolean atLeastOneValidMetadataMarker = false;
 
+        long sourceMetadataVersion = 0;
+
         for (String markerDetails : markerDetailsList) {
             try {
                 PartitionMetadata metadata = MAPPER.readValue(markerDetails, PartitionMetadata.class);
                 partitionIds.addAll(metadata.getPartitionIds());
                 encodedAdditionalAttributes.putAll(metadata.getEncodedAdditionalAttributes());
+                // Technically every marker has its own version field, but they're all generated together by
+                // the same worker thread, so they can't be different.
+                sourceMetadataVersion = metadata.getFluxMetadataVersion();
                 atLeastOneValidMetadataMarker = true;
             } catch (JsonProcessingException e) {
                 log.warn("Failed to deserialize partition metadata marker details, skipping.", e);
@@ -177,6 +198,6 @@ final class PartitionMetadata {
             return null;
         }
 
-        return new PartitionMetadata(partitionIds, encodedAdditionalAttributes);
+        return new PartitionMetadata(sourceMetadataVersion, partitionIds, encodedAdditionalAttributes);
     }
 }
