@@ -433,6 +433,7 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -491,6 +492,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -659,6 +661,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -728,6 +731,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -898,8 +902,8 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-
             expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
+            expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
             String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
@@ -1223,6 +1227,7 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
             expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
+            expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
             String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
@@ -1314,6 +1319,7 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
             expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
+            expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
             String activityId = TaskNaming.createActivityId(stepTwo, 0, DigestUtils.sha256Hex(partitionId));
             ScheduleActivityTaskDecisionAttributes attrs
@@ -1556,6 +1562,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(partitionedStep, 0, partitionId);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -1727,6 +1734,7 @@ public class DecisionTaskPollerTest {
             expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
             expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
             expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+            expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
             String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
@@ -1805,6 +1813,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(stepThree, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -1880,6 +1889,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -1990,6 +2000,7 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2039,6 +2050,7 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(currentStep, 1, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2173,6 +2185,7 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
                                                                             TaskNaming.createActivityId(currentStep, 1, null),
@@ -2315,6 +2328,7 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
                                                                             TaskNaming.createActivityId(currentStep, 1, null),
@@ -2457,6 +2471,7 @@ public class DecisionTaskPollerTest {
         input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
         input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
         input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
+        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityIdSecondAttempt = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 1, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2614,6 +2629,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(nextStep.getStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2712,6 +2728,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(nextStep.getStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2941,6 +2958,7 @@ public class DecisionTaskPollerTest {
         expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
         expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
         expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
+        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
 
         String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionToReschedule);
         ScheduleActivityTaskDecisionAttributes attrs
