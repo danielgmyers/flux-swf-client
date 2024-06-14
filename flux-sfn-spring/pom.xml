@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.danielgmyers.flux</groupId>
+        <artifactId>flux-base-pom</artifactId>
+        <relativePath>../pom.xml</relativePath>
+        <version>0</version>
+    </parent>
+    <groupId>com.danielgmyers.flux.clients.sfn</groupId>
+    <artifactId>flux-sfn-spring</artifactId>
+    <version>${flux.sfn.version}</version>
+    <name>Flux Step Functions Client Spring Helper</name>
+    <description>Flux Step Functions Client Spring Helper makes Flux initialization easier when using Spring.</description>
+    <url>https://github.com/danielgmyers/flux-swf-client</url>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <properties>
+        <!-- Explicitly don't deploy, until we're ready to release -->
+        <skip.deploy>true</skip.deploy>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+            <version>5.3.23</version>
+        </dependency>
+
+        <!-- flux internal dependencies -->
+        <dependency>
+            <artifactId>flux-sfn</artifactId>
+            <groupId>com.danielgmyers.flux.clients.sfn</groupId>
+            <version>${flux.sfn.version}</version>
+            <optional>false</optional>
+        </dependency>
+
+        <!-- test dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit5.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.easymock</groupId>
+            <artifactId>easymock</artifactId>
+            <version>${easymock.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <artifactId>slf4j-nop</artifactId>
+            <groupId>org.slf4j</groupId>
+            <version>${slf4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

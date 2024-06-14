@@ -40,6 +40,12 @@
         <module>flux-swf-guice</module>
         <module>flux-swf-integration-tests</module>
         <module>flux-swf-spring</module>
+
+        <!-- sfn implementation -->
+        <module>flux-sfn</module>
+        <module>flux-sfn-guice</module>
+        <module>flux-sfn-integration-tests</module>
+        <module>flux-sfn-spring</module>
     </modules>
 
     <scm>
@@ -52,6 +58,7 @@
         <flux.base.version>2.1.0</flux.base.version>
         <flux.awscommon.version>2.1.0</flux.awscommon.version>
         <flux.swf.version>2.1.0</flux.swf.version>
+        <flux.sfn.version>1.0.0</flux.sfn.version>
 
         <awssdk.version>2.25.67</awssdk.version>
         <commons-codec.version>1.15</commons-codec.version>

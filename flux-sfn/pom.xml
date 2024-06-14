@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.danielgmyers.flux</groupId>
+        <artifactId>flux-base-pom</artifactId>
+        <relativePath>../pom.xml</relativePath>
+        <version>0</version>
+    </parent>
+    <groupId>com.danielgmyers.flux.clients.sfn</groupId>
+    <artifactId>flux-sfn</artifactId>
+    <version>${flux.sfn.version}</version>
+    <name>Flux Step Functions Client</name>
+    <description>Flux Step Functions Client implements the Flux Workflow Client interfaces on top of AWS Step Functions.</description>
+    <url>https://github.com/danielgmyers/flux-swf-client</url>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <properties>
+        <!-- Explicitly don't deploy, until we're ready to release -->
+        <skip.deploy>true</skip.deploy>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>${commons-codec.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+            <optional>false</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+            <optional>false</optional>
+        </dependency>
+        <dependency>
+            <artifactId>slf4j-api</artifactId>
+            <groupId>org.slf4j</groupId>
+            <version>${slf4j.version}</version>
+            <optional>false</optional>
+        </dependency>
+        <dependency>
+            <artifactId>sfn</artifactId>
+            <groupId>software.amazon.awssdk</groupId>
+            <version>${awssdk.version}</version>
+            <optional>false</optional>
+        </dependency>
+        <dependency>
+            <artifactId>recorder-core</artifactId>
+            <groupId>com.danielgmyers.metrics</groupId>
+            <version>${metricrecorder.version}</version>
+            <optional>false</optional>
+        </dependency>
+
+        <!-- flux internal dependencies -->
+        <dependency>
+            <artifactId>flux-common</artifactId>
+            <groupId>com.danielgmyers.flux</groupId>
+            <version>${flux.base.version}</version>
+            <optional>false</optional>
+        </dependency>
+        <dependency>
+            <artifactId>flux-common-aws</artifactId>
+            <groupId>com.danielgmyers.flux</groupId>
+            <version>${flux.awscommon.version}</version>
+            <optional>false</optional>
+        </dependency>
+
+        <!-- test dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit5.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.easymock</groupId>
+            <artifactId>easymock</artifactId>
+            <version>${easymock.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <artifactId>slf4j-nop</artifactId>
+            <groupId>org.slf4j</groupId>
+            <version>${slf4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <artifactId>in-memory-recorder</artifactId>
+            <groupId>com.danielgmyers.metrics</groupId>
+            <version>${metricrecorder.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <artifactId>flux-testutils</artifactId>
+            <groupId>com.danielgmyers.flux</groupId>
+            <version>${flux.base.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
