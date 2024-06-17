@@ -35,7 +35,6 @@ import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
 import com.danielgmyers.flux.clients.swf.IdentifierValidation;
 import com.danielgmyers.flux.clients.swf.poller.timers.TimerData;
 import com.danielgmyers.flux.clients.swf.step.SwfStepInputAccessor;
-import com.danielgmyers.flux.clients.swf.util.RetryUtils;
 import com.danielgmyers.flux.ex.BadWorkflowStateException;
 import com.danielgmyers.flux.ex.UnrecognizedTaskException;
 import com.danielgmyers.flux.poller.TaskNaming;
@@ -51,6 +50,8 @@ import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.step.internal.WorkflowStepUtil;
 import com.danielgmyers.flux.threads.BlockOnSubmissionThreadPoolExecutor;
 import com.danielgmyers.flux.threads.ThreadUtils;
+import com.danielgmyers.flux.util.AwsRetryUtils;
+import com.danielgmyers.flux.util.RetryUtils;
 import com.danielgmyers.flux.wf.Periodic;
 import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.flux.wf.graph.WorkflowGraph;
@@ -204,9 +205,9 @@ public class DecisionTaskPoller implements Runnable {
 
             log.debug("Polling for decision task");
             PollForDecisionTaskResponse task
-                    = RetryUtils.executeWithInlineBackoff(() -> swf.pollForDecisionTask(request),
-                                                          20, Duration.ofSeconds(2), metrics,
-                                                          DECISION_TASK_POLL_TIME_METRIC_PREFIX
+                    = AwsRetryUtils.executeWithInlineBackoff(() -> swf.pollForDecisionTask(request),
+                                                             20, Duration.ofSeconds(2), metrics,
+                                                             DECISION_TASK_POLL_TIME_METRIC_PREFIX
             );
 
             if (task == null || task.taskToken() == null || task.taskToken().equals("")) {
@@ -247,9 +248,9 @@ public class DecisionTaskPoller implements Runnable {
             RespondDecisionTaskCompletedRequest responseWithToken
                     = response.toBuilder().taskToken(taskWithFullHistory.taskToken()).build();
 
-            RetryUtils.executeWithInlineBackoff(() -> swf.respondDecisionTaskCompleted(responseWithToken),
-                                                20, Duration.ofSeconds(2), metrics,
-                                                RESPOND_DECISION_TASK_COMPLETED_METRIC_PREFIX);
+            AwsRetryUtils.executeWithInlineBackoff(() -> swf.respondDecisionTaskCompleted(responseWithToken),
+                                                   20, Duration.ofSeconds(2), metrics,
+                                                   RESPOND_DECISION_TASK_COMPLETED_METRIC_PREFIX);
 
             log.debug("Submitted decision for workflow {} id {}.",
                       taskWithFullHistory.workflowType().name(), taskWithFullHistory.workflowExecution().runId());
@@ -280,9 +281,9 @@ public class DecisionTaskPoller implements Runnable {
                                                                        .build();
 
             PollForDecisionTaskResponse nextPaginatedResult
-                    = RetryUtils.executeWithInlineBackoff(() -> swf.pollForDecisionTask(request),
-                                                          20, Duration.ofSeconds(2), metrics,
-                                                          DECISION_TASK_EVENT_HISTORY_LOOKUP_TIME_METRIC_PREFIX);
+                    = AwsRetryUtils.executeWithInlineBackoff(() -> swf.pollForDecisionTask(request),
+                                                             20, Duration.ofSeconds(2), metrics,
+                                                             DECISION_TASK_EVENT_HISTORY_LOOKUP_TIME_METRIC_PREFIX);
 
             if (nextPaginatedResult == null) {
                 break;

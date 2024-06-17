@@ -32,6 +32,9 @@
         <module>flux-common</module>
         <module>flux-testutils</module>
 
+        <!-- implementation common to AWS backends -->
+        <module>flux-common-aws</module>
+
         <!-- swf implementation -->
         <module>flux-swf</module>
         <module>flux-swf-guice</module>
@@ -47,6 +50,7 @@
     <properties>
         <!-- Flux's components get their own versions so that we can release them separately as needed. -->
         <flux.base.version>2.1.0</flux.base.version>
+        <flux.awscommon.version>2.1.0</flux.awscommon.version>
         <flux.swf.version>2.1.0</flux.swf.version>
 
         <awssdk.version>2.25.67</awssdk.version>

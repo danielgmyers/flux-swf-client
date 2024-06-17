@@ -20,12 +20,12 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 
-import com.danielgmyers.flux.clients.swf.util.RetryUtils;
 import com.danielgmyers.flux.ex.UnrecognizedTaskException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.threads.BlockOnSubmissionThreadPoolExecutor;
+import com.danielgmyers.flux.util.AwsRetryUtils;
 import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.metrics.MetricRecorder;
 import com.danielgmyers.metrics.MetricRecorderFactory;
@@ -131,9 +131,9 @@ public class ActivityTaskPoller implements Runnable {
                     .domain(domain).taskList(TaskList.builder().name(taskListName).build()).identity(identity).build();
 
             PollForActivityTaskResponse task
-                    = RetryUtils.executeWithInlineBackoff(() -> swf.pollForActivityTask(request),
-                                                          20, Duration.ofSeconds(2), metrics,
-                                                          ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX);
+                    = AwsRetryUtils.executeWithInlineBackoff(() -> swf.pollForActivityTask(request),
+                                                             20, Duration.ofSeconds(2), metrics,
+                                                             ACTIVITY_TASK_POLL_TIME_METRIC_PREFIX);
 
             if (task == null || task.taskToken() == null || task.taskToken().equals("")) {
                 // this means there was no work to do
@@ -244,9 +244,9 @@ public class ActivityTaskPoller implements Runnable {
                     case COMPLETE:
                         RespondActivityTaskCompletedRequest rac = RespondActivityTaskCompletedRequest.builder()
                                 .taskToken(task.taskToken()).result(executor.getOutput()).build();
-                        RetryUtils.executeWithInlineBackoff(() -> swf.respondActivityTaskCompleted(rac),
-                                                            20, Duration.ofSeconds(2), metrics,
-                                                            RESPOND_ACTIVITY_TASK_COMPLETED_METRIC_PREFIX);
+                        AwsRetryUtils.executeWithInlineBackoff(() -> swf.respondActivityTaskCompleted(rac),
+                                                               20, Duration.ofSeconds(2), metrics,
+                                                               RESPOND_ACTIVITY_TASK_COMPLETED_METRIC_PREFIX);
                         break;
                     case RETRY:
                         // SWF doesn't model retries, so we model it as a failure here.
@@ -255,9 +255,9 @@ public class ActivityTaskPoller implements Runnable {
                         RespondActivityTaskFailedRequest raf = RespondActivityTaskFailedRequest.builder()
                                 .taskToken(task.taskToken()).reason(prepareRetryReason(result.getMessage()))
                                 .details(prepareRetryDetails(executor.getOutput())).build();
-                        RetryUtils.executeWithInlineBackoff(() -> swf.respondActivityTaskFailed(raf),
-                                                            20, Duration.ofSeconds(2), metrics,
-                                                            RESPOND_ACTIVITY_TASK_FAILED_METRIC_PREFIX);
+                        AwsRetryUtils.executeWithInlineBackoff(() -> swf.respondActivityTaskFailed(raf),
+                                                               20, Duration.ofSeconds(2), metrics,
+                                                               RESPOND_ACTIVITY_TASK_FAILED_METRIC_PREFIX);
                         break;
                     default:
                         throw new RuntimeException("Unknown result action: " + result.getAction());
