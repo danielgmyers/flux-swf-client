@@ -21,15 +21,17 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 
 /**
  * Allows users to provide SWF client configuration to be used to create a RemoteWorkflowExecutor.
- * Note that at a minimum, the AWS region must not be null.
+ * Note that at a minimum, the AWS region and workflow domain must not be null.
  * If credentials is null, DefaultCredentialsProvider will be used.
  * If swfEndpoint and clientOverrideConfiguration are null they will be ignored.
  */
 public class RemoteSwfClientConfig {
     private String awsRegion;
     private String swfEndpoint;
+    private String workflowDomain;
     private AwsCredentialsProvider credentials;
     private ClientOverrideConfiguration clientOverrideConfiguration;
+    private Boolean automaticallyTagExecutionsWithTaskList;
 
     public String getAwsRegion() {
         return awsRegion;
@@ -47,6 +49,14 @@ public class RemoteSwfClientConfig {
         this.swfEndpoint = swfEndpoint;
     }
 
+    public String getWorkflowDomain() {
+        return workflowDomain;
+    }
+
+    public void setWorkflowDomain(String workflowDomain) {
+        this.workflowDomain = workflowDomain;
+    }
+
     public AwsCredentialsProvider getCredentials() {
         return credentials;
     }
@@ -61,5 +71,13 @@ public class RemoteSwfClientConfig {
 
     public void setClientOverrideConfiguration(ClientOverrideConfiguration clientOverrideConfiguration) {
         this.clientOverrideConfiguration = clientOverrideConfiguration;
+    }
+
+    public Boolean getAutomaticallyTagExecutionsWithTaskList() {
+        return automaticallyTagExecutionsWithTaskList;
+    }
+
+    public void setAutomaticallyTagExecutionsWithTaskList(Boolean automaticallyTagExecutionsWithTaskList) {
+        this.automaticallyTagExecutionsWithTaskList = automaticallyTagExecutionsWithTaskList;
     }
 }

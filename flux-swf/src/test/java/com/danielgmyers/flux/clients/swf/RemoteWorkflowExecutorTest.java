@@ -47,7 +47,7 @@ public class RemoteWorkflowExecutorTest {
     private RemoteWorkflowExecutorImpl rwe;
 
     private Workflow workflow;
-    private FluxCapacitorConfig config;
+    private RemoteSwfClientConfig config;
 
     @BeforeEach
     public void setup() {
@@ -61,8 +61,8 @@ public class RemoteWorkflowExecutorTest {
         Map<String, Workflow> workflowsByName = new HashMap<>();
         workflowsByName.put(TaskNaming.workflowName(workflow), workflow);
 
-        config = new FluxCapacitorConfig();
-        config.setSwfDomain("test");
+        config = new RemoteSwfClientConfig();
+        config.setWorkflowDomain("test");
 
         rwe = new RemoteWorkflowExecutorImpl(clock, new NoopMetricRecorderFactory(), workflowsByName, swf, config);
     }
@@ -154,7 +154,7 @@ public class RemoteWorkflowExecutorTest {
     private void expectStartWorkflowRequest(Workflow workflow, String workflowId, Map<String, Object> input,
                                             Set<String> executionTags, Exception exceptionToThrow) {
         StartWorkflowExecutionRequest start
-                = FluxCapacitorImpl.buildStartWorkflowRequest(config.getSwfDomain(), TaskNaming.workflowName(workflow),
+                = FluxCapacitorImpl.buildStartWorkflowRequest(config.getWorkflowDomain(), TaskNaming.workflowName(workflow),
                                                               workflowId, workflow.taskList(),
                                                               workflow.maxStartToCloseDuration(), input, executionTags);
         if (exceptionToThrow == null) {

@@ -69,9 +69,8 @@ public interface FluxCapacitor {
      *
      * @param endpointId This should be an identifier that can be used by the aforementioned configuration callbacks to determine
      *                   which configuration data to supply to the underlying client.
-     * @param workflowDomain The domain that the remote workflows should be executed in.
      */
-    RemoteWorkflowExecutor getRemoteWorkflowExecutor(String endpointId, String workflowDomain);
+    RemoteWorkflowExecutor getRemoteWorkflowExecutor(String endpointId);
 
     /**
      * Shuts down this FluxCapacitor object's worker thread pools. Running threads are not interrupted.

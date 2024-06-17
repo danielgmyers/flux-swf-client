@@ -23,10 +23,11 @@ public final class TestConfig {
     /**
      * Retrieves the configured remote region.
      */
-    public static RemoteSwfClientConfig getRemoteClientConfig() {
+    public static RemoteSwfClientConfig getRemoteClientConfig(String remoteWorkflowDomain) {
         RemoteSwfClientConfig config = new RemoteSwfClientConfig();
         config.setAwsRegion(System.getProperty("remoteRegion", "us-east-1"));
         config.setSwfEndpoint(System.getProperty("remoteEndpoint", null));
+        config.setWorkflowDomain(System.getProperty("remoteWorkflowDomain", remoteWorkflowDomain));
         return config;
     }
 
@@ -49,7 +50,7 @@ public final class TestConfig {
      * @param workerPoolSize - the size of the thread pool for the deciders and workers.
      */
     public static FluxCapacitorConfig generateRemoteFluxConfig(String swfDomain, int workerPoolSize) {
-        RemoteSwfClientConfig remoteConfig = getRemoteClientConfig();
+        RemoteSwfClientConfig remoteConfig = getRemoteClientConfig(swfDomain);
         return generateFluxConfig(remoteConfig.getAwsRegion(), swfDomain, workerPoolSize);
     }
 

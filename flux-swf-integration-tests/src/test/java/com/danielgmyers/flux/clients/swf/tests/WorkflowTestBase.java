@@ -50,7 +50,7 @@ public abstract class WorkflowTestBase {
     }
 
     protected RemoteWorkflowExecutor getRemoteWorkflowExecutor() {
-        return capacitor.getRemoteWorkflowExecutor("test", getWorkflowDomain());
+        return capacitor.getRemoteWorkflowExecutor("test");
     }
 
     abstract List<Workflow> getWorkflowsForTest();
@@ -81,7 +81,7 @@ public abstract class WorkflowTestBase {
         if (localRegion) {
             swfClientBuilder.region(Region.of(TestConfig.getAwsRegion()));
         } else {
-            swfClientBuilder.region(Region.of(TestConfig.getRemoteClientConfig().getAwsRegion()));
+            swfClientBuilder.region(Region.of(TestConfig.getRemoteClientConfig(getWorkflowDomain()).getAwsRegion()));
         }
         return swfClientBuilder.build();
     }
@@ -94,7 +94,7 @@ public abstract class WorkflowTestBase {
         }  else {
             config = TestConfig.generateRemoteFluxConfig(getWorkflowDomain(), getWorkerPoolThreadCount());
         }
-        config.setRemoteSwfClientConfigProvider((s) -> TestConfig.getRemoteClientConfig());
+        config.setRemoteSwfClientConfigProvider((s) -> TestConfig.getRemoteClientConfig(getWorkflowDomain()));
         updateFluxCapacitorConfig(config);
         FluxCapacitor capacitor = FluxCapacitorFactory.create(new NoopMetricRecorderFactory(),
                                                               DefaultCredentialsProvider.create(), config);
