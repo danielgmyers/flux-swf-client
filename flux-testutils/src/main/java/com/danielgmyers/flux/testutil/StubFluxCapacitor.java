@@ -99,7 +99,7 @@ public class StubFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
-    public RemoteWorkflowExecutor getRemoteWorkflowExecutor(String endpointId, String workflowDomain) {
+    public RemoteWorkflowExecutor getRemoteWorkflowExecutor(String endpointId) {
         return new StubRemoteWorkflowExecutor();
     }
 

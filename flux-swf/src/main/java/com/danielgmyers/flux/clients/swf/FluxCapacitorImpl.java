@@ -252,9 +252,9 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     }
 
     @Override
-    public RemoteWorkflowExecutor getRemoteWorkflowExecutor(String endpointId, String workflowDomain) {
-        // for the regular FluxCapacitor SwfClient, we disabled all the retry logic
-        // since we do our own for metrics purposes. However the remote client is not used
+    public RemoteWorkflowExecutor getRemoteWorkflowExecutor(String endpointId) {
+        // For the regular FluxCapacitor SwfClient, we disabled all the retry logic
+        // since we do our own for metrics purposes. However, the remote client is not used
         // for much, and we don't bother emitting metrics for it, so the defaults are fine.
 
         Function<String, RemoteSwfClientConfig> remoteConfigProvider = config.getRemoteSwfClientConfigProvider();
@@ -279,7 +279,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
         if (remoteConfig.getSwfEndpoint() != null) {
             customSwf.endpointOverride(URI.create(remoteConfig.getSwfEndpoint()));
         }
-        return new RemoteWorkflowExecutorImpl(clock, metricsFactory, workflowsByName, customSwf.build(), config);
+        return new RemoteWorkflowExecutorImpl(clock, metricsFactory, workflowsByName, customSwf.build(), remoteConfig);
     }
 
     @Override

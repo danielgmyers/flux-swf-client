@@ -46,10 +46,10 @@ public class RemoteWorkflowExecutorImpl implements RemoteWorkflowExecutor {
     private final MetricRecorderFactory metricsFactory;
     private final Map<String, Workflow> workflowsByName;
     private final SwfClient swf;
-    private final FluxCapacitorConfig config;
+    private final RemoteSwfClientConfig config;
 
     RemoteWorkflowExecutorImpl(Clock clock, MetricRecorderFactory metricsFactory, Map<String, Workflow> workflowsByName,
-                               SwfClient swf, FluxCapacitorConfig config) {
+                               SwfClient swf, RemoteSwfClientConfig config) {
         this.clock = clock;
         this.metricsFactory = metricsFactory;
         this.swf = swf;
@@ -81,7 +81,7 @@ public class RemoteWorkflowExecutorImpl implements RemoteWorkflowExecutor {
         }
 
         StartWorkflowExecutionRequest request
-                = FluxCapacitorImpl.buildStartWorkflowRequest(config.getSwfDomain(), workflowName, workflowId,
+                = FluxCapacitorImpl.buildStartWorkflowRequest(config.getWorkflowDomain(), workflowName, workflowId,
                                                               workflow.taskList(), workflow.maxStartToCloseDuration(),
                                                               workflowInput, actualExecutionTags);
 
@@ -92,7 +92,7 @@ public class RemoteWorkflowExecutorImpl implements RemoteWorkflowExecutor {
             log.debug("Started remote workflow {} with id {}: received execution id {}.",
                       workflowName, workflowId, workflowRun.runId());
 
-            return new WorkflowStatusCheckerImpl(clock, swf, config.getSwfDomain(), workflowId, workflowRun.runId());
+            return new WorkflowStatusCheckerImpl(clock, swf, config.getWorkflowDomain(), workflowId, workflowRun.runId());
         } catch (WorkflowExecutionAlreadyStartedException e) {
             // swallow, we're ok with this happening
             log.debug("Attempted to start remote workflow {} with id {} but it was already started.",
