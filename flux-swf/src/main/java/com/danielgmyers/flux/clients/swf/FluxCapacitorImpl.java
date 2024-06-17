@@ -44,13 +44,13 @@ import com.danielgmyers.flux.RemoteWorkflowExecutor;
 import com.danielgmyers.flux.WorkflowStatusChecker;
 import com.danielgmyers.flux.clients.swf.poller.ActivityTaskPoller;
 import com.danielgmyers.flux.clients.swf.poller.DecisionTaskPoller;
-import com.danielgmyers.flux.clients.swf.util.RetryUtils;
 import com.danielgmyers.flux.ex.WorkflowExecutionException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.threads.BlockOnSubmissionThreadPoolExecutor;
 import com.danielgmyers.flux.threads.ThreadUtils;
+import com.danielgmyers.flux.util.AwsRetryUtils;
 import com.danielgmyers.flux.wf.Periodic;
 import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.flux.wf.graph.WorkflowGraphNode;
@@ -418,9 +418,9 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
                 log.info("Looking up SWF domain {} to see if it needs to be registered.", workflowDomain);
 
                 DescribeDomainRequest request = DescribeDomainRequest.builder().name(workflowDomain).build();
-                RetryUtils.executeWithInlineBackoff(() -> swf.describeDomain(request), REGISTRATION_MAX_RETRY_ATTEMPTS,
-                                                    REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
-                                                    metrics, DESCRIBE_DOMAIN_METRIC_PREFIX);
+                AwsRetryUtils.executeWithInlineBackoff(() -> swf.describeDomain(request), REGISTRATION_MAX_RETRY_ATTEMPTS,
+                                                       REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
+                                                       metrics, DESCRIBE_DOMAIN_METRIC_PREFIX);
 
                 log.info("SWF domain {} is already registered.", workflowDomain);
             } catch (UnknownResourceException e) {
@@ -429,9 +429,9 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
                 RegisterDomainRequest request = RegisterDomainRequest.builder().name(workflowDomain)
                         .workflowExecutionRetentionPeriodInDays(WORKFLOW_EXECUTION_RETENTION_PERIOD_IN_DAYS)
                         .build();
-                RetryUtils.executeWithInlineBackoff(() -> swf.registerDomain(request), REGISTRATION_MAX_RETRY_ATTEMPTS,
-                                                    REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
-                                                    metrics, REGISTER_DOMAIN_METRIC_PREFIX);
+                AwsRetryUtils.executeWithInlineBackoff(() -> swf.registerDomain(request), REGISTRATION_MAX_RETRY_ATTEMPTS,
+                                                       REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
+                                                       metrics, REGISTER_DOMAIN_METRIC_PREFIX);
 
                 log.info("Successfully registered SWF domain {}", workflowDomain);
             }
@@ -442,9 +442,9 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     void registerWorkflows() {
         try (MetricRecorder metrics = metricsFactory.newMetricRecorder("Flux.RegisterWorkflows")) {
             Set<String> registeredWorkflows
-                    = RetryUtils.executeWithInlineBackoff(this::describeRegisteredWorkflows, REGISTRATION_MAX_RETRY_ATTEMPTS,
-                                                          REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
-                                                          metrics, LIST_WORKFLOW_TYPES_METRIC_PREFIX);
+                    = AwsRetryUtils.executeWithInlineBackoff(this::describeRegisteredWorkflows, REGISTRATION_MAX_RETRY_ATTEMPTS,
+                                                             REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
+                                                             metrics, LIST_WORKFLOW_TYPES_METRIC_PREFIX);
             for (String workflowName : workflowsByName.keySet()) {
                 if (registeredWorkflows.contains(workflowName)) {
                     log.info("Workflow {} is already registered.", workflowName);
@@ -454,9 +454,10 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
                     RegisterWorkflowTypeRequest regReq = buildRegisterWorkflowRequest(workflowDomain, workflowName);
 
                     try {
-                        RetryUtils.executeWithInlineBackoff(() -> swf.registerWorkflowType(regReq), REGISTRATION_MAX_RETRY_ATTEMPTS,
-                                                            REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
-                                                            metrics, REGISTER_WORKFLOW_TYPE_METRIC_PREFIX);
+                        AwsRetryUtils.executeWithInlineBackoff(() -> swf.registerWorkflowType(regReq),
+                                                               REGISTRATION_MAX_RETRY_ATTEMPTS,
+                                                               REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
+                                                               metrics, REGISTER_WORKFLOW_TYPE_METRIC_PREFIX);
                         log.info("Successfully registered workflow {}", workflowName);
                     } catch (TypeAlreadyExistsException ex) {
                         log.info("Attempted to register workflow {} but someone else did it first.", workflowName);
@@ -493,9 +494,9 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     void registerActivities() {
         try (MetricRecorder metrics = metricsFactory.newMetricRecorder("Flux.RegisterActivities")) {
             Set<String> registeredActivities
-                    = RetryUtils.executeWithInlineBackoff(this::describeRegisteredActivities, REGISTRATION_MAX_RETRY_ATTEMPTS,
-                                                          REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
-                                                          metrics, LIST_ACTIVITY_TYPES_METRIC_PREFIX);
+                    = AwsRetryUtils.executeWithInlineBackoff(this::describeRegisteredActivities, REGISTRATION_MAX_RETRY_ATTEMPTS,
+                                                             REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
+                                                             metrics, LIST_ACTIVITY_TYPES_METRIC_PREFIX);
 
             for (Entry<String, WorkflowStep> entry : activitiesByName.entrySet()) {
                 String activityName = entry.getKey();
@@ -508,9 +509,10 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
                     RegisterActivityTypeRequest regReq = buildRegisterActivityRequest(workflowDomain, activityName);
 
                     try {
-                        RetryUtils.executeWithInlineBackoff(() -> swf.registerActivityType(regReq), REGISTRATION_MAX_RETRY_ATTEMPTS,
-                                                            REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
-                                                            metrics, REGISTER_ACTIVITY_TYPE_METRIC_PREFIX);
+                        AwsRetryUtils.executeWithInlineBackoff(() -> swf.registerActivityType(regReq),
+                                                               REGISTRATION_MAX_RETRY_ATTEMPTS,
+                                                               REGISTRATION_MIN_RETRY_DELAY, REGISTRATION_MAX_RETRY_DELAY,
+                                                               metrics, REGISTER_ACTIVITY_TYPE_METRIC_PREFIX);
                         log.info("Successfully registered activity {}", activityName);
                     } catch (TypeAlreadyExistsException ex) {
                         log.info("Attempted to register activity {} but someone else did it first.", activityName);

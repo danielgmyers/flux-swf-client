@@ -8,11 +8,11 @@
         <relativePath>../pom.xml</relativePath>
         <version>0</version>
     </parent>
-    <groupId>com.danielgmyers.flux.clients.swf</groupId>
-    <artifactId>flux-swf</artifactId>
-    <version>${flux.swf.version}</version>
-    <name>Flux SWF Client</name>
-    <description>Flux SWF Client implements the Flux Workflow Client interfaces on top of Amazon Simple Workflow Service.</description>
+    <groupId>com.danielgmyers.flux</groupId>
+    <artifactId>flux-common-aws</artifactId>
+    <version>${flux.awscommon.version}</version>
+    <name>Flux Workflow Client Common (AWS)</name>
+    <description>Flux is a workflow client library to simplify writing asynchronous workflows.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>
     <licenses>
         <license>
@@ -28,20 +28,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>commons-codec</groupId>
-            <artifactId>commons-codec</artifactId>
-            <version>${commons-codec.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>${jackson.version}</version>
-            <optional>false</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
+            <artifactId>sdk-core</artifactId>
+            <groupId>software.amazon.awssdk</groupId>
+            <version>${awssdk.version}</version>
             <optional>false</optional>
         </dependency>
         <dependency>
@@ -51,30 +40,17 @@
             <optional>false</optional>
         </dependency>
         <dependency>
-            <artifactId>swf</artifactId>
-            <groupId>software.amazon.awssdk</groupId>
-            <version>${awssdk.version}</version>
-            <optional>false</optional>
-        </dependency>
-        <dependency>
             <artifactId>recorder-core</artifactId>
             <groupId>com.danielgmyers.metrics</groupId>
             <version>${metricrecorder.version}</version>
             <optional>false</optional>
         </dependency>
 
-        <!-- flux internal dependencies -->
+        <!-- flux dependencies -->
         <dependency>
+            <groupId>com.danielgmyers.flux</groupId>
             <artifactId>flux-common</artifactId>
-            <groupId>com.danielgmyers.flux</groupId>
             <version>${flux.base.version}</version>
-            <optional>false</optional>
-        </dependency>
-        <dependency>
-            <artifactId>flux-common-aws</artifactId>
-            <groupId>com.danielgmyers.flux</groupId>
-            <version>${flux.awscommon.version}</version>
-            <optional>false</optional>
         </dependency>
 
         <!-- test dependencies -->
@@ -94,18 +70,6 @@
             <artifactId>slf4j-nop</artifactId>
             <groupId>org.slf4j</groupId>
             <version>${slf4j.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <artifactId>in-memory-recorder</artifactId>
-            <groupId>com.danielgmyers.metrics</groupId>
-            <version>${metricrecorder.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <artifactId>flux-testutils</artifactId>
-            <groupId>com.danielgmyers.flux</groupId>
-            <version>${flux.base.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
