@@ -35,6 +35,8 @@ import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
 import com.danielgmyers.flux.clients.swf.IdentifierValidation;
 import com.danielgmyers.flux.clients.swf.poller.timers.TimerData;
 import com.danielgmyers.flux.clients.swf.util.RetryUtils;
+import com.danielgmyers.flux.ex.BadWorkflowStateException;
+import com.danielgmyers.flux.ex.UnrecognizedTaskException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.signals.BaseSignalData;
 import com.danielgmyers.flux.signals.DelayRetrySignalData;

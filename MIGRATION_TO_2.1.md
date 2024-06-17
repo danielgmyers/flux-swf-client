@@ -26,11 +26,14 @@ The maven group IDs and package names have changed as follows:
 Interface changes
 ----
 
-The base java package for the `FluxCapacitor`, `Workflow`, `WorkflowStep`, and other generic interfaces and annotations has been changed, and any that weren't in the `flux-common` maven package have been moved there:
+The base java package for `FluxCapacitor`, `Workflow`, `WorkflowStep`, and other generic interfaces, annotations, and exceptions has been changed, and any that weren't in the `flux-common` maven package have been moved there:
 
 * `com.danielgmyers.flux.clients.swf.FluxCapacitor` -> `com.danielgmyers.flux.FluxCapacitor`
 * `com.danielgmyers.flux.clients.swf.RemoteWorkflowExecutor` -> `com.danielgmyers.flux.RemoteWorkflowExecutor`
+* `com.danielgmyers.flux.clients.swf.WorkflowExecutionException` -> `com.danielgmyers.flux.ex.WorkflowExecutionException`
 * `com.danielgmyers.flux.clients.swf.WorkflowStatusChecker` -> `com.danielgmyers.flux.WorkflowStatusChecker`
+* `com.danielgmyers.flux.clients.swf.poller.BadWorkflowStateException` -> `com.danielgmyers.flux.ex.BadWorkflowStateException`
+* `com.danielgmyers.flux.clients.swf.poller.UnrecognizedTaskException` -> `com.danielgmyers.flux.ex.UnrecognizedTaskException`
 * `com.danielgmyers.flux.clients.swf.step.Attribute` -> `com.danielgmyers.flux.step.Attribute`
 * `com.danielgmyers.flux.clients.swf.step.PartitionedWorkflowStep` -> `com.danielgmyers.flux.step.PartitionedWorkflowStep`
 * `com.danielgmyers.flux.clients.swf.step.PartitionIdGenerator` -> `com.danielgmyers.flux.step.PartitionIdGeneratorResult`

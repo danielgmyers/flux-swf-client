@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
+import com.danielgmyers.flux.ex.UnrecognizedTaskException;
 import com.danielgmyers.flux.poller.ActivityExecutionUtil;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.StepApply;

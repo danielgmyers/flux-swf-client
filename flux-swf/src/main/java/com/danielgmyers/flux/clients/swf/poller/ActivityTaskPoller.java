@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 
 import com.danielgmyers.flux.clients.swf.util.RetryUtils;
+import com.danielgmyers.flux.ex.UnrecognizedTaskException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;

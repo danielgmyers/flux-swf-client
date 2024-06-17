@@ -14,12 +14,12 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf;
+package com.danielgmyers.flux.ex;
 
 /**
- * Indicates a problem when attempting to execute a workflow.
+ * Indicates a problem occurred when attempting to execute a workflow.
  */
-public class WorkflowExecutionException extends RuntimeException {
+public class WorkflowExecutionException extends FluxException {
 
     public WorkflowExecutionException(String message) {
         super(message);

@@ -14,15 +14,18 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf.poller;
+package com.danielgmyers.flux.ex;
 
 /**
- * Indicates that the decision or activity logic was unable to determine
- * the next action to take based on the current state of the workflow.
+ * Indicates that a task was scheduled that the current Flux runtime does not know about.
+ * Typically, this will happen during deployment after adding new steps;
+ * if it happens after removing a step (or rolling back a deployment)
+ * the affected workflow may be stuck until terminated or the activity
+ * is made available again.
  */
-public class BadWorkflowStateException extends RuntimeException {
+public class UnrecognizedTaskException extends FluxException {
 
-    public BadWorkflowStateException(String message) {
+    public UnrecognizedTaskException(String message) {
         super(message);
     }
 
