@@ -36,6 +36,7 @@ import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithFailureTransition;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithPartitionedStep;
 import com.danielgmyers.flux.clients.swf.poller.timers.TimerData;
+import com.danielgmyers.flux.ex.BadWorkflowStateException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.signals.DelayRetrySignalData;
 import com.danielgmyers.flux.signals.ForceResultSignalData;

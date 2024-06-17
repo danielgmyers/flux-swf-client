@@ -45,6 +45,7 @@ import com.danielgmyers.flux.WorkflowStatusChecker;
 import com.danielgmyers.flux.clients.swf.poller.ActivityTaskPoller;
 import com.danielgmyers.flux.clients.swf.poller.DecisionTaskPoller;
 import com.danielgmyers.flux.clients.swf.util.RetryUtils;
+import com.danielgmyers.flux.ex.WorkflowExecutionException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.WorkflowStep;

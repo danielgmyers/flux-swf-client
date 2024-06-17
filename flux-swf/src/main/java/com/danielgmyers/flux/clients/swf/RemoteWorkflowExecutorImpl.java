@@ -24,6 +24,7 @@ import java.util.Set;
 
 import com.danielgmyers.flux.RemoteWorkflowExecutor;
 import com.danielgmyers.flux.WorkflowStatusChecker;
+import com.danielgmyers.flux.ex.WorkflowExecutionException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.metrics.MetricRecorderFactory;

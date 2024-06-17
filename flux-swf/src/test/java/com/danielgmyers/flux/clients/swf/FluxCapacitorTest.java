@@ -33,6 +33,7 @@ import com.danielgmyers.flux.clients.swf.poller.testwf.TestPeriodicWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowCustomStartToCloseDuration;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowCustomTaskList;
+import com.danielgmyers.flux.ex.WorkflowExecutionException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.wf.Workflow;
