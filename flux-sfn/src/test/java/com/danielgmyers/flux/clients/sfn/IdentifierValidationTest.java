@@ -14,7 +14,7 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.clients.swf;
+package com.danielgmyers.flux.clients.sfn;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
@@ -39,50 +39,26 @@ public class IdentifierValidationTest {
         for (char c = '\u007f'; c <= '\u009f'; c++) {
             sb.append(c);
         }
-        sb.append(':');
-        sb.append('/');
-        sb.append('|');
+        sb.append(" \t\n");
+        sb.append("<>{}[]");
+        sb.append("?*");
+        sb.append("\"#%\\^|~`$&,;:/");
         invalidCharacters = sb.toString();
-    }
-
-    @Test
-    public void testDomain() {
-        doCommonTests(IdentifierValidation::validateDomain, IdentifierValidation.MAX_DOMAIN_NAME_LENGTH, false);
-        Assertions.assertThrows(IllegalArgumentException.class, () -> IdentifierValidation.validateDomain("arn"));
-    }
-
-    @Test
-    public void testTaskListName() {
-        doCommonTests(IdentifierValidation::validateTaskListName, IdentifierValidation.MAX_TASK_LIST_NAME_LENGTH, false);
-        Assertions.assertThrows(IllegalArgumentException.class, () -> IdentifierValidation.validateTaskListName("arn"));
     }
 
     @Test
     public void testWorkflowExecutionId() {
         doCommonTests(IdentifierValidation::validateWorkflowExecutionId, IdentifierValidation.MAX_WORKFLOW_EXECUTION_ID_LENGTH, false);
-        Assertions.assertThrows(IllegalArgumentException.class, () -> IdentifierValidation.validateWorkflowExecutionId("arn"));
     }
 
     @Test
     public void testHostname() {
         doCommonTests(IdentifierValidation::validateHostname, IdentifierValidation.MAX_HOSTNAME_LENGTH, true);
-        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateHostname("arn"));
-    }
-
-    @Test
-    public void testWorkflowExecutionTag() {
-        doCommonTests(IdentifierValidation::validateWorkflowExecutionTag, IdentifierValidation.MAX_WORKFLOW_EXECUTION_TAG_LENGTH, true);
-        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateWorkflowExecutionTag("arn"));
     }
 
     @Test
     public void testPartitionId() {
-        doCommonTests((s) -> IdentifierValidation.validatePartitionId(s, true), IdentifierValidation.MAX_PARTITION_ID_LENGTH_HASHING_ENABLED, true);
-        doCommonTests((s) -> IdentifierValidation.validatePartitionId(s, false), IdentifierValidation.MAX_PARTITION_ID_LENGTH_HASHING_DISABLED, false);
-
-        // "arn" should be allowed either way, even though invalid characters aren't allowed with hashing disabled.
-        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validatePartitionId("arn", true));
-        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validatePartitionId("arn", false));
+        doCommonTests(IdentifierValidation::validatePartitionId, IdentifierValidation.MAX_PARTITION_ID_LENGTH, true);
     }
 
     public static class TestWorkflowWithValidClassName implements Workflow {
@@ -93,7 +69,7 @@ public class IdentifierValidationTest {
         }
     }
 
-    public static class TestWorkflowWithTechnicallyValidClassNameEvenThoughThisClassNameIsWayTooLongToBePracticalInRealCodeNoMatterHowWideYourMonitorIs implements Workflow {
+    public static class TestWorkflowWithLongestAllowedClassName implements Workflow {
         // implementation doesn't need to be valid for this test
         @Override
         public WorkflowGraph getGraph() {
@@ -112,11 +88,11 @@ public class IdentifierValidationTest {
     @Test
     public void testWorkflowClassName() {
         // these two checks just ensure the test will break if the max name length constant or the class names get changed.
-        Assertions.assertEquals(IdentifierValidation.MAX_WORKFLOW_CLASS_NAME_LENGTH, TestWorkflowWithTechnicallyValidClassNameEvenThoughThisClassNameIsWayTooLongToBePracticalInRealCodeNoMatterHowWideYourMonitorIs.class.getSimpleName().length());
+        Assertions.assertEquals(IdentifierValidation.MAX_WORKFLOW_CLASS_NAME_LENGTH, TestWorkflowWithLongestAllowedClassName.class.getSimpleName().length());
         Assertions.assertTrue(IdentifierValidation.MAX_WORKFLOW_CLASS_NAME_LENGTH < TestWorkflowWithOverlyLongClassNameThisClassNameIsMuchTooLongAndShouldNeverBeAllowedByTheValidationLogicEvenIfAskedExtremelyNicely.class.getSimpleName().length());
 
         Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateWorkflowName(TestWorkflowWithValidClassName.class));
-        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateWorkflowName(TestWorkflowWithTechnicallyValidClassNameEvenThoughThisClassNameIsWayTooLongToBePracticalInRealCodeNoMatterHowWideYourMonitorIs.class));
+        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateWorkflowName(TestWorkflowWithLongestAllowedClassName.class));
         Assertions.assertThrows(IllegalArgumentException.class,
                                 () -> IdentifierValidation.validateWorkflowName(TestWorkflowWithOverlyLongClassNameThisClassNameIsMuchTooLongAndShouldNeverBeAllowedByTheValidationLogicEvenIfAskedExtremelyNicely.class));
     }
@@ -125,7 +101,7 @@ public class IdentifierValidationTest {
         // implementation doesn't need to be valid for this test
     }
 
-    public static class TestWorkflowStepWithTechnicallyValidClassNameEvenThoughThisClassNameIsWayTooLongToBePracticalInCodeNoMatterHowWideYourMonitorIs implements WorkflowStep {
+    public static class WorkflowStepWithLongestAllowedClassName implements WorkflowStep {
         // implementation doesn't need to be valid for this test
     }
 
@@ -136,11 +112,11 @@ public class IdentifierValidationTest {
     @Test
     public void testWorkflowStepClassName() {
         // these two checks just ensure the test will break if the max name length constant or the class names get changed.
-        Assertions.assertEquals(IdentifierValidation.MAX_WORKFLOW_STEP_CLASS_NAME_LENGTH, TestWorkflowStepWithTechnicallyValidClassNameEvenThoughThisClassNameIsWayTooLongToBePracticalInCodeNoMatterHowWideYourMonitorIs.class.getSimpleName().length());
+        Assertions.assertEquals(IdentifierValidation.MAX_WORKFLOW_STEP_CLASS_NAME_LENGTH, WorkflowStepWithLongestAllowedClassName.class.getSimpleName().length());
         Assertions.assertTrue(IdentifierValidation.MAX_WORKFLOW_STEP_CLASS_NAME_LENGTH < TestWorkflowStepWithOverlyLongClassNameThisClassNameIsMuchTooLongAndShouldNeverBeAllowedByTheValidationLogicEvenIfAskedExtremelyNicely.class.getSimpleName().length());
 
         Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateStepName(TestWorkflowStepWithValidClassName.class));
-        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateStepName(TestWorkflowStepWithTechnicallyValidClassNameEvenThoughThisClassNameIsWayTooLongToBePracticalInCodeNoMatterHowWideYourMonitorIs.class));
+        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateStepName(WorkflowStepWithLongestAllowedClassName.class));
         Assertions.assertThrows(IllegalArgumentException.class,
                                 () -> IdentifierValidation.validateStepName(TestWorkflowStepWithOverlyLongClassNameThisClassNameIsMuchTooLongAndShouldNeverBeAllowedByTheValidationLogicEvenIfAskedExtremelyNicely.class));
     }
@@ -150,7 +126,7 @@ public class IdentifierValidationTest {
         for (int i = 0; i < invalidCharacters.length(); i++) {
             String id = invalidCharacters.substring(i, i+1);
             Assertions.assertThrows(IllegalArgumentException.class,
-                                    () -> IdentifierValidation.validate("test", id, 256, true, true), "failed on index " + i);
+                                    () -> IdentifierValidation.validate("test", id, 256, true), "failed on index " + i);
         }
     }
 
@@ -158,7 +134,7 @@ public class IdentifierValidationTest {
     public void testInternalValidate_AllowsEachInvalidCharacterIfFlagDisabled() {
         for (int i = 0; i < invalidCharacters.length(); i++) {
             String id = invalidCharacters.substring(i, i+1);
-            Assertions.assertDoesNotThrow(() -> IdentifierValidation.validate("test", id, 256, false, false), "failed on index " + i);
+            Assertions.assertDoesNotThrow(() -> IdentifierValidation.validate("test", id, 256, false), "failed on index " + i);
         }
     }
 
@@ -191,9 +167,8 @@ public class IdentifierValidationTest {
 
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < length; i++) {
-            // if we're supposed to include invalid characters, we'll grab one from this list:
-            // \u0000-\u001f\u007f-\u009f:/|
-            // ... for every other character, starting with the first.
+            // if we're supposed to include invalid characters, we'll grab a random one from the invalidCharacters variable
+            // for every other character.
             if (includeInvalidCharacters && i % 2 == 0) {
                 int p = ThreadLocalRandom.current().nextInt(invalidCharacters.length());
                 result.append(invalidCharacters.charAt(p));
