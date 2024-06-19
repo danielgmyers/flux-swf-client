@@ -17,17 +17,31 @@
 package com.danielgmyers.flux.clients.sfn;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Set;
 
 import com.danielgmyers.flux.wf.WorkflowInfo;
 import com.danielgmyers.flux.wf.WorkflowStatus;
 
+import software.amazon.awssdk.services.sfn.model.DescribeExecutionResponse;
+import software.amazon.awssdk.services.sfn.model.ExecutionStatus;
+
 public class SfnWorkflowInfo implements WorkflowInfo {
 
-    private Instant snapshotTime;
+    private final Instant snapshotTime;
+    private final String workflowId;
+    private final String executionArn;
+    private final WorkflowStatus workflowStatus;
 
-    public SfnWorkflowInfo(Instant snapshotTime) {
+    public SfnWorkflowInfo(Instant snapshotTime, DescribeExecutionResponse snapshot) {
+        this(snapshotTime, snapshot.name(), snapshot.executionArn(), executionStatusToWorkflowStatus(snapshot.status()));
+    }
+
+    public SfnWorkflowInfo(Instant snapshotTime, String workflowId, String executionArn, WorkflowStatus status) {
         this.snapshotTime = snapshotTime;
+        this.workflowId = workflowId;
+        this.executionArn = executionArn;
+        this.workflowStatus = status;
     }
 
     @Override
@@ -37,21 +51,43 @@ public class SfnWorkflowInfo implements WorkflowInfo {
 
     @Override
     public String getWorkflowId() {
-        return null;
+        return workflowId;
     }
 
     @Override
     public String getExecutionId() {
-        return null;
+        return executionArn;
     }
 
     @Override
     public WorkflowStatus getWorkflowStatus() {
-        return WorkflowStatus.UNKNOWN;
+        return workflowStatus;
     }
 
+    private static WorkflowStatus executionStatusToWorkflowStatus(ExecutionStatus executionStatus) {
+        switch (executionStatus) {
+            case RUNNING:
+            case PENDING_REDRIVE:
+                return WorkflowStatus.IN_PROGRESS;
+            case SUCCEEDED:
+                return WorkflowStatus.COMPLETED;
+            case FAILED:
+                return WorkflowStatus.FAILED;
+            case TIMED_OUT:
+                return WorkflowStatus.TIMED_OUT;
+            case ABORTED:
+                return WorkflowStatus.TERMINATED;
+            case UNKNOWN_TO_SDK_VERSION:
+            default:
+                return WorkflowStatus.UNKNOWN;
+        }
+    }
+
+    /**
+     * Step Functions doesn't natively support tags on executions.
+     */
     @Override
     public Set<String> getExecutionTags() {
-        return null;
+        return Collections.emptySet();
     }
 }

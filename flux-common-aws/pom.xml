@@ -28,6 +28,12 @@
 
     <dependencies>
         <dependency>
+            <artifactId>arns</artifactId>
+            <groupId>software.amazon.awssdk</groupId>
+            <version>${awssdk.version}</version>
+            <optional>false</optional>
+        </dependency>
+        <dependency>
             <artifactId>sdk-core</artifactId>
             <groupId>software.amazon.awssdk</groupId>
             <version>${awssdk.version}</version>
