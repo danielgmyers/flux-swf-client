@@ -23,10 +23,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import com.danielgmyers.flux.FluxCapacitor;
 import com.danielgmyers.flux.RemoteWorkflowExecutor;
 import com.danielgmyers.flux.WorkflowStatusChecker;
+import com.danielgmyers.flux.clients.sfn.util.SfnArnFormatter;
+import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.metrics.MetricRecorderFactory;
@@ -34,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.core.retry.backoff.BackoffStrategy;
@@ -41,6 +45,7 @@ import software.amazon.awssdk.core.retry.conditions.RetryCondition;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sfn.SfnClient;
 import software.amazon.awssdk.services.sfn.SfnClientBuilder;
+import software.amazon.awssdk.services.sfn.model.StartExecutionRequest;
 
 /**
  * The primary class through which the Flux library is used at runtime.
@@ -54,8 +59,8 @@ public class FluxCapacitorImpl implements FluxCapacitor {
     private final MetricRecorderFactory metricsFactory;
     private final Clock clock;
 
-    private final Map<String, Workflow> workflowsByName;
-    private final Map<String, WorkflowStep> activitiesByName;
+    private final Map<Class<? extends Workflow>, Workflow> workflowsByClass;
+    private final Map<Class<? extends WorkflowStep>, WorkflowStep> activitiesByClass;
 
     /**
      * Initializes a FluxCapacitor object. Package-private for unit test use.
@@ -69,8 +74,8 @@ public class FluxCapacitorImpl implements FluxCapacitor {
         this.config = config;
         this.clock = clock;
 
-        this.workflowsByName = new HashMap<>();
-        this.activitiesByName = new HashMap<>();
+        this.workflowsByClass = new HashMap<>();
+        this.activitiesByClass = new HashMap<>();
     }
 
     /**
@@ -135,7 +140,33 @@ public class FluxCapacitorImpl implements FluxCapacitor {
 
     @Override
     public RemoteWorkflowExecutor getRemoteWorkflowExecutor(String endpointId) {
-        return null;
+        // For the regular FluxCapacitor SfnClient, we disabled all the retry logic
+        // since we do our own for metrics purposes. However, the remote client is not used
+        // for much, and we don't bother emitting metrics for it, so the defaults are fine.
+
+        Function<String, RemoteSfnClientConfig> remoteConfigProvider = config.getRemoteSfnClientConfigProvider();
+        if (remoteConfigProvider == null) {
+            throw new IllegalStateException("Cannot create a remote workflow executor without a remote client config provider.");
+        }
+        RemoteSfnClientConfig remoteConfig = remoteConfigProvider.apply(endpointId);
+
+        AwsCredentialsProvider credentials = remoteConfig.getCredentials();
+        if (credentials == null) {
+            credentials = DefaultCredentialsProvider.create();
+        }
+
+        ClientOverrideConfiguration overrideConfig = remoteConfig.getClientOverrideConfiguration();
+        if (overrideConfig == null) {
+            overrideConfig = ClientOverrideConfiguration.builder().build();
+        }
+
+        SfnClientBuilder customSfn = SfnClient.builder().credentialsProvider(credentials)
+                .region(Region.of(remoteConfig.getAwsRegion()))
+                .overrideConfiguration(overrideConfig);
+        if (remoteConfig.getSfnEndpoint() != null) {
+            customSfn.endpointOverride(URI.create(remoteConfig.getSfnEndpoint()));
+        }
+        return new RemoteWorkflowExecutorImpl(clock, metricsFactory, workflowsByClass, customSfn.build(), config, remoteConfig);
     }
 
     @Override
@@ -146,5 +177,15 @@ public class FluxCapacitorImpl implements FluxCapacitor {
     @Override
     public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
         return false;
+    }
+
+    // Package-private for RemoteWorkflowExecutorImpl and unit test access
+    static StartExecutionRequest buildStartWorkflowRequest(Workflow workflow, String awsRegion, String awsAccountId,
+                                                           String executionId, Map<String, Object> input) {
+        return StartExecutionRequest.builder()
+                .input(StepAttributes.encode(StepAttributes.serializeMapValues(input)))
+                .name(executionId)
+                .stateMachineArn(SfnArnFormatter.workflowArn(awsRegion, awsAccountId, workflow.getClass()))
+                .build();
     }
 }
