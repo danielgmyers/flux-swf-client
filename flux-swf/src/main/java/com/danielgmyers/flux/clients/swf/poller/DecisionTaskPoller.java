@@ -34,6 +34,7 @@ import com.danielgmyers.flux.clients.swf.FluxCapacitorConfig;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
 import com.danielgmyers.flux.clients.swf.IdentifierValidation;
 import com.danielgmyers.flux.clients.swf.poller.timers.TimerData;
+import com.danielgmyers.flux.clients.swf.step.SwfStepInputAccessor;
 import com.danielgmyers.flux.clients.swf.util.RetryUtils;
 import com.danielgmyers.flux.ex.BadWorkflowStateException;
 import com.danielgmyers.flux.ex.UnrecognizedTaskException;
@@ -47,7 +48,7 @@ import com.danielgmyers.flux.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
-import com.danielgmyers.flux.step.WorkflowStepUtil;
+import com.danielgmyers.flux.step.internal.WorkflowStepUtil;
 import com.danielgmyers.flux.threads.BlockOnSubmissionThreadPoolExecutor;
 import com.danielgmyers.flux.threads.ThreadUtils;
 import com.danielgmyers.flux.wf.Periodic;
@@ -484,8 +485,8 @@ public class DecisionTaskPoller implements Runnable {
             // response, which may reduce the number of partitions we could schedule.
             PartitionIdGeneratorResult result
                     = WorkflowStepUtil.getPartitionIdsForPartitionedStep((PartitionedWorkflowStep)nextStep,
-                                                                         nextStepInput, workflowName,
-                                                                         workflowId, metricsFactory);
+                                                                         new SwfStepInputAccessor(nextStepInput),
+                                                                         workflowName, workflowId, metricsFactory);
             PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(result);
 
             for (String partitionId : metadata.getPartitionIds()) {

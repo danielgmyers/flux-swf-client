@@ -17,16 +17,16 @@
 package com.danielgmyers.flux.testutil;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import com.danielgmyers.flux.poller.ActivityExecutionUtil;
 import com.danielgmyers.flux.step.StepAttributes;
+import com.danielgmyers.flux.step.StepInputAccessor;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.StepResult.ResultAction;
 import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.step.internal.ActivityExecutionUtil;
 import com.danielgmyers.metrics.MetricRecorder;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 import com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory;
@@ -81,11 +81,18 @@ public final class StepValidator {
 
         augmentedInput.putIfAbsent(StepAttributes.WORKFLOW_ID, "some-workflow-id");
         augmentedInput.putIfAbsent(StepAttributes.WORKFLOW_EXECUTION_ID, UUID.randomUUID().toString());
-        augmentedInput.putIfAbsent(StepAttributes.WORKFLOW_START_TIME, Date.from(Instant.now()));
+        augmentedInput.putIfAbsent(StepAttributes.WORKFLOW_START_TIME, Instant.now());
+
+        StepInputAccessor stepInput = new StepInputAccessor() {
+            @Override
+            public <T> T getAttribute(Class<T> requestedType, String attributeName) {
+                return (T)(augmentedInput.get(attributeName));
+            }
+        };
 
         StepResult actual = ActivityExecutionUtil.executeActivity(step, step.getClass().getSimpleName(),
                                                                   METRICS_FACTORY.newMetricRecorder(""), stepMetrics,
-                                                                  StepAttributes.serializeMapValues(augmentedInput));
+                                                                  stepInput);
         if (actual.getAction() != expectedResult) {
             throw new RuntimeException(String.format("Expected result action %s but was %s: %s",
                                                      expectedResult, actual.getAction(), actual.getMessage()),

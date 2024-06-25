@@ -42,7 +42,7 @@ public class StepAttributesTest {
         for (Class<?> t : StepAttributes.ALLOWED_TYPES) {
             Assertions.assertNull(StepAttributes.decode(t, null));
         }
-        Assertions.assertEquals(Collections.emptyMap(), StepAttributes.decode(Map.class, null));
+        Assertions.assertNull(StepAttributes.decode(Map.class, null));
     }
 
     @Test
@@ -55,7 +55,7 @@ public class StepAttributesTest {
                 Assertions.assertNull(StepAttributes.decode(t, ""));
             }
         }
-        Assertions.assertEquals(Collections.emptyMap(), StepAttributes.decode(Map.class, ""));
+        Assertions.assertNull(StepAttributes.decode(Map.class, ""));
     }
 
     @Test
