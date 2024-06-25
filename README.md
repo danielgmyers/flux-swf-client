@@ -73,11 +73,12 @@ This step is set up the same as `Hello`, except that its `@StepApply` method has
 Flux supports `@Attribute` parameters of any of the following types:
 - `String`
 - `Long`
-- `Date`
 - `Instant`
 - `Boolean`
 - `Map<String, String>`
 - `com.danielgmyers.flux.clients.swf.metrics.MetricRecorder`
+
+Support for the `Date` type is still present but is deprecated, and will be removed in a future release. 
 
 If more complex types are needed, it is recommended that you serialize the value into a `String` or a `Map<String, String>`.
 

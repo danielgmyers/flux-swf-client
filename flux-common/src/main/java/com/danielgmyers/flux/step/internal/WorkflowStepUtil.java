@@ -14,18 +14,28 @@
  *   limitations under the License.
  */
 
-package com.danielgmyers.flux.step;
+package com.danielgmyers.flux.step.internal;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.danielgmyers.flux.ex.AttributeTypeMismatchException;
 import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.step.Attribute;
+import com.danielgmyers.flux.step.PartitionIdGenerator;
+import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
+import com.danielgmyers.flux.step.PartitionedWorkflowStep;
+import com.danielgmyers.flux.step.StepHook;
+import com.danielgmyers.flux.step.StepInputAccessor;
+import com.danielgmyers.flux.step.StepResult;
+import com.danielgmyers.flux.step.WorkflowStepHook;
 import com.danielgmyers.metrics.MetricRecorder;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 import org.slf4j.Logger;
@@ -92,7 +102,7 @@ public final class WorkflowStepUtil {
      * and calls it with the appropriate arguments. Returns the resulting list of partition IDs.
      */
     public static PartitionIdGeneratorResult getPartitionIdsForPartitionedStep(PartitionedWorkflowStep step,
-                                                                               Map<String, String> stepInput,
+                                                                               StepInputAccessor stepInput,
                                                                                String workflowName, String workflowId,
                                                                                MetricRecorderFactory metricsFactory) {
         String activityName = TaskNaming.activityName(workflowName, step);
@@ -105,7 +115,7 @@ public final class WorkflowStepUtil {
             }
 
             Object[] arguments = WorkflowStepUtil.generateArguments(step.getClass(), partitionIdMethod, stepMetrics,
-                                                                    stepInput);
+                                                                    stepInput, Collections.emptyMap());
             return (PartitionIdGeneratorResult)(partitionIdMethod.invoke(step, arguments));
         } catch (IllegalAccessException | InvocationTargetException e) {
             String message = "Got an exception while attempting to request partition ids for workflow " + workflowId
@@ -119,9 +129,11 @@ public final class WorkflowStepUtil {
     /**
      * Given a type, the method being called, and the available input attributes,
      * generates an array of input parameters for the method.
+     *
+     * Attributes from additionalInputs take precedence over attributes from stepInput if present in both.
      */
     public static Object[] generateArguments(Class<?> clazz, Method method, MetricRecorder metrics,
-                                             Map<String, String> input) {
+                                             StepInputAccessor stepInput, Map<String, Object> additionalInputs) {
         Object[] args = new Object[method.getParameterCount()];
 
         int arg = 0;
@@ -130,7 +142,7 @@ public final class WorkflowStepUtil {
                 args[arg] = metrics;
             } else {
                 Attribute attr = param.getAnnotation(Attribute.class);
-                if (attr == null || attr.value().equals("")) {
+                if (attr == null || attr.value().isEmpty()) {
                     String message = String.format("The %s.%s parameter %s must have the @Attribute annotation"
                                                            + " and its value must not be blank.",
                                                    clazz.getSimpleName(),
@@ -139,7 +151,15 @@ public final class WorkflowStepUtil {
                     log.error(message);
                     throw new RuntimeException(message);
                 }
-                args[arg] = StepAttributes.decode(param.getType(), input.get(attr.value()));
+                if (additionalInputs.containsKey(attr.value())) {
+                    Object val = additionalInputs.get(attr.value());
+                    if (param.getType() != val.getClass()) {
+                        throw new AttributeTypeMismatchException(param.getType(), attr.value(), val.getClass());
+                    }
+                    args[arg] = val;
+                } else {
+                    args[arg] = stepInput.getAttribute(param.getType(), attr.value());
+                }
             }
             arg++;
         }
@@ -151,7 +171,8 @@ public final class WorkflowStepUtil {
      * Executes a set of step hooks with the specified input attributes, for any hooks whose type matches the specified hook type.
      * Returns null unless the step should be retried due to a hook failure.
      */
-    public static StepResult executeHooks(List<WorkflowStepHook> hooks, Map<String, String> hookInput, StepHook.HookType hookType,
+    public static StepResult executeHooks(List<WorkflowStepHook> hooks, StepInputAccessor stepInput,
+                                          Map<String, Object> specialHookInputs, StepHook.HookType hookType,
                                           String activityName, MetricRecorder fluxMetrics, MetricRecorder hookMetrics) {
         for (WorkflowStepHook hook : hooks) {
             Map<Method, StepHook> methods = WorkflowStepUtil.getAllMethodsWithAnnotation(hook.getClass(), StepHook.class);
@@ -166,7 +187,8 @@ public final class WorkflowStepUtil {
                     Object result = method.getKey().invoke(hook, WorkflowStepUtil.generateArguments(hook.getClass(),
                                                                                                     method.getKey(),
                                                                                                     hookMetrics,
-                                                                                                    hookInput));
+                                                                                                    stepInput,
+                                                                                                    specialHookInputs));
                     if (result != null) {
                         log.info("Hook {} for activity {} returned value: {}",
                                                hook.getClass().getSimpleName(), activityName, result);

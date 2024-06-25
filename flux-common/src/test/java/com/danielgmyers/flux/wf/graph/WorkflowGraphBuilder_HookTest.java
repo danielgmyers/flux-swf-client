@@ -16,8 +16,8 @@
 
 package com.danielgmyers.flux.wf.graph;
 
+import java.time.Instant;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -479,13 +479,13 @@ public class WorkflowGraphBuilder_HookTest {
     public void hook_DoesValidateAttributeInputsIfInitialInputAttributesSpecified_AllowStepSpecificAttributes() {
         WorkflowStepHook hookWithInputAttribute = new WorkflowStepHook() {
             @StepHook(hookType = StepHook.HookType.PRE)
-            public void prehook(@Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Date activityInitialAttemptTime,
+            public void prehook(@Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Instant activityInitialAttemptTime,
                                 @Attribute(StepAttributes.RETRY_ATTEMPT) Long retryAttempt,
-                                @Attribute(StepAttributes.WORKFLOW_START_TIME) Date workflowStartTime) {}
+                                @Attribute(StepAttributes.WORKFLOW_START_TIME) Instant workflowStartTime) {}
             @StepHook(hookType = StepHook.HookType.POST)
-            public void posthook(@Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Date activityInitialAttemptTime,
+            public void posthook(@Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Instant activityInitialAttemptTime,
                                  @Attribute(StepAttributes.RETRY_ATTEMPT) Long retryAttempt,
-                                 @Attribute(StepAttributes.WORKFLOW_START_TIME) Date workflowStartTime) {}
+                                 @Attribute(StepAttributes.WORKFLOW_START_TIME) Instant workflowStartTime) {}
         };
 
         WorkflowStep one = new TestStepOne();
@@ -865,13 +865,13 @@ public class WorkflowGraphBuilder_HookTest {
     public void hookAllSteps_DoesValidateAttributeInputsIfInitialInputAttributesSpecified_AllowStepSpecificAttributes() {
         WorkflowStepHook hookWithInputAttribute = new WorkflowStepHook() {
             @StepHook(hookType = StepHook.HookType.PRE)
-            public void prehook(@Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Date activityInitialAttemptTime,
+            public void prehook(@Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Instant activityInitialAttemptTime,
                              @Attribute(StepAttributes.RETRY_ATTEMPT) Long retryAttempt,
-                             @Attribute(StepAttributes.WORKFLOW_START_TIME) Date workflowStartTime) {}
+                             @Attribute(StepAttributes.WORKFLOW_START_TIME) Instant workflowStartTime) {}
             @StepHook(hookType = StepHook.HookType.POST)
-            public void posthook(@Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Date activityInitialAttemptTime,
+            public void posthook(@Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Instant activityInitialAttemptTime,
                              @Attribute(StepAttributes.RETRY_ATTEMPT) Long retryAttempt,
-                             @Attribute(StepAttributes.WORKFLOW_START_TIME) Date workflowStartTime) {}
+                             @Attribute(StepAttributes.WORKFLOW_START_TIME) Instant workflowStartTime) {}
         };
 
         WorkflowStep one = new TestStepOne();

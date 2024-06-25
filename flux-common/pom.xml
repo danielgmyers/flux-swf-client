@@ -66,9 +66,15 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <artifactId>slf4j-nop</artifactId>
             <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
             <version>${slf4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.danielgmyers.metrics</groupId>
+            <artifactId>in-memory-recorder</artifactId>
+            <version>${metricrecorder.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

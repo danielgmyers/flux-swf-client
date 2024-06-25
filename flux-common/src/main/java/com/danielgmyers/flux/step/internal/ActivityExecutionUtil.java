@@ -1,13 +1,23 @@
-package com.danielgmyers.flux.poller;
+package com.danielgmyers.flux.step.internal;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.StepAttributes;
+import com.danielgmyers.flux.step.StepHook;
+import com.danielgmyers.flux.step.StepInputAccessor;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
-import com.danielgmyers.flux.step.WorkflowStepUtil;
+import com.danielgmyers.flux.step.WorkflowStepHook;
+import com.danielgmyers.flux.wf.Workflow;
+import com.danielgmyers.flux.wf.graph.PostWorkflowHookAnchor;
+import com.danielgmyers.flux.wf.graph.PreWorkflowHookAnchor;
 import com.danielgmyers.metrics.MetricRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,13 +41,14 @@ public final class ActivityExecutionUtil {
      * @return The result of the step execution.
      */
     public static StepResult executeActivity(WorkflowStep step, String activityName, MetricRecorder fluxMetrics,
-                                             MetricRecorder stepMetrics, Map<String, String> input) {
+                                             MetricRecorder stepMetrics, StepInputAccessor input) {
         StepResult result;
         String retryExceptionCauseName = null;
         try {
             Method applyMethod = WorkflowStepUtil.getUniqueAnnotatedMethod(step.getClass(), StepApply.class);
             Object returnObject = applyMethod.invoke(step, WorkflowStepUtil.generateArguments(step.getClass(), applyMethod,
-                                                                                              stepMetrics, input));
+                                                                                              stepMetrics, input,
+                                                                                              Collections.emptyMap()));
             // if apply didn't throw an exception, then we can assume success.
             // However, if the apply method's return type is StepResult, then we need to respect it.
             result = StepResult.success();
@@ -70,6 +81,54 @@ public final class ActivityExecutionUtil {
         }
 
         return result;
+    }
+
+    public static StepResult executeHooksAndActivity(Workflow workflow, WorkflowStep step, StepInputAccessor stepInput,
+                                                     MetricRecorder fluxMetrics, MetricRecorder stepMetrics) {
+        String activityName = TaskNaming.activityName(workflow, step);
+        try {
+            List<WorkflowStepHook> hooks = workflow.getGraph().getHooksForStep(step.getClass());
+
+            Map<String, Object> hookInput = new HashMap<>();
+            hookInput.put(StepAttributes.ACTIVITY_NAME, StepAttributes.encode(activityName));
+
+            StepResult result = null;
+            if (hooks != null && step.getClass() != PostWorkflowHookAnchor.class) {
+                result = WorkflowStepUtil.executeHooks(hooks, stepInput, hookInput, StepHook.HookType.PRE, activityName,
+                        fluxMetrics, stepMetrics);
+            }
+
+            if (result == null) {
+                result = executeActivity(step, activityName, fluxMetrics, stepMetrics, stepInput);
+
+                hookInput.putAll(result.getAttributes());
+
+                // retries put their reason message in the special ActivityTaskFailed reason field.
+                if (result.getAction() != StepResult.ResultAction.RETRY && result.getMessage() != null) {
+                    hookInput.put(StepAttributes.ACTIVITY_COMPLETION_MESSAGE, result.getMessage());
+                }
+                if (result.getResultCode() != null) {
+                    hookInput.put(StepAttributes.RESULT_CODE, result.getResultCode());
+                }
+
+                if (hooks != null && step.getClass() != PreWorkflowHookAnchor.class) {
+                    StepResult hookResult = WorkflowStepUtil.executeHooks(hooks, stepInput, hookInput, StepHook.HookType.POST,
+                            activityName, fluxMetrics, stepMetrics);
+                    if (hookResult != null) {
+                        log.info("Activity {} returned result {} ({}) but a post-step hook requires a retry ({}).",
+                                activityName, result.getResultCode(), result.getMessage(),
+                                hookResult.getMessage());
+                        return hookResult;
+                    }
+                }
+            }
+
+            return result;
+        } catch (RuntimeException e) {
+            // we've suppressed java.lang.Thread's default behavior (print to stdout), so we want the error logged.
+            log.error("Caught an exception while executing activity task", e);
+            throw e;
+        }
     }
 
     // public for test visibility
