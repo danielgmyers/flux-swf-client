@@ -75,6 +75,19 @@ Flux will attempt to properly handle any partitioned workflow steps that are run
 
 The `EnablePartitionIdHashing` feature is disabled by default in 2.1.0.
 
+Workflow Step attribute changes
+----
+
+Prior to 2.1.0, if a `@StepApply` method requested a `Map<String, String>` attribute as one of its inputs, and that attribute was not present in the workflow metadata, Flux would provide an empty, mutable `HashMap<String, String>`. However, to help users understand the difference between "previous step did not provide the map" and "previous step provided an empty map", Flux no longer automatically provides an empty map in this case.
+
+Also prior to 2.1.0, Flux would automatically convert attribute values between `Instant` and `Date` depending on which was requested by the step, regardless of which of the two types was actually used as the attribute type when the attribute was added earlier in the workflow. While this will still work *in practice* for 2.1.0, Flux ***no longer guarantees*** this behavior.
+
+This also means that the WorkflowGraphBuilder's built-in attribute availability check no longer ignores the type difference between `Instant` and `Date` when evaluating attribute availability, including for the built-in `StepAttribute.ACTIVITY_INITIAL_ATTEMPT_TIME` and `StepAttribute.WORKFLOW_START_TIME` attributes (which are provided as `Instant`s). As a result, your `WorkflowGraphBuilder.build()` calls may being failing if you are presently relying on this behavior.
+
+You should update your workflow input and output attributes to use `Instant` instead of `Date` in all cases.
+
+Flux will drop support for the `Date` type in a future release.
+
 Execution context changes
 ----
 

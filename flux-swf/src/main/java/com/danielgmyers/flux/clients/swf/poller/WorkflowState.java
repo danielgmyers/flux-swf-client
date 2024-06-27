@@ -494,14 +494,11 @@ final class WorkflowState {
                 data = event.activityTaskCompletedEventAttributes().result();
                 break;
             case ACTIVITY_TASK_TIMED_OUT:
-                data = event.activityTaskTimedOutEventAttributes().details();
-                break;
+                return Collections.emptyMap(); // Flux doesn't control the content of this event.
             case ACTIVITY_TASK_CANCELED:
-                data = event.activityTaskCanceledEventAttributes().details();
-                break;
+                return Collections.emptyMap(); // Flux doesn't populate any data in cancellation events.
             case ACTIVITY_TASK_FAILED:
-                data = null; // retries don't produce any step data.
-                break;
+                return Collections.emptyMap(); // Flux doesn't put structured data in retry events.
             default:
                 // If we get here, then someone added an entry to ACTIVITY_START_EVENTS or ACTIVITY_CLOSED_EVENTS
                 // but didn't handle it here.

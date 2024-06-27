@@ -16,6 +16,7 @@
 
 package com.danielgmyers.flux.wf.graph;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -1444,13 +1445,18 @@ public class WorkflowGraphBuilderTest {
     }
 
     @Test
-    public void build_DoesValidateAttributeInputsIfInitialInputAttributesSpecified_AllowsStartTimeAttributesAsDate() {
+    public void build_DoesValidateAttributeInputsIfInitialInputAttributesSpecified_DisallowsStartTimeAttributesAsDate() {
         WorkflowStep start = new TestStepExpectsStartTimeAttributesAsDate();
 
         WorkflowGraphBuilder builder = new WorkflowGraphBuilder(start, Collections.emptyMap());
         builder.alwaysClose(start);
 
-        Assertions.assertNotNull(builder.build());
+        try {
+            builder.build();
+            Assertions.fail();
+        } catch (WorkflowGraphBuildException e) {
+            // expected
+        }
     }
 
     @Test
@@ -1523,10 +1529,30 @@ public class WorkflowGraphBuilderTest {
     }
 
     @Test
-    public void build_ValidateAttributeInputs_AllowActivityInitialTime() {
+    public void build_ValidateAttributeInputs_DisallowActivityInitialTimeAsDate() {
         WorkflowStep alwaysAllowInitialAttemptTime = new WorkflowStep() {
             @StepApply
             public void doThing(@Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Date initialAttemptTime) {
+            }
+        };
+
+        // note we aren't passing the activity initial attempt time attribute to the builder
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(alwaysAllowInitialAttemptTime, Collections.emptyMap());
+        builder.alwaysClose(alwaysAllowInitialAttemptTime);
+
+        try {
+            builder.build();
+            Assertions.fail();
+        } catch (WorkflowGraphBuildException e) {
+            // expected
+        }
+    }
+
+    @Test
+    public void build_ValidateAttributeInputs_AllowActivityInitialTimeAsInstant() {
+        WorkflowStep alwaysAllowInitialAttemptTime = new WorkflowStep() {
+            @StepApply
+            public void doThing(@Attribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME) Instant initialAttemptTime) {
             }
         };
 

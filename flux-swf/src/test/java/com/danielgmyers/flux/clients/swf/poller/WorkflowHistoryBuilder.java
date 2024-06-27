@@ -36,9 +36,10 @@ import com.danielgmyers.flux.signals.ScheduleDelayedRetrySignalData;
 import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
 import com.danielgmyers.flux.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.step.StepAttributes;
+import com.danielgmyers.flux.step.StepInputAccessor;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
-import com.danielgmyers.flux.step.WorkflowStepUtil;
+import com.danielgmyers.flux.step.internal.WorkflowStepUtil;
 import com.danielgmyers.flux.testutil.ManualClock;
 import com.danielgmyers.flux.wf.Periodic;
 import com.danielgmyers.flux.wf.Workflow;
@@ -398,7 +399,15 @@ public class WorkflowHistoryBuilder {
             } else {
                 String workflowName = TaskNaming.workflowName(workflow);
                 PartitionedWorkflowStep partitionedStep = (PartitionedWorkflowStep) nextStep;
-                PartitionIdGeneratorResult result = WorkflowStepUtil.getPartitionIdsForPartitionedStep(partitionedStep, currentStepInput, workflowName, WORKFLOW_ID, new NoopMetricRecorderFactory());
+
+                StepInputAccessor stepInput = new StepInputAccessor() {
+                    @Override
+                    public <T> T getAttribute(Class<T> requestedType, String attributeName) {
+                        return StepAttributes.decode(requestedType, currentStepInput.get(attributeName));
+                    }
+                };
+
+                PartitionIdGeneratorResult result = WorkflowStepUtil.getPartitionIdsForPartitionedStep(partitionedStep, stepInput, workflowName, WORKFLOW_ID, new NoopMetricRecorderFactory());
                 if (result.getPartitionIds().isEmpty() || result.getPartitionIds().contains(null)) {
                     throw new IllegalArgumentException();
                 }

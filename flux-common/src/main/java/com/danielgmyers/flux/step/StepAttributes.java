@@ -98,11 +98,7 @@ public final class StepAttributes {
         try {
             validateAttributeClass(type);
 
-            if (encoded == null || encoded.equals("")) {
-                // for convenience, if the requested type was a map, return a matching empty collection.
-                if (Map.class == type) {
-                    return (T)(new HashMap<>());
-                }
+            if (encoded == null || encoded.isEmpty()) {
                 return null;
             } else {
                 if (type == Instant.class) {

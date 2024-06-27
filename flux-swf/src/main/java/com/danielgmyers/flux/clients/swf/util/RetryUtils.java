@@ -25,7 +25,7 @@ import java.util.function.Supplier;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
 import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.WorkflowStep;
-import com.danielgmyers.flux.step.WorkflowStepUtil;
+import com.danielgmyers.flux.step.internal.WorkflowStepUtil;
 import com.danielgmyers.metrics.MetricRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

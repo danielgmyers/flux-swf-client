@@ -17,10 +17,13 @@
 package com.danielgmyers.flux.testutil;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.danielgmyers.flux.step.Attribute;
 import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
 import org.junit.jupiter.api.Assertions;
@@ -148,7 +151,12 @@ public class StepValidatorTest {
         }
 
         @StepApply
-        public StepResult apply() {
+        public StepResult apply(@Attribute(StepAttributes.WORKFLOW_ID) String workflowId,
+                                @Attribute(StepAttributes.WORKFLOW_EXECUTION_ID) String workflowExecutionId,
+                                @Attribute(StepAttributes.WORKFLOW_START_TIME) Instant workflowStartTime) {
+            Assertions.assertNotNull(workflowId);
+            Assertions.assertNotNull(workflowExecutionId);
+            Assertions.assertNotNull(workflowStartTime);
             return applyResult;
         }
     }

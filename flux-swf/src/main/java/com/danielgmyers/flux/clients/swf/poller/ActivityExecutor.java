@@ -19,19 +19,14 @@ package com.danielgmyers.flux.clients.swf.poller;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import com.danielgmyers.flux.poller.ActivityExecutionUtil;
+import com.danielgmyers.flux.clients.swf.step.SwfStepInputAccessor;
 import com.danielgmyers.flux.step.StepAttributes;
-import com.danielgmyers.flux.step.StepHook;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
-import com.danielgmyers.flux.step.WorkflowStepHook;
-import com.danielgmyers.flux.step.WorkflowStepUtil;
+import com.danielgmyers.flux.step.internal.ActivityExecutionUtil;
 import com.danielgmyers.flux.wf.Workflow;
-import com.danielgmyers.flux.wf.graph.PostWorkflowHookAnchor;
-import com.danielgmyers.flux.wf.graph.PreWorkflowHookAnchor;
 import com.danielgmyers.metrics.MetricRecorder;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 import org.slf4j.Logger;
@@ -97,55 +92,10 @@ public class ActivityExecutor implements Runnable {
             stepMetrics.addProperty(WORKFLOW_ID_METRIC_NAME, workflowId);
             stepMetrics.addProperty(WORKFLOW_RUN_ID_METRIC_NAME, runId);
 
-            Map<String, String> input = StepAttributes.decode(Map.class, task.input());
+            SwfStepInputAccessor stepInput = new SwfStepInputAccessor(task.input());
 
-            List<WorkflowStepHook> hooks = workflow.getGraph().getHooksForStep(step.getClass());
-
-            Map<String, String> hookInput = new HashMap<>(input);
-            hookInput.put(StepAttributes.ACTIVITY_NAME, StepAttributes.encode(task.activityType().name()));
-
-            if (hooks != null && step.getClass() != PostWorkflowHookAnchor.class) {
-                result = WorkflowStepUtil.executeHooks(hooks, hookInput, StepHook.HookType.PRE, task.activityType().name(),
-                        fluxMetrics, stepMetrics);
-            }
-
-            Map<String, String> outputAttributes = new HashMap<>(input);
-
-            if (result == null) {
-                result = ActivityExecutionUtil.executeActivity(step, task.activityType().name(), fluxMetrics, stepMetrics, input);
-
-                // yes, this means the output attributes are serialized into a map, which is itself serialized.
-                // this makes deserialization less confusing later because we can deserialize as a map of strings
-                // and then deserialize each value as a specific type.
-                Map<String, String> serializedResultAttributes = StepAttributes.serializeMapValues(result.getAttributes());
-                outputAttributes.putAll(serializedResultAttributes);
-                hookInput.putAll(serializedResultAttributes);
-
-                // retries put their reason message in the special ActivityTaskFailed reason field.
-                if (result.getAction() != StepResult.ResultAction.RETRY && result.getMessage() != null) {
-                    outputAttributes.put(StepAttributes.ACTIVITY_COMPLETION_MESSAGE, result.getMessage());
-                    hookInput.put(StepAttributes.ACTIVITY_COMPLETION_MESSAGE, StepAttributes.encode(result.getMessage()));
-                }
-                if (result.getResultCode() != null) {
-                    outputAttributes.put(StepAttributes.RESULT_CODE, result.getResultCode());
-                    hookInput.put(StepAttributes.RESULT_CODE, StepAttributes.encode(result.getResultCode()));
-                }
-
-                if (hooks != null && step.getClass() != PreWorkflowHookAnchor.class) {
-                    StepResult hookResult = WorkflowStepUtil.executeHooks(hooks, hookInput, StepHook.HookType.POST,
-                        task.activityType().name(), fluxMetrics, stepMetrics);
-                    if (hookResult != null) {
-                        log.info("Activity {} returned result {} ({}) but a post-step hook requires a retry ({}).",
-                            task.activityType().name(), result.getResultCode(), result.getMessage(),
-                            hookResult.getMessage());
-                        result = hookResult;
-                        outputAttributes.remove(StepAttributes.ACTIVITY_COMPLETION_MESSAGE);
-                        outputAttributes.remove(StepAttributes.RESULT_CODE);
-                    }
-                }
-            }
-
-            if (result != null && result.getAction() == StepResult.ResultAction.RETRY) {
+            result = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, stepInput, fluxMetrics, stepMetrics);
+            if (result.getAction() == StepResult.ResultAction.RETRY) {
                 // for retries, we'll check if the retry was caused by an exception and, if so,
                 // record the stack trace of the exception in the output.
                 if (result.getCause() != null) {
@@ -157,7 +107,17 @@ public class ActivityExecutor implements Runnable {
                     output = null;
                 }
             } else {
-                output = StepAttributes.encode(outputAttributes);
+                Map<String, String> combinedAttributes = new HashMap<>(stepInput.getEncodedAttributes());
+                for (Map.Entry<String, Object> outputAttribute : result.getAttributes().entrySet()) {
+                    combinedAttributes.put(outputAttribute.getKey(), StepAttributes.encode(outputAttribute.getValue()));
+                }
+                // These two output attributes are specifically _not_ double-encoded, which means unfortunately
+                // they're not consistent with the rest of the output attributes.
+                combinedAttributes.put(StepAttributes.RESULT_CODE, result.getResultCode());
+                if (result.getMessage() != null && !result.getMessage().isEmpty()) {
+                    combinedAttributes.put(StepAttributes.ACTIVITY_COMPLETION_MESSAGE, result.getMessage());
+                }
+                output = StepAttributes.encode(combinedAttributes);
             }
         } catch (RuntimeException e) {
             // we've suppressed java.lang.Thread's default behavior (print to stdout), so we want the error logged.
