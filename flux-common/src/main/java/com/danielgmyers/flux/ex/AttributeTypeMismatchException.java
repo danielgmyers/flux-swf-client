@@ -22,7 +22,11 @@ package com.danielgmyers.flux.ex;
  */
 public class AttributeTypeMismatchException extends FluxException {
     public AttributeTypeMismatchException(Class<?> requestedType, String attributeName, Class<?> actualType) {
+        this(requestedType, attributeName, actualType.getSimpleName());
+    }
+
+    public AttributeTypeMismatchException(Class<?> requestedType, String attributeName, String typeDescription) {
         super(String.format("Requested type %s for attribute %s, but found type %s.",
-                            requestedType.getSimpleName(), attributeName, actualType.getSimpleName()));
+                requestedType.getSimpleName(), attributeName, typeDescription));
     }
 }
