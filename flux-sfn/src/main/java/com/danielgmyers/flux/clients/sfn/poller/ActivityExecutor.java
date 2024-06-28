@@ -33,8 +33,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import software.amazon.awssdk.services.sfn.model.GetActivityTaskResponse;
-
 /**
  * Executes the WorkflowStep associated with a specified ActivityTask.
  */
@@ -45,10 +43,9 @@ public class ActivityExecutor implements Runnable {
     // package-private for test visibility
     static final String WORKFLOW_ID_METRIC_NAME = "WorkflowId";
     static final String WORKFLOW_RUN_ID_METRIC_NAME = "RunId";
-    static final String RETRY_CAUSE_FIELD_NAME = "RetryCause";
 
     private final String identity;
-    private final GetActivityTaskResponse task;
+    private final SfnStepInputAccessor stepInput;
     private final Workflow workflow;
     private final WorkflowStep step;
     private final MetricRecorder fluxMetrics;
@@ -56,18 +53,20 @@ public class ActivityExecutor implements Runnable {
 
     private StepResult result;
     private String output;
+    private String retryCause;
 
     // package-private, only ActivityTaskPoller should be creating these
-    ActivityExecutor(String identity, GetActivityTaskResponse task, Workflow workflow, WorkflowStep step,
+    ActivityExecutor(String identity, SfnStepInputAccessor stepInput, Workflow workflow, WorkflowStep step,
                      MetricRecorder fluxMetrics, MetricRecorderFactory metricsFactory) {
         this.identity = identity;
-        this.task = task;
+        this.stepInput = stepInput;
         this.workflow = workflow;
         this.step = step;
         this.fluxMetrics = fluxMetrics;
         this.metricsFactory = metricsFactory;
         this.result = null;
         this.output = null;
+        this.retryCause = null;
     }
 
     public StepResult getResult() {
@@ -78,14 +77,16 @@ public class ActivityExecutor implements Runnable {
         return output;
     }
 
+    public String getRetryCause() {
+        return retryCause;
+    }
+
     @Override
     public void run() {
         String activityName = TaskNaming.activityName(workflow, step);
         log.debug("Worker {} received activity task for activity {}.", identity, TaskNaming.activityName(workflow, step));
 
         try (MetricRecorder stepMetrics = metricsFactory.newMetricRecorder(activityName)) {
-            SfnStepInputAccessor stepInput = new SfnStepInputAccessor(task.input());
-
             // In practice these two fields aren't meaningfully different for Step Functions, but we'll provide them both
             // since people might have code looking for either of them.
             stepMetrics.addProperty(WORKFLOW_ID_METRIC_NAME, stepInput.getAttribute(String.class, StepAttributes.WORKFLOW_ID));
@@ -96,10 +97,13 @@ public class ActivityExecutor implements Runnable {
 
             if (result.getAction() == StepResult.ResultAction.RETRY) {
                 // If the retry was caused by an exception, record the stack trace of the exception in the output.
+                // Otherwise, record the user-provided message, if any.
                 if (result.getCause() != null) {
                     StringWriter sw = new StringWriter();
                     result.getCause().printStackTrace(new PrintWriter(sw));
-                    stepInput.addAttribute(RETRY_CAUSE_FIELD_NAME, sw.toString());
+                    retryCause = sw.toString();
+                } else if (result.getMessage() != null && !result.getMessage().isEmpty()) {
+                    retryCause = result.getMessage();
                 }
             } else {
                 stepInput.addAttributes(result.getAttributes());
@@ -107,9 +111,11 @@ public class ActivityExecutor implements Runnable {
                 if (result.getMessage() != null && !result.getMessage().isEmpty()) {
                     stepInput.addAttribute(StepAttributes.ACTIVITY_COMPLETION_MESSAGE, result.getMessage());
                 }
-            }
 
-            output = stepInput.toJson();
+                // Step Functions doesn't have a way to auto-merge the output data with the input data,
+                // so we need to include both input and output attributes in the output field here.
+                output = stepInput.toJson();
+            }
         } catch (JsonProcessingException e) {
             // we've suppressed java.lang.Thread's default behavior (print to stdout), so we want the error logged.
             String message = "Unable to parse activity input or output as json";

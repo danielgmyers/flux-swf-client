@@ -40,12 +40,9 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import software.amazon.awssdk.services.sfn.model.GetActivityTaskResponse;
-
 public class ActivityExecutorTest {
 
     private static final String IDENTITY = "unit";
-    private static final String TASK_TOKEN = "task-token";
     private static final String WORKFLOW_NAME = "some-workflow-name";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -72,8 +69,8 @@ public class ActivityExecutorTest {
         Map<String, Object> output = new HashMap<>();
         output.put("captain", "kirk");
 
-        GetActivityTaskResponse task = makeTask(input);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
+        SfnStepInputAccessor stepInput = makeStepInput(input);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, stepInput, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
         step.setStepResult(result);
@@ -113,8 +110,8 @@ public class ActivityExecutorTest {
         input.put(StepAttributes.WORKFLOW_ID, WORKFLOW_NAME);
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, SfnArnFormatter.executionArn("us-west-2", "123456789012", TestWorkflow.class, WORKFLOW_NAME));
 
-        GetActivityTaskResponse task = makeTask(input);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
+        SfnStepInputAccessor stepInput = makeStepInput(input);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, stepInput, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
 
         StepResult result = makeStepResult(StepResult.ResultAction.RETRY, null, "hmm", Collections.emptyMap());
         step.setStepResult(result);
@@ -126,9 +123,7 @@ public class ActivityExecutorTest {
         // We need to close it so we can query its data.
         fluxMetrics.close();
 
-        Map<String, Object> expectedOutputContent = new HashMap<>();
-
-        validateOutput(expectedOutputContent, executor.getOutput());
+        Assertions.assertEquals(result.getMessage(), executor.getRetryCause());
 
         Assertions.assertNotNull(executor.getResult());
         Assertions.assertEquals(result, executor.getResult());
@@ -150,8 +145,8 @@ public class ActivityExecutorTest {
         input.put(StepAttributes.WORKFLOW_ID, WORKFLOW_NAME);
         input.put(StepAttributes.WORKFLOW_EXECUTION_ID, SfnArnFormatter.executionArn("us-west-2", "123456789012", TestWorkflow.class, WORKFLOW_NAME));
 
-        GetActivityTaskResponse task = makeTask(input);
-        ActivityExecutor executor = new ActivityExecutor(IDENTITY, task, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
+        SfnStepInputAccessor stepInput = makeStepInput(input);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, stepInput, new TestWorkflow(), step, fluxMetrics,  (o, c) -> stepMetrics);
 
         RuntimeException e = new RuntimeException("message!");
         step.setExceptionToThrow(e);
@@ -167,10 +162,7 @@ public class ActivityExecutorTest {
         e.printStackTrace(new PrintWriter(sw));
         String stackTrace = sw.toString();
 
-        Map<String, Object> expectedOutputContent = new HashMap<>();
-        expectedOutputContent.put(ActivityExecutor.RETRY_CAUSE_FIELD_NAME, stackTrace);
-
-        validateOutput(expectedOutputContent, executor.getOutput());
+        Assertions.assertEquals(stackTrace, executor.getRetryCause());
 
         Assertions.assertNotNull(executor.getResult());
         Assertions.assertEquals(StepResult.ResultAction.RETRY, executor.getResult().getAction());
@@ -186,11 +178,8 @@ public class ActivityExecutorTest {
                                 e.getClass().getSimpleName())).intValue());
     }
 
-    private GetActivityTaskResponse makeTask(Map<String, Object> input) throws JsonProcessingException {
-        return GetActivityTaskResponse.builder()
-                .taskToken(TASK_TOKEN)
-                .input(MAPPER.writeValueAsString(input))
-                .build();
+    private SfnStepInputAccessor makeStepInput(Map<String, Object> input) throws JsonProcessingException {
+        return new SfnStepInputAccessor(MAPPER.writeValueAsString(input));
     }
 
     private StepResult makeStepResult(StepResult.ResultAction resultAction, String stepResult, String message, Map<String, Object> output) {
