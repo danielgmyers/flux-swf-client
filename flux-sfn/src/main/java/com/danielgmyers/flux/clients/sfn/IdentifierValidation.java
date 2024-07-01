@@ -40,7 +40,7 @@ import com.danielgmyers.flux.wf.Workflow;
  * When polling for work, we use the current host's hostname as part of the poller's identity, along with a Flux-specified
  * small integer (between 0 and the poller thread pool size). While we could include the activity name in the poller identity,
  * polling is explicitly per-activity anyway so there's not much value in that. The poller thread pool should be only a few threads
- * since we don't need to poll with as many threads as we have active workers, but if we pessimistically reserve four characters
+ * since we don't need to poll with as many threads as we have active workers, but if we pessimistically reserve three characters
  * for a separator and the thread number, that leaves 77 characters for the hostname.
  *
  * Note also that we allow the user to provide a "hostname transformer" callback; this length restriction should be enforced _after_
@@ -63,7 +63,7 @@ import com.danielgmyers.flux.wf.Workflow;
  * * Workflow execution ID: 80
  * * Partition ID: 256
  *
- * These fields will also validate the content of the string against SWF's list of allowed characters:
+ * These fields will also validate the content of the string against Step Functions' list of allowed characters:
  * * Workflow class implementation name
  * * WorkflowStep class implementation name
  * * Workflow execution ID
