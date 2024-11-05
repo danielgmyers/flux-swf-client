@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.danielgmyers.flux.clients.swf</groupId>
         <artifactId>flux-swf-client-pom</artifactId>
-        <version>2.0.8</version>
+        <version>2.0.9</version>
     </parent>
     <artifactId>flux-spring</artifactId>
     <name>Flux SWF Client Spring Helper</name>
