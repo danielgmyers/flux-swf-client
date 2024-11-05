@@ -566,7 +566,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
             deciderThreadsPerTaskList.put(taskList, new BlockOnSubmissionThreadPoolExecutor(poolSize, poolName));
 
             poolSize = config.getTaskListConfig(taskList).getDecisionTaskPollerThreadCount();
-            ScheduledExecutorService service = createExecutorService(taskList, hostname, "decisionPoller", poolSize,
+            ScheduledExecutorService service = createWorkerPool(taskList, hostname, "decisionPoller", poolSize,
                 deciderName -> new DecisionTaskPoller(metricsFactory, swf, workflowDomain, taskList, deciderName,
                                                       exponentialBackoffCoefficient, workflowsByName,
                                                       activitiesByName, deciderThreadsPerTaskList.get(taskList),
@@ -578,7 +578,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
             workerThreadsPerTaskList.put(taskList, new BlockOnSubmissionThreadPoolExecutor(poolSize, poolName));
 
             poolSize = config.getTaskListConfig(taskList).getActivityTaskPollerThreadCount();
-            service = createExecutorService(taskList, hostname, "activityPoller", poolSize,
+            service = createWorkerPool(taskList, hostname, "activityPoller", poolSize,
                 workerName -> new ActivityTaskPoller(metricsFactory, swf, workflowDomain, taskList, workerName,
                                                      workflowsByName, activitiesByName,
                                                      workerThreadsPerTaskList.get(taskList)));
@@ -601,6 +601,20 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     }
 
     /**
+     * Creates a ScheduledExecutorService that swallows exceptions to prevent scheduled tasks from being canceled,
+     * with a ThreadFactory that suppresses printing stack traces to stdout.
+     * The pool name is derived from the task type and task list, and will allow up to poolSize concurrent threads.
+     * @param taskList       - The task list this pool should poll for.
+     * @param taskTypeName   - A prefix for the worker names, e.g. "decider" or "worker"
+     * @param poolSize       - The size of the pool
+     */
+    private ScheduledExecutorService createExecutorService(String taskTypeName, String taskList, int poolSize) {
+        String poolName = String.format("%s-%s", taskTypeName, taskList);
+        ThreadFactory threadFactory = ThreadUtils.createStackTraceSuppressingThreadFactory(poolName);
+        return Executors.newScheduledThreadPool(poolSize, threadFactory);
+    }
+
+    /**
      * Creates a worker pool.
      * @param taskList       - The task list this pool should poll for.
      * @param hostname       - The hostname of this worker.
@@ -608,11 +622,9 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
      * @param poolSize       - The size of the pool
      * @param taskCreator    - A lambda that takes the full worker name as input and returns a new worker task to add to the pool.
      */
-    private ScheduledExecutorService createExecutorService(String taskList, String hostname, String taskTypeName, int poolSize,
-                                                           Function<String, Runnable> taskCreator) {
-        String poolName = String.format("%s-%s", taskTypeName, taskList);
-        ThreadFactory threadFactory = ThreadUtils.createStackTraceSuppressingThreadFactory(poolName);
-        ScheduledExecutorService service = Executors.newScheduledThreadPool(poolSize, threadFactory);
+    private ScheduledExecutorService createWorkerPool(String taskList, String hostname, String taskTypeName,
+                                                      int poolSize, Function<String, Runnable> taskCreator) {
+        ScheduledExecutorService service = createExecutorService(taskTypeName, taskList, poolSize);
         for (int i = 0; i < poolSize; i++) {
             String taskName = String.format("%s_%s-%s_%s", hostname, taskTypeName, taskList, i);
             Runnable task = taskCreator.apply(taskName);
@@ -654,7 +666,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
             String taskList = workflow.taskList();
             if (!periodicThreadsPerTaskList.containsKey(taskList)) {
                 int poolSize = config.getTaskListConfig(taskList).getPeriodicSubmitterThreadCount();
-                periodicThreadsPerTaskList.put(workflow.taskList(), Executors.newScheduledThreadPool(poolSize));
+                ScheduledExecutorService service = createExecutorService("periodicWorkflowSubmitter", taskList, poolSize);
+                periodicThreadsPerTaskList.put(workflow.taskList(), service);
             }
 
             log.debug(String.format("Scheduling periodic runs for workflow %s", entry.getKey()));
