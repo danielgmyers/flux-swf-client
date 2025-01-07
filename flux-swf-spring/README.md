@@ -31,13 +31,13 @@ If you're using Spring, it is recommended to initialize your Workflow objects as
 </beans>
 ```
 
-Similarly, you can use this config for your unit tests' spring context:
+Similarly, you can use this config for your unit tests' spring context (you'll need a dependency on flux-testutils):
 
 ```xml
 <beans>
-    <bean id="fluxCapacitor" class="com.danielgmyers.flux.clients.swf.FluxCapacitorFactory" factory-method="createMock" />
+    <bean id="fluxCapacitor" class="com.danielgmyers.flux.testutil.StubFluxCapacitor" />
     <bean id="fluxInitializer" class="com.danielgmyers.flux.clients.swf.spring.FluxSpringInitializer" />
 </beans>
 ```
 
-You can then autowire in a StubFluxCapacitor object from your test's spring context.
+You can then autowire in the StubFluxCapacitor object from your test's spring context.
