@@ -14,49 +14,59 @@ Dependency changes
 Maven packaging changes
 ----
 
-The maven group IDs and package names have changed as follows:
+If you're migrating from 2.0.8 or later, the maven group IDs and package names have changed as follows:
 
-* `com.danielgmyers.flux.clients.swf:flux-swf-client-pom` -> `com.danielgmyers.flux:flux-base-pom`
 * `com.danielgmyers.flux.clients.swf:flux-common` -> `com.danielgmyers.flux:flux-common`
 * `com.danielgmyers.flux.clients.swf:flux-testutils` -> `com.danielgmyers.flux:flux-testutils`
 * `com.danielgmyers.flux.clients.swf:flux` -> `com.danielgmyers.flux.clients.swf:flux-swf`
 * `com.danielgmyers.flux.clients.swf:flux-guice` -> `com.danielgmyers.flux.clients.swf:flux-swf-guice`
 * `com.danielgmyers.flux.clients.swf:flux-spring` -> `com.danielgmyers.flux.clients.swf:flux-swf-spring`
 
+If you're migrating from 2.0.6 or earlier, the maven group IDs and package names have changed as follows:
+
+* `software.amazon.aws.clients.swf.flux:flux-common` -> `com.danielgmyers.flux:flux-common`
+* `software.amazon.aws.clients.swf.flux:flux-testutils` -> `com.danielgmyers.flux:flux-testutils`
+* `software.amazon.aws.clients.swf.flux:flux` -> `com.danielgmyers.flux.clients.swf:flux-swf`
+* `software.amazon.aws.clients.swf.flux:flux-guice` -> `com.danielgmyers.flux.clients.swf:flux-swf-guice`
+* `software.amazon.aws.clients.swf.flux:flux-spring` -> `com.danielgmyers.flux.clients.swf:flux-swf-spring`
+
+Version 2.0.7 was made available under both original maven group IDs.
+
 Interface changes
 ----
 
 The base java package for `FluxCapacitor`, `Workflow`, `WorkflowStep`, and other generic interfaces, annotations, and exceptions has been changed, and any that weren't in the `flux-common` maven package have been moved there:
 
-* `com.danielgmyers.flux.clients.swf.FluxCapacitor` -> `com.danielgmyers.flux.FluxCapacitor`
-* `com.danielgmyers.flux.clients.swf.RemoteWorkflowExecutor` -> `com.danielgmyers.flux.RemoteWorkflowExecutor`
-* `com.danielgmyers.flux.clients.swf.WorkflowExecutionException` -> `com.danielgmyers.flux.ex.WorkflowExecutionException`
-* `com.danielgmyers.flux.clients.swf.WorkflowStatusChecker` -> `com.danielgmyers.flux.WorkflowStatusChecker`
-* `com.danielgmyers.flux.clients.swf.poller.BadWorkflowStateException` -> `com.danielgmyers.flux.ex.BadWorkflowStateException`
-* `com.danielgmyers.flux.clients.swf.poller.UnrecognizedTaskException` -> `com.danielgmyers.flux.ex.UnrecognizedTaskException`
-* `com.danielgmyers.flux.clients.swf.step.Attribute` -> `com.danielgmyers.flux.step.Attribute`
-* `com.danielgmyers.flux.clients.swf.step.PartitionedWorkflowStep` -> `com.danielgmyers.flux.step.PartitionedWorkflowStep`
-* `com.danielgmyers.flux.clients.swf.step.PartitionIdGenerator` -> `com.danielgmyers.flux.step.PartitionIdGeneratorResult`
-* `com.danielgmyers.flux.clients.swf.step.StepApply` -> `com.danielgmyers.flux.step.StepApply`
-* `com.danielgmyers.flux.clients.swf.step.StepAttributes` -> `com.danielgmyers.flux.step.StepAttributes`
-* `com.danielgmyers.flux.clients.swf.step.StepHook` -> `com.danielgmyers.flux.step.StepHook`
-* `com.danielgmyers.flux.clients.swf.step.StepResult` -> `com.danielgmyers.flux.step.StepResult`
-* `com.danielgmyers.flux.clients.swf.step.WorkflowStep` -> `com.danielgmyers.flux.step.WorkflowStep`
-* `com.danielgmyers.flux.clients.swf.step.WorkflowStepHook` -> `com.danielgmyers.flux.step.WorkflowStepHook`
-* `com.danielgmyers.flux.clients.swf.wf.Periodic` -> `com.danielgmyers.flux.wf.Periodic`
-* `com.danielgmyers.flux.clients.swf.wf.Workflow` -> `com.danielgmyers.flux.wf.Workflow`
-* `com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraph` -> `com.danielgmyers.flux.wf.graph.WorkflowGraph`
-* `com.danielgmyers.flux.clients.swf.wf.graph.WorkflowGraphBuilder` -> `com.danielgmyers.flux.wf.graph.WorkflowGraphBuilder`
+* `software.amazon.aws.clients.swf.flux.FluxCapacitor` -> `com.danielgmyers.flux.FluxCapacitor`
+* `software.amazon.aws.clients.swf.flux.RemoteWorkflowExecutor` -> `com.danielgmyers.flux.RemoteWorkflowExecutor`
+* `software.amazon.aws.clients.swf.flux.WorkflowExecutionException` -> `com.danielgmyers.flux.ex.WorkflowExecutionException`
+* `software.amazon.aws.clients.swf.flux.WorkflowStatusChecker` -> `com.danielgmyers.flux.WorkflowStatusChecker`
+* `software.amazon.aws.clients.swf.flux.poller.BadWorkflowStateException` -> `com.danielgmyers.flux.ex.BadWorkflowStateException`
+* `software.amazon.aws.clients.swf.flux.poller.UnrecognizedTaskException` -> `com.danielgmyers.flux.ex.UnrecognizedTaskException`
+* `software.amazon.aws.clients.swf.flux.step.Attribute` -> `com.danielgmyers.flux.step.Attribute`
+* `software.amazon.aws.clients.swf.flux.step.PartitionedWorkflowStep` -> `com.danielgmyers.flux.step.PartitionedWorkflowStep`
+* `software.amazon.aws.clients.swf.flux.step.PartitionIdGenerator` -> `com.danielgmyers.flux.step.PartitionIdGenerator`
+* `software.amazon.aws.clients.swf.flux.step.PartitionIdGeneratorResult` -> `com.danielgmyers.flux.step.PartitionIdGeneratorResult`
+* `software.amazon.aws.clients.swf.flux.step.StepApply` -> `com.danielgmyers.flux.step.StepApply`
+* `software.amazon.aws.clients.swf.flux.step.StepAttributes` -> `com.danielgmyers.flux.step.StepAttributes`
+* `software.amazon.aws.clients.swf.flux.step.StepHook` -> `com.danielgmyers.flux.step.StepHook`
+* `software.amazon.aws.clients.swf.flux.step.StepResult` -> `com.danielgmyers.flux.step.StepResult`
+* `software.amazon.aws.clients.swf.flux.step.WorkflowStep` -> `com.danielgmyers.flux.step.WorkflowStep`
+* `software.amazon.aws.clients.swf.flux.step.WorkflowStepHook` -> `com.danielgmyers.flux.step.WorkflowStepHook`
+* `software.amazon.aws.clients.swf.flux.wf.Periodic` -> `com.danielgmyers.flux.wf.Periodic`
+* `software.amazon.aws.clients.swf.flux.wf.Workflow` -> `com.danielgmyers.flux.wf.Workflow`
+* `software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraph` -> `com.danielgmyers.flux.wf.graph.WorkflowGraph`
+* `software.amazon.aws.clients.swf.flux.wf.graph.WorkflowGraphBuilder` -> `com.danielgmyers.flux.wf.graph.WorkflowGraphBuilder`
 
 `MetricRecorder` changes
 ----
 
-The classes formerly in the java package `com.danielgmyers.flux.clients.swf.metrics` are now found in the following maven packages:
+The classes formerly in the java package `software.amazon.aws.clients.swf.flux.metrics` are now found in the following maven packages:
 
 * `com.danielgmyers.metrics:recorder-core` - Contains the `MetricRecorder` interface and the `NoopMetricRecorder` implementation.
 * `com.danielgmyers.metrics:in-memory-recorder` - Contains the `InMemoryMetricRecorder` implementation.
 
-Additionally, the classes have changed their base java package from `com.danielgmyers.flux.clients.swf.metrics` to `com.danielgmyers.metrics`.
+Additionally, the classes have changed their base java package from `software.amazon.aws.clients.swf.flux.metrics` to `com.danielgmyers.metrics`.
 
 If you have a custom implementation of `MetricRecorder` you should update it to depend on `recorder-core` rather than `flux-common`, and update your `import` statements.
 
