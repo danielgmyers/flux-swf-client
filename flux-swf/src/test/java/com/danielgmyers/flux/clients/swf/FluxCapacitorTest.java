@@ -33,6 +33,7 @@ import com.danielgmyers.flux.clients.swf.poller.testwf.TestPeriodicWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowCustomStartToCloseDuration;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowCustomTaskList;
+import com.danielgmyers.flux.clients.swf.step.SwfStepAttributeManager;
 import com.danielgmyers.flux.ex.WorkflowExecutionException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.StepAttributes;
@@ -103,25 +104,25 @@ public class FluxCapacitorTest {
     @Test
     public void testExecuteWorkflow_happyCase() {
         String workflowId = "my-workflow-id";
-        Map<String, Object> input = Collections.emptyMap();
+        SwfStepAttributeManager expectedInput = SwfStepAttributeManager.generateInitialStepInput();
 
         StartWorkflowExecutionRequest start
                 = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN, workflowName, workflowId,
                                                               Workflow.DEFAULT_TASK_LIST_NAME,
                                                               Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT,
-                                                              input, Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME));
+                                                              expectedInput, Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME));
         StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
         EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);
 
         mockery.replay();
-        fc.executeWorkflow(TestWorkflow.class, workflowId, input);
+        fc.executeWorkflow(TestWorkflow.class, workflowId, Collections.emptyMap());
         mockery.verify();
     }
 
     @Test
     public void testExecuteWorkflow_happyCase_includesCustomExecutionTags() {
         String workflowId = "my-workflow-id";
-        Map<String, Object> input = Collections.emptyMap();
+        SwfStepAttributeManager expectedInput = SwfStepAttributeManager.generateInitialStepInput();
 
         Set<String> customExecutionTags = new HashSet<>();
         customExecutionTags.add("kirk");
@@ -135,19 +136,19 @@ public class FluxCapacitorTest {
                 = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN, workflowName, workflowId,
                                                               Workflow.DEFAULT_TASK_LIST_NAME,
                                                               Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT,
-                                                              input, actualExecutionTags);
+                                                              expectedInput, actualExecutionTags);
         StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
         EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);
 
         mockery.replay();
-        fc.executeWorkflow(TestWorkflow.class, workflowId, input, customExecutionTags);
+        fc.executeWorkflow(TestWorkflow.class, workflowId, Collections.emptyMap(), customExecutionTags);
         mockery.verify();
     }
 
     @Test
     public void testExecuteWorkflow_happyCase_includesCustomExecutionTags_excludesTaskListExecutionTagIfConfigDisabled() {
         String workflowId = "my-workflow-id";
-        Map<String, Object> input = Collections.emptyMap();
+        SwfStepAttributeManager expectedInput = SwfStepAttributeManager.generateInitialStepInput();
 
         config.setAutomaticallyTagExecutionsWithTaskList(false);
 
@@ -162,12 +163,12 @@ public class FluxCapacitorTest {
                 = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN, workflowName, workflowId,
                                                               Workflow.DEFAULT_TASK_LIST_NAME,
                                                               Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT,
-                                                              input, actualExecutionTags);
+                                                              expectedInput, actualExecutionTags);
         StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
         EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);
 
         mockery.replay();
-        fc.executeWorkflow(TestWorkflow.class, workflowId, input, customExecutionTags);
+        fc.executeWorkflow(TestWorkflow.class, workflowId, Collections.emptyMap(), customExecutionTags);
         mockery.verify();
     }
 
@@ -184,7 +185,7 @@ public class FluxCapacitorTest {
         fcCustom.populateNameMaps(Collections.singletonList(workflowCustomTaskList));
 
         String workflowId = "my-workflow-id";
-        Map<String, Object> input = Collections.emptyMap();
+        SwfStepAttributeManager expectedInput = SwfStepAttributeManager.generateInitialStepInput();
 
         StartWorkflowExecutionRequest start
                 = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN,
@@ -192,13 +193,13 @@ public class FluxCapacitorTest {
                                                               workflowId,
                                                               workflowCustomTaskList.taskList(),
                                                               Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT,
-                                                              input,
+                                                              expectedInput,
                                                               Collections.singleton(workflowCustomTaskList.taskList()));
         StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
         EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);
 
         mockery.replay();
-        fcCustom.executeWorkflow(TestWorkflowCustomTaskList.class, workflowId, input);
+        fcCustom.executeWorkflow(TestWorkflowCustomTaskList.class, workflowId, Collections.emptyMap());
         mockery.verify();
     }
 
@@ -216,7 +217,7 @@ public class FluxCapacitorTest {
         fcCustom.populateNameMaps(Collections.singletonList(workflowCustomTaskList));
 
         String workflowId = "my-workflow-id";
-        Map<String, Object> input = Collections.emptyMap();
+        SwfStepAttributeManager expectedInput = SwfStepAttributeManager.generateInitialStepInput();
 
         StartWorkflowExecutionRequest start
                 = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN,
@@ -224,13 +225,13 @@ public class FluxCapacitorTest {
                                                               workflowId,
                                                               workflowCustomTaskList.taskList(),
                                                               Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT,
-                                                              input,
+                                                              expectedInput,
                                                               Collections.emptySet());
         StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
         EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);
 
         mockery.replay();
-        fcCustom.executeWorkflow(TestWorkflowCustomTaskList.class, workflowId, input);
+        fcCustom.executeWorkflow(TestWorkflowCustomTaskList.class, workflowId, Collections.emptyMap());
         mockery.verify();
     }
 
@@ -251,14 +252,14 @@ public class FluxCapacitorTest {
         fcCustom.populateNameMaps(Collections.singletonList(workflowCustomTaskList));
 
         String workflowId = "my-workflow-id";
-        Map<String, Object> input = Collections.emptyMap();
+        SwfStepAttributeManager expectedInput = SwfStepAttributeManager.generateInitialStepInput();
 
         Capture<StartWorkflowExecutionRequest> capturedStart = EasyMock.newCapture();
         StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
         EasyMock.expect(swf.startWorkflowExecution(EasyMock.capture(capturedStart))).andReturn(workflowRun);
 
         mockery.replay();
-        fcCustom.executeWorkflow(TestWorkflowCustomTaskList.class, workflowId, input);
+        fcCustom.executeWorkflow(TestWorkflowCustomTaskList.class, workflowId, Collections.emptyMap());
 
         Set<String> bucketedTaskListNames = new HashSet<>();
         for (int i = 1; i <= taskListConfig.getBucketCount(); i++) {
@@ -279,7 +280,7 @@ public class FluxCapacitorTest {
                                                               workflowId,
                                                               actualTaskListName,
                                                               Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT,
-                                                              input,
+                                                              expectedInput,
                                                               executionTags);
         Assertions.assertEquals(expectedStart, capturedStart.getValue());
 
@@ -299,7 +300,7 @@ public class FluxCapacitorTest {
         fcCustom.populateNameMaps(Collections.singletonList(customWorkflow));
 
         String workflowId = "my-workflow-id";
-        Map<String, Object> input = Collections.emptyMap();
+        SwfStepAttributeManager expectedInput = SwfStepAttributeManager.generateInitialStepInput();
 
         StartWorkflowExecutionRequest start
                 = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN,
@@ -307,13 +308,13 @@ public class FluxCapacitorTest {
                                                               workflowId,
                                                               Workflow.DEFAULT_TASK_LIST_NAME,
                                                               customWorkflow.maxStartToCloseDuration(),
-                                                              input,
+                                                              expectedInput,
                                                               Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME));
         StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
         EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);
 
         mockery.replay();
-        fcCustom.executeWorkflow(TestWorkflowCustomStartToCloseDuration.class, workflowId, input);
+        fcCustom.executeWorkflow(TestWorkflowCustomStartToCloseDuration.class, workflowId, Collections.emptyMap());
         mockery.verify();
     }
 
@@ -324,20 +325,19 @@ public class FluxCapacitorTest {
         input.put("someKey", "some value huzzah");
         input.put("aNumber", 7L);
 
+        SwfStepAttributeManager expectedInput = SwfStepAttributeManager.generateInitialStepInput();
+        expectedInput.addAttributes(input);
+
         StartWorkflowExecutionRequest start
                 = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN,
                                                               workflowName,
                                                               workflowId,
                                                               Workflow.DEFAULT_TASK_LIST_NAME,
                                                               Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT,
-                                                              input,
+                                                              expectedInput,
                                                               Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME));
 
-        Map<String, String> decodedExpectedInput = new HashMap<>();
-        for (Entry<String, ?> entry : input.entrySet()) {
-            decodedExpectedInput.put(entry.getKey(), StepAttributes.encode(entry.getValue()));
-        }
-        Assertions.assertEquals(StepAttributes.encode(decodedExpectedInput), start.input());
+        Assertions.assertEquals(expectedInput.encode(), start.input());
 
         StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
         EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);
@@ -350,7 +350,7 @@ public class FluxCapacitorTest {
     @Test
     public void testExecuteWorkflow_workflowAlreadyStarted() {
         String workflowId = "my-workflow-id";
-        Map<String, Object> input = Collections.emptyMap();
+        SwfStepAttributeManager expectedInput = SwfStepAttributeManager.generateInitialStepInput();
 
         StartWorkflowExecutionRequest start
                 = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN,
@@ -358,13 +358,13 @@ public class FluxCapacitorTest {
                                                               workflowId,
                                                               Workflow.DEFAULT_TASK_LIST_NAME,
                                                               Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT,
-                                                              input,
+                                                              expectedInput,
                                                               Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME));
 
         EasyMock.expect(swf.startWorkflowExecution(start)).andThrow(WorkflowExecutionAlreadyStartedException.builder().build());
 
         mockery.replay();
-        fc.executeWorkflow(TestWorkflow.class, workflowId, input);
+        fc.executeWorkflow(TestWorkflow.class, workflowId, Collections.emptyMap());
         mockery.verify();
     }
 
@@ -413,7 +413,7 @@ public class FluxCapacitorTest {
     @Test
     public void testExecuteWorkflow_someOtherWorkflowExecutionProblem() {
         String workflowId = "my-workflow-id";
-        Map<String, Object> input = Collections.emptyMap();
+        SwfStepAttributeManager expectedInput = SwfStepAttributeManager.generateInitialStepInput();
 
         StartWorkflowExecutionRequest start
                 = FluxCapacitorImpl.buildStartWorkflowRequest(DOMAIN,
@@ -421,14 +421,14 @@ public class FluxCapacitorTest {
                                                               workflowId,
                                                               Workflow.DEFAULT_TASK_LIST_NAME,
                                                               Workflow.WORKFLOW_EXECUTION_DEFAULT_START_TO_CLOSE_TIMEOUT,
-                                                              input,
+                                                              expectedInput,
                                                               Collections.singleton(Workflow.DEFAULT_TASK_LIST_NAME));
         // the actual error doesn't matter, just needs to be identifiable
         EasyMock.expect(swf.startWorkflowExecution(start)).andThrow(new IllegalStateException("some-error"));
 
         mockery.replay();
         try {
-            fc.executeWorkflow(TestWorkflow.class, workflowId, input);
+            fc.executeWorkflow(TestWorkflow.class, workflowId, Collections.emptyMap());
             Assertions.fail();
         } catch(WorkflowExecutionException e) {
             // expected

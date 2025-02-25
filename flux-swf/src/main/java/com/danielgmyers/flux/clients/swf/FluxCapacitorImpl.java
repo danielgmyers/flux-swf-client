@@ -44,6 +44,7 @@ import com.danielgmyers.flux.RemoteWorkflowExecutor;
 import com.danielgmyers.flux.WorkflowStatusChecker;
 import com.danielgmyers.flux.clients.swf.poller.ActivityTaskPoller;
 import com.danielgmyers.flux.clients.swf.poller.DecisionTaskPoller;
+import com.danielgmyers.flux.clients.swf.step.SwfStepAttributeManager;
 import com.danielgmyers.flux.ex.WorkflowExecutionException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.StepAttributes;
@@ -223,6 +224,9 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
             actualExecutionTags.add(workflow.taskList());
         }
 
+        SwfStepAttributeManager actualInput = SwfStepAttributeManager.generateInitialStepInput();
+        actualInput.addAttributes(workflowInput);
+
         // nextInt generates a number between 0 (inclusive) and bucketCount (exclusive).
         // We want a number between 1 (inclusive) and bucketCount (inclusive), so we can just add one to the result.
         int bucket = 1 + RANDOM.nextInt(config.getTaskListConfig(workflow.taskList()).getBucketCount());
@@ -230,7 +234,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
         StartWorkflowExecutionRequest request = buildStartWorkflowRequest(workflowDomain, workflowName, workflowId,
                                                                           taskList, workflow.maxStartToCloseDuration(),
-                                                                          workflowInput, actualExecutionTags);
+                                                                          actualInput, actualExecutionTags);
 
         log.debug("Requesting new workflow execution for workflow {} with id {}", workflowName, workflowId);
 
@@ -345,12 +349,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
     // visible for use by unit tests
     static StartWorkflowExecutionRequest buildStartWorkflowRequest(String workflowDomain, String workflowName,
                                                                    String workflowId, String taskList,
-                                                                   Duration startToCloseDuration, Map<String, ?> input,
+                                                                   Duration startToCloseDuration, SwfStepAttributeManager input,
                                                                    Set<String> executionTags) {
-        // yes, this means the input attributes are serialized into a string map, which is itself serialized.
-        // this makes deserialization less confusing later because we can deserialize as a map of strings
-        // and then deserialize each value as a specific type.
-        String rawInput = StepAttributes.encode(StepAttributes.serializeMapValues(input));
         WorkflowType workflowType = WorkflowType.builder().name(workflowName).version(WORKFLOW_VERSION).build();
         return StartWorkflowExecutionRequest.builder()
                                             .domain(workflowDomain)
@@ -358,7 +358,7 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
                                             .childPolicy(ChildPolicy.TERMINATE)
                                             .taskList(TaskList.builder().name(taskList).build())
                                             .workflowId(workflowId)
-                                            .input(rawInput)
+                                            .input(input.encode())
                                             .taskStartToCloseTimeout(DEFAULT_DECISION_TASK_TIMEOUT)
                                             .executionStartToCloseTimeout(Long.toString(startToCloseDuration.getSeconds()))
                                             .tagList(executionTags)

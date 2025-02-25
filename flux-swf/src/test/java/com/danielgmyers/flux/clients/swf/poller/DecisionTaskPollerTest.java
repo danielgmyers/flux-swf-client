@@ -51,6 +51,7 @@ import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithAlwaysTra
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithFailureTransition;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithPartitionedStep;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithStepCustomHeartbeatTimeout;
+import com.danielgmyers.flux.clients.swf.step.SwfStepAttributeManager;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.signals.DelayRetrySignalData;
 import com.danielgmyers.flux.step.PartitionIdGeneratorResult;
@@ -409,10 +410,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_scheduleFirstStepWhenNoCurrentStep() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         // move the clock forward so that when the decision is made,
         // the first step's initial attempt time will be different than the workflow start time
@@ -429,11 +430,10 @@ public class DecisionTaskPollerTest {
         Decision decision = response.decisions().get(0);
         Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(activityInitialAttemptTime));
-        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, activityInitialAttemptTime);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -449,13 +449,13 @@ public class DecisionTaskPollerTest {
     public void decide_scheduleSecondStepWhenFirstStepSucceeds() throws JsonProcessingException {
         Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
 
@@ -484,20 +484,16 @@ public class DecisionTaskPollerTest {
         // we need to close it here so we can query the metrics.
         deciderMetrics.close();
 
-        Map<String, String> expectedInput = new TreeMap<>();
-        expectedInput.putAll(input);
-        expectedInput.putAll(output);
+        input.addEncodedAttributes(output);
 
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
-        expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepTwoInitialAttemptTime);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
-                = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
-                                                                            expectedInput, activityId, null);
+                = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo, input, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -514,13 +510,13 @@ public class DecisionTaskPollerTest {
     public void decide_recordMarkerAndRetryTimerIfUnknownResultCode() throws JsonProcessingException {
         Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
@@ -565,13 +561,13 @@ public class DecisionTaskPollerTest {
     public void decide_recordMarkerAndRetryTimerIfUnknownResultCode_DoNotCreateDuplicateTimer() throws JsonProcessingException {
         Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         WorkflowStep currentStep = workflow.getGraph().getFirstStep();
@@ -614,13 +610,13 @@ public class DecisionTaskPollerTest {
         Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
         String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         WorkflowStep firstStep = workflow.getGraph().getFirstStep();
@@ -652,21 +648,16 @@ public class DecisionTaskPollerTest {
         Decision decision = response.decisions().get(0);
         Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        Map<String, String> expectedInput = new TreeMap<>();
-        expectedInput.putAll(input);
-        expectedInput.putAll(output);
-        expectedInput.remove(StepAttributes.RESULT_CODE);
+        input.addEncodedAttributes(output);
 
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
-        expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepTwoInitialAttemptTime);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
-                = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
-                expectedInput, activityId, null);
+                = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo, input, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -683,10 +674,10 @@ public class DecisionTaskPollerTest {
         Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
         String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         HistoryEvent startEvent = history.scheduleStepAttempt();
@@ -725,18 +716,15 @@ public class DecisionTaskPollerTest {
 
         Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        Map<String, String> expectedInput = new TreeMap<>(input);
-
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
-        expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepTwoInitialAttemptTime);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
-                                                                            expectedInput, activityId, null);
+                                                                            input, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -760,10 +748,10 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -831,10 +819,10 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(failedPartitions);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -895,20 +883,18 @@ public class DecisionTaskPollerTest {
 
             Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-            Map<String, String> expectedInput = new TreeMap<>(input);
-            expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
-            expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(failedPartitions.size()));
+            input.addAttribute(StepAttributes.PARTITION_ID, partitionId);
+            input.addAttribute(StepAttributes.PARTITION_COUNT, (long)(failedPartitions.size()));
 
-            expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-            expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
-            expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+            input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepTwoInitialAttemptTime);
+            input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+            input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+            input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
             String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
                     = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepTwo,
-                                                                                expectedInput, activityId, partitionId);
+                                                                                input, activityId, partitionId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
             Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
@@ -927,13 +913,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -997,13 +983,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1071,13 +1057,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1161,13 +1147,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1218,21 +1204,20 @@ public class DecisionTaskPollerTest {
 
             Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-            Map<String, String> expectedInput = new TreeMap<>(input);
-            expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
-            expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
-            expectedInput.putAll(output);
+            input.addEncodedAttributes(output);
 
-            expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-            expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
-            expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+            input.addAttribute(StepAttributes.PARTITION_ID, partitionId);
+            input.addAttribute(StepAttributes.PARTITION_COUNT, (long)(partitionIds.size()));
+
+            input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepTwoInitialAttemptTime);
+            input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+            input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+            input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
             String activityId = TaskNaming.createActivityId(stepTwo, 0, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
                     = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepTwo,
-                                                                                expectedInput, activityId, partitionId);
+                                                                                input, activityId, partitionId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
             Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
@@ -1251,13 +1236,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1310,21 +1295,20 @@ public class DecisionTaskPollerTest {
 
             Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-            Map<String, String> expectedInput = new TreeMap<>(input);
-            expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
-            expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
-            expectedInput.putAll(output);
+            input.addEncodedAttributes(output);
 
-            expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-            expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
-            expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+            input.addAttribute(StepAttributes.PARTITION_ID, partitionId);
+            input.addAttribute(StepAttributes.PARTITION_COUNT, (long)(partitionIds.size()));
+
+            input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepTwoInitialAttemptTime);
+            input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+            input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+            input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
             String activityId = TaskNaming.createActivityId(stepTwo, 0, DigestUtils.sha256Hex(partitionId));
             ScheduleActivityTaskDecisionAttributes attrs
                     = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepTwo,
-                                                                                expectedInput, activityId, partitionId);
+                                                                                input, activityId, partitionId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
             Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
@@ -1342,13 +1326,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1421,13 +1405,13 @@ public class DecisionTaskPollerTest {
         Set<String> retriedPartitions = new HashSet<>(partitionIds);
         retriedPartitions.remove(succeededPartition);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1505,10 +1489,10 @@ public class DecisionTaskPollerTest {
         partitionedStep.setPartitionIds(partitionIds);
         partitionedStep.setAdditionalAttributes(additionalAttributes);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1553,21 +1537,20 @@ public class DecisionTaskPollerTest {
         String partitionId = decision.scheduleActivityTaskDecisionAttributes().control();
         Assertions.assertEquals(failedPartition, partitionId);
 
-        Map<String, String> expectedInput = new TreeMap<>(input);
-        expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
-        expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
-        expectedInput.put(additionalAttributeName, StepAttributes.encode(additionalAttributeValue));
+        input.addAttributes(additionalAttributes);
 
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
-        expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.PARTITION_ID, partitionId);
+        input.addAttribute(StepAttributes.PARTITION_COUNT, (long)(partitionIds.size()));
+
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepTwoInitialAttemptTime);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(partitionedStep, 0, partitionId);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, partitionedStep,
-                expectedInput, activityId, partitionId);
+                                                                            input, activityId, partitionId);
         attrs = attrs.toBuilder().control(partitionId).build();
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
@@ -1586,13 +1569,13 @@ public class DecisionTaskPollerTest {
         Set<String> retriedPartitions = new HashSet<>(partitionIds);
         retriedPartitions.remove(failedPartition);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1662,13 +1645,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1724,22 +1707,21 @@ public class DecisionTaskPollerTest {
 
             Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-            Map<String, String> expectedInput = new TreeMap<>(input);
-            expectedInput.putAll(output);
-            expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
-            expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
-            expectedInput.put(StepAttributes.RETRY_ATTEMPT, Long.toString(1));
+            input.addEncodedAttributes(output);
 
-            expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
-            expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-            expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-            expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-            expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+            input.addAttribute(StepAttributes.PARTITION_ID, partitionId);
+            input.addAttribute(StepAttributes.PARTITION_COUNT, (long)(partitionIds.size()));
+
+            input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepTwoInitialAttemptTime);
+            input.addAttribute(StepAttributes.RETRY_ATTEMPT, 1L);
+            input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+            input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+            input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
             String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionId);
             ScheduleActivityTaskDecisionAttributes attrs
                     = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, partitionedStep,
-                    expectedInput, activityId, partitionId);
+                                                                                input, activityId, partitionId);
             attrs = attrs.toBuilder().control(partitionId).build();
 
             Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
@@ -1757,13 +1739,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1807,18 +1789,17 @@ public class DecisionTaskPollerTest {
         Assertions.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
         Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
 
-        Map<String, String> expectedInput = new TreeMap<>(input);
-        expectedInput.putAll(output);
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepThreeInitialAttemptTime));
-        expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addEncodedAttributes(output);
+
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepThreeInitialAttemptTime);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(stepThree, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, stepThree,
-                expectedInput, activityId, null);
+                                                                            input, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -1830,13 +1811,13 @@ public class DecisionTaskPollerTest {
         Assertions.assertTrue(workflow.getGraph().getNodes().size() > 1);
         String activityName = TaskNaming.activityName(workflowName, workflow.getGraph().getFirstStep());
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
 
@@ -1882,19 +1863,17 @@ public class DecisionTaskPollerTest {
         Decision decision = response.decisions().get(0);
         Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        Map<String, String> expectedInput = new TreeMap<>(input);
-        expectedInput.putAll(output);
+        input.addEncodedAttributes(output);
 
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
-        expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepTwoInitialAttemptTime);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(stepTwo, 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, stepTwo,
-                                                                            expectedInput, activityId, null);
+                                                                            input, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
 
@@ -1908,10 +1887,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_scheduleStepWithCustomHeartbeatTimeout() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithCustomHeartbeatTimeout, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithCustomHeartbeatTimeout, clock, input.getEncodedAttributes());
         WorkflowState state = history.buildCurrentState();
 
         mockery.replay();
@@ -1933,10 +1912,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_rescheduleFirstStepWhenFirstStepNeedsRetry_StartTimer() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -1973,10 +1952,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_scheduleFirstStep_ScheduleActivityFailedEventForPreviousScheduleAttempt() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.recordScheduleAttemptFailed();
@@ -1996,11 +1975,10 @@ public class DecisionTaskPollerTest {
         Decision decision = response.decisions().get(0);
         Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
-        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepOneInitialAttemptTime);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2014,10 +1992,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_rescheduleFirstStepWhenFirstStepNeedsRetry_TimerFired() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2045,12 +2023,11 @@ public class DecisionTaskPollerTest {
         Decision decision = response.decisions().get(0);
         Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
-        input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
-        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepOneInitialAttemptTime);
+        input.addAttribute(StepAttributes.RETRY_ATTEMPT, 1L);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(currentStep, 1, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2064,10 +2041,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_rescheduleStepWhenRetryNowSignalReceived() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2107,10 +2084,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_IgnoreRetryNowSignalIfNoPreviousTimer_SchedulesNormalRetryTimer() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2147,10 +2124,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_IgnoreRetryNowSignalIfTimerAlreadyClosed_SchedulesNextActivityAttempt() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2180,12 +2157,12 @@ public class DecisionTaskPollerTest {
         Decision decision = response.decisions().get(0);
         Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
-        input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
-        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepOneInitialAttemptTime);
+        input.addAttribute(StepAttributes.RETRY_ATTEMPT, 1L);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
+
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
                                                                             TaskNaming.createActivityId(currentStep, 1, null),
@@ -2198,10 +2175,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_sendScheduleDelayedRetrySignalWhenDelayRetrySignalReceived() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2246,10 +2223,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_IgnoreDelayRetrySignalIfNoOpenTimer_SchedulesNormalRetryTimer() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2287,10 +2264,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_IgnoreDelayRetrySignalIfTimerAlreadyClosed_SchedulesNextActivityAttempt() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2323,12 +2300,12 @@ public class DecisionTaskPollerTest {
         Decision decision = response.decisions().get(0);
         Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
-        input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
-        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepOneInitialAttemptTime);
+        input.addAttribute(StepAttributes.RETRY_ATTEMPT, 1L);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
+
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflow, currentStep, input,
                                                                             TaskNaming.createActivityId(currentStep, 1, null),
@@ -2341,10 +2318,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_createsDelayedRetryTimerWhenScheduleDelayedRetrySignalReceived() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2389,10 +2366,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_ignoresScheduleDelayedRetrySignalIfTimerAlreadyOpen() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2423,10 +2400,10 @@ public class DecisionTaskPollerTest {
 
     @Test
     public void decide_scheduleNextAttemptAfterDelayedRetryTimerFired() throws JsonProcessingException {
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflow, clock, input.getEncodedAttributes());
 
         Instant stepOneInitialAttemptTime = clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2466,12 +2443,11 @@ public class DecisionTaskPollerTest {
         Decision decision = response.decisions().get(0);
         Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decision.decisionType());
 
-        input.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        input.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepOneInitialAttemptTime));
-        input.put(StepAttributes.RETRY_ATTEMPT, Integer.toString(1));
-        input.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepOneInitialAttemptTime);
+        input.addAttribute(StepAttributes.RETRY_ATTEMPT, 1L);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityIdSecondAttempt = TaskNaming.createActivityId(workflow.getGraph().getFirstStep(), 1, null);
         ScheduleActivityTaskDecisionAttributes attrs
@@ -2493,13 +2469,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2564,13 +2540,13 @@ public class DecisionTaskPollerTest {
         String partitionedStepName = TaskNaming.activityName(workflowWithPartitionedStepName, partitionedStep);
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2623,18 +2599,17 @@ public class DecisionTaskPollerTest {
         Assertions.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
         Assertions.assertEquals(1, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
 
-        Map<String, String> expectedInput = new TreeMap<>(input);
-        expectedInput.putAll(output);
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepThreeInitialAttemptTime));
-        expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addEncodedAttributes(output);
+
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepThreeInitialAttemptTime);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(nextStep.getStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, nextStep.getStep(),
-                                                                            expectedInput, activityId, null);
+                                                                            input, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
     }
@@ -2651,12 +2626,12 @@ public class DecisionTaskPollerTest {
         String partitionedStepName = TaskNaming.activityName(workflowWithPartitionedStepName, partitionedStep);
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2722,18 +2697,17 @@ public class DecisionTaskPollerTest {
         Assertions.assertEquals(stepTwoDuration, deciderMetrics.getDurations().get(DecisionTaskPoller.formatStepCompletionTimeMetricName(partitionedStepName)));
         Assertions.assertEquals(2, deciderMetrics.getCounts().get(DecisionTaskPoller.formatStepAttemptCountForCompletionMetricName(partitionedStepName)).longValue());
 
-        Map<String, String> expectedInput = new TreeMap<>(input);
-        expectedInput.putAll(output);
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepThreeInitialAttemptTime));
-        expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addEncodedAttributes(output);
+
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepThreeInitialAttemptTime);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(nextStep.getStep(), 0, null);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, nextStep.getStep(),
-                expectedInput, activityId, null);
+                                                                            input, activityId, null);
 
         Assertions.assertEquals(attrs, decision.scheduleActivityTaskDecisionAttributes());
     }
@@ -2749,13 +2723,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2816,13 +2790,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2894,13 +2868,13 @@ public class DecisionTaskPollerTest {
         TestPartitionedStep partitionedStep = (TestPartitionedStep)workflowWithPartitionedStep.getGraph().getNodes().get(TestPartitionedStep.class).getStep();
         partitionedStep.setPartitionIds(partitionIds);
 
-        Map<String, String> input = new TreeMap<>();
-        input.put("SomeInput", "Value");
+        SwfStepAttributeManager input = SwfStepAttributeManager.generateInitialStepInput();
+        input.addAttribute("SomeInput", "Value");
 
         Map<String, String> output = new TreeMap<>();
         output.put("ExtraOutput", "AnotherValue");
 
-        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input);
+        WorkflowHistoryBuilder history = WorkflowHistoryBuilder.startWorkflow(workflowWithPartitionedStep, clock, input.getEncodedAttributes());
 
         clock.forward(Duration.ofMillis(100));
         history.scheduleStepAttempt();
@@ -2949,21 +2923,21 @@ public class DecisionTaskPollerTest {
         // first decision should be to reschedule partition p1
         Assertions.assertEquals(DecisionType.SCHEDULE_ACTIVITY_TASK, decisions.get(0).decisionType());
 
-        Map<String, String> expectedInput = new TreeMap<>(input);
-        expectedInput.putAll(output);
-        expectedInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionToReschedule));
-        expectedInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
-        expectedInput.put(StepAttributes.RETRY_ATTEMPT, Long.toString(1));
-        expectedInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(stepTwoInitialAttemptTime));
-        expectedInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-        expectedInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-        expectedInput.put(StepAttributes.WORKFLOW_START_TIME, StepAttributes.encode(state.getWorkflowStartDate()));
-        expectedInput.put(DecisionTaskPoller.STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(DecisionTaskPoller.CURRENT_STEP_INPUT_METADATA_VERSION));
+        input.addEncodedAttributes(output);
+
+        input.addAttribute(StepAttributes.PARTITION_ID, partitionToReschedule);
+        input.addAttribute(StepAttributes.PARTITION_COUNT, (long)(partitionIds.size()));
+
+        input.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, stepTwoInitialAttemptTime);
+        input.addAttribute(StepAttributes.RETRY_ATTEMPT, 1L);
+        input.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+        input.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+        input.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
 
         String activityId = TaskNaming.createActivityId(partitionedStep, 1, partitionToReschedule);
         ScheduleActivityTaskDecisionAttributes attrs
                 = DecisionTaskPoller.buildScheduleActivityTaskDecisionAttrs(workflowWithPartitionedStep, partitionedStep,
-                                                                            expectedInput, activityId, partitionToReschedule);
+                                                                            input, activityId, partitionToReschedule);
         attrs = attrs.toBuilder().control(partitionToReschedule).build();
 
         Assertions.assertEquals(attrs, decisions.get(0).scheduleActivityTaskDecisionAttributes());
