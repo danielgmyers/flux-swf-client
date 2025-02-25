@@ -24,6 +24,7 @@ import java.util.Set;
 
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflow;
 import com.danielgmyers.flux.clients.swf.poller.testwf.TestWorkflowWithPartitionedStep;
+import com.danielgmyers.flux.clients.swf.step.SwfStepAttributeManager;
 import com.danielgmyers.flux.ex.WorkflowExecutionException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.testutil.ManualClock;
@@ -154,10 +155,13 @@ public class RemoteWorkflowExecutorTest {
 
     private void expectStartWorkflowRequest(Workflow workflow, String workflowId, Map<String, Object> input,
                                             Set<String> executionTags, Exception exceptionToThrow) {
+        SwfStepAttributeManager actualInput = SwfStepAttributeManager.generateInitialStepInput();
+        actualInput.addAttributes(input);
+
         StartWorkflowExecutionRequest start
                 = FluxCapacitorImpl.buildStartWorkflowRequest(config.getWorkflowDomain(), TaskNaming.workflowName(workflow),
                                                               workflowId, workflow.taskList(),
-                                                              workflow.maxStartToCloseDuration(), input, executionTags);
+                                                              workflow.maxStartToCloseDuration(), actualInput, executionTags);
         if (exceptionToThrow == null) {
             StartWorkflowExecutionResponse workflowRun = StartWorkflowExecutionResponse.builder().runId("run-id").build();
             EasyMock.expect(swf.startWorkflowExecution(start)).andReturn(workflowRun);

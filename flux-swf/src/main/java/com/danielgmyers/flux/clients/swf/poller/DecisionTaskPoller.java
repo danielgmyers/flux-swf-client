@@ -21,20 +21,18 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.RejectedExecutionException;
 
 import com.danielgmyers.flux.clients.swf.FluxCapacitorConfig;
 import com.danielgmyers.flux.clients.swf.FluxCapacitorImpl;
 import com.danielgmyers.flux.clients.swf.IdentifierValidation;
 import com.danielgmyers.flux.clients.swf.poller.timers.TimerData;
-import com.danielgmyers.flux.clients.swf.step.SwfStepInputAccessor;
+import com.danielgmyers.flux.clients.swf.step.SwfStepAttributeManager;
 import com.danielgmyers.flux.ex.BadWorkflowStateException;
 import com.danielgmyers.flux.ex.UnrecognizedTaskException;
 import com.danielgmyers.flux.poller.TaskNaming;
@@ -107,14 +105,6 @@ public class DecisionTaskPoller implements Runnable {
     static final String FORCE_NEW_DECISION_TIMER_ID = "_forceNewDecision";
 
     static final Duration UNKNOWN_RESULT_RETRY_TIMER_DELAY = Duration.ofMinutes(1);
-
-    /**
-     * Metadata version history:
-     * 1 - Raw map of input attributes encoded as strings, with an optional version number entry.
-     *     Because the top-level object is assumed to be a map of strings to strings, the version number is also a string.
-     */
-    static final String STEP_INPUT_METADATA_VERSION_FIELD_NAME = "_fluxMetadataVersion";
-    static final Long CURRENT_STEP_INPUT_METADATA_VERSION = 1L;
 
     private static final Logger log = LoggerFactory.getLogger(DecisionTaskPoller.class);
 
@@ -354,16 +344,15 @@ public class DecisionTaskPoller implements Runnable {
 
         String currentStepResultCode = state.getCurrentStepResultCode();
 
-        Map<String, String> nextStepInput = null;
+        SwfStepAttributeManager nextStepInput = SwfStepAttributeManager.generateInitialStepInput();
 
         if (currentStep == null) {
             // the workflow has just started, so the next step's input is the workflow input
-            nextStepInput = new HashMap<>(state.getWorkflowInput());
+            nextStepInput.addEncodedAttributes(state.getWorkflowInput());
             // Add some workflow attributes to be available to all steps/hooks/etc
-            nextStepInput.put(StepAttributes.WORKFLOW_ID, StepAttributes.encode(state.getWorkflowId()));
-            nextStepInput.put(StepAttributes.WORKFLOW_EXECUTION_ID, StepAttributes.encode(state.getWorkflowRunId()));
-            nextStepInput.put(StepAttributes.WORKFLOW_START_TIME,
-                              StepAttributes.encode(state.getWorkflowStartDate()));
+            nextStepInput.addAttribute(StepAttributes.WORKFLOW_ID, state.getWorkflowId());
+            nextStepInput.addAttribute(StepAttributes.WORKFLOW_EXECUTION_ID, state.getWorkflowRunId());
+            nextStepInput.addAttribute(StepAttributes.WORKFLOW_START_TIME, state.getWorkflowStartDate());
         } else {
             // build the next step's input based on the previous step's input and output
             Map<String, PartitionState> currentStepPartitions = state.getLatestPartitionStates(activityName);
@@ -377,21 +366,21 @@ public class DecisionTaskPoller implements Runnable {
                 PartitionState partition = currentStepPartitions.values().stream()
                                                                 .filter(Objects::nonNull).findFirst().orElse(null);
 
-                nextStepInput = new HashMap<>(partition.getAttemptInput());
+                nextStepInput.addEncodedAttributes(partition.getAttemptInput());
 
                 boolean currentStepIsPartitioned = PartitionedWorkflowStep.class.isAssignableFrom(currentStep.getClass());
                 if (!currentStepIsPartitioned) {
                     // Non-partitioned steps can pass along their output to subsequent steps.
                     // Retry count and result code will be stripped out below.
-                    nextStepInput.putAll(partition.getAttemptOutput());
+                    nextStepInput.addEncodedAttributes(partition.getAttemptOutput());
                 }
 
                 // Strip out fields that are specific to each attempt, they will be populated below as needed.
-                nextStepInput.remove(StepAttributes.PARTITION_ID);
-                nextStepInput.remove(StepAttributes.PARTITION_COUNT);
-                nextStepInput.remove(StepAttributes.RETRY_ATTEMPT);
-                nextStepInput.remove(StepAttributes.RESULT_CODE);
-                nextStepInput.remove(StepAttributes.ACTIVITY_COMPLETION_MESSAGE);
+                nextStepInput.removeAttribute(StepAttributes.PARTITION_ID);
+                nextStepInput.removeAttribute(StepAttributes.PARTITION_COUNT);
+                nextStepInput.removeAttribute(StepAttributes.RETRY_ATTEMPT);
+                nextStepInput.removeAttribute(StepAttributes.RESULT_CODE);
+                nextStepInput.removeAttribute(StepAttributes.ACTIVITY_COMPLETION_MESSAGE);
             }
         }
 
@@ -463,7 +452,7 @@ public class DecisionTaskPoller implements Runnable {
     }
 
     private static List<Decision> handleStepScheduling(Workflow workflow, String workflowId, WorkflowStep nextStep,
-                                                       WorkflowState state, Map<String, String> nextStepInput,
+                                                       WorkflowState state, SwfStepAttributeManager nextStepInput,
                                                        double exponentialBackoffBase, boolean enablePartitionIdHashing,
                                                        MetricRecorder fluxMetrics, MetricRecorderFactory metricsFactory,
                                                        Clock clock) throws JsonProcessingException {
@@ -485,8 +474,7 @@ public class DecisionTaskPoller implements Runnable {
             // and (less importantly) because the marker will use up some of the 1MB of data we can send back in the decision
             // response, which may reduce the number of partitions we could schedule.
             PartitionIdGeneratorResult result
-                    = WorkflowStepUtil.getPartitionIdsForPartitionedStep((PartitionedWorkflowStep)nextStep,
-                                                                         new SwfStepInputAccessor(nextStepInput),
+                    = WorkflowStepUtil.getPartitionIdsForPartitionedStep((PartitionedWorkflowStep)nextStep, nextStepInput,
                                                                          workflowName, workflowId, metricsFactory);
             PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(result);
 
@@ -517,10 +505,17 @@ public class DecisionTaskPoller implements Runnable {
         Set<String> partitionIds;
         if (nextStepIsPartitioned) {
             partitionIds = nextStepPartitionMetadata.getPartitionIds();
-            nextStepInput.putAll(nextStepPartitionMetadata.getEncodedAdditionalAttributes());
+            nextStepInput.addEncodedAttributes(nextStepPartitionMetadata.getEncodedAdditionalAttributes());
+            nextStepInput.addAttribute(StepAttributes.PARTITION_COUNT, (long)partitionIds.size());
         } else {
             partitionIds = Collections.singleton(null);
         }
+
+        Instant firstAttemptDate = state.getStepInitialAttemptTime(nextActivityName);
+        if (firstAttemptDate == null) {
+            firstAttemptDate = clock.instant();
+        }
+        nextStepInput.addAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, firstAttemptDate);
 
         for (String partitionId : partitionIds) {
             PartitionState lastAttempt = state.getLatestPartitionStates(nextActivityName).get(partitionId);
@@ -679,25 +674,20 @@ public class DecisionTaskPoller implements Runnable {
 
             // If we get this far, we know we're scheduling a run of nextStep.
             // First let's populate the attempt-specific fields into the next step input map.
-            Map<String, String> actualInput = new TreeMap<>(nextStepInput);
             if (attemptNumber > 0L) {
-                actualInput.put(StepAttributes.RETRY_ATTEMPT, Long.toString(attemptNumber));
+                nextStepInput.addAttribute(StepAttributes.RETRY_ATTEMPT, attemptNumber);
+            } else {
+                // could be in here from a previous partition
+                nextStepInput.removeAttribute(StepAttributes.RETRY_ATTEMPT);
             }
-            if (partitionId != null) {
-                actualInput.put(StepAttributes.PARTITION_ID, StepAttributes.encode(partitionId));
-                actualInput.put(StepAttributes.PARTITION_COUNT, Long.toString(partitionIds.size()));
-            }
-            Instant firstAttemptDate = state.getStepInitialAttemptTime(nextActivityName);
-            if (firstAttemptDate == null) {
-                firstAttemptDate = clock.instant();
-            }
-            actualInput.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, StepAttributes.encode(firstAttemptDate));
 
-            // Ideally this wouldn't be encoded as a string, but for now the top-level object is explicitly a string map.
-            actualInput.put(STEP_INPUT_METADATA_VERSION_FIELD_NAME, StepAttributes.encode(CURRENT_STEP_INPUT_METADATA_VERSION));
+            if (partitionId != null) {
+                nextStepInput.addAttribute(StepAttributes.PARTITION_ID, partitionId);
+            }
 
             ScheduleActivityTaskDecisionAttributes attrs
-                    = buildScheduleActivityTaskDecisionAttrs(workflow, nextStep, actualInput, activityIdForScheduling, partitionId);
+                    = buildScheduleActivityTaskDecisionAttrs(workflow, nextStep, nextStepInput,
+                                                             activityIdForScheduling, partitionId);
 
             Decision decision = Decision.builder().decisionType(DecisionType.SCHEDULE_ACTIVITY_TASK)
                                                   .scheduleActivityTaskDecisionAttributes(attrs)
@@ -971,11 +961,11 @@ public class DecisionTaskPoller implements Runnable {
     // package-private for use in tests
     static ScheduleActivityTaskDecisionAttributes
             buildScheduleActivityTaskDecisionAttrs(Workflow workflow, WorkflowStep nextStep,
-                                                   Map<String, String> nextStepInput, String activityId, String partitionId) {
+                                                   SwfStepAttributeManager nextStepInput, String activityId, String partitionId) {
         String activityName = TaskNaming.activityName(workflow, nextStep);
         return ScheduleActivityTaskDecisionAttributes.builder()
                 .taskList(TaskList.builder().name(workflow.taskList()).build())
-                .input(StepAttributes.encode(nextStepInput))
+                .input(nextStepInput.encode())
                 .heartbeatTimeout(Long.toString(nextStep.activityTaskHeartbeatTimeout().getSeconds()))
                 .scheduleToStartTimeout("NONE")
                 .scheduleToCloseTimeout("NONE")

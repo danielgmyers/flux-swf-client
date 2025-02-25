@@ -24,6 +24,7 @@ import java.util.Set;
 
 import com.danielgmyers.flux.RemoteWorkflowExecutor;
 import com.danielgmyers.flux.WorkflowStatusChecker;
+import com.danielgmyers.flux.clients.swf.step.SwfStepAttributeManager;
 import com.danielgmyers.flux.ex.WorkflowExecutionException;
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.wf.Workflow;
@@ -81,10 +82,13 @@ public class RemoteWorkflowExecutorImpl implements RemoteWorkflowExecutor {
             actualExecutionTags.add(workflow.taskList());
         }
 
+        SwfStepAttributeManager actualInput = SwfStepAttributeManager.generateInitialStepInput();
+        actualInput.addAttributes(workflowInput);
+
         StartWorkflowExecutionRequest request
                 = FluxCapacitorImpl.buildStartWorkflowRequest(config.getWorkflowDomain(), workflowName, workflowId,
                                                               workflow.taskList(), workflow.maxStartToCloseDuration(),
-                                                              workflowInput, actualExecutionTags);
+                                                              actualInput, actualExecutionTags);
 
         log.debug("Requesting new remote workflow execution for workflow {} with id {}", workflowName, workflowId);
 

@@ -21,7 +21,7 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.danielgmyers.flux.clients.swf.step.SwfStepInputAccessor;
+import com.danielgmyers.flux.clients.swf.step.SwfStepAttributeManager;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
@@ -92,7 +92,7 @@ public class ActivityExecutor implements Runnable {
             stepMetrics.addProperty(WORKFLOW_ID_METRIC_NAME, workflowId);
             stepMetrics.addProperty(WORKFLOW_RUN_ID_METRIC_NAME, runId);
 
-            SwfStepInputAccessor stepInput = new SwfStepInputAccessor(task.input());
+            SwfStepAttributeManager stepInput = new SwfStepAttributeManager(task.input());
 
             result = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, stepInput, fluxMetrics, stepMetrics);
             if (result.getAction() == StepResult.ResultAction.RETRY) {
