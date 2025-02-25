@@ -24,13 +24,15 @@
 
     <properties>
         <skip.deploy>false</skip.deploy>
+
+        <spring.version>6.2.3</spring.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-beans</artifactId>
-            <version>5.3.23</version>
+            <version>${spring.version}</version>
         </dependency>
 
         <!-- flux internal dependencies -->
@@ -42,6 +44,24 @@
         </dependency>
 
         <!-- test dependencies -->
+        <dependency>
+            <groupId>com.danielgmyers.flux</groupId>
+            <artifactId>flux-testutils</artifactId>
+            <version>${flux.base.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <version>${spring.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
