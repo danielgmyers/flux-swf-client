@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                        http://www.springframework.org/schema/beans/spring-beans.xsd">
+    <bean id="MetricRecorderFactory" class="com.danielgmyers.metrics.recorders.NoopMetricRecorderFactory" />
+    <bean id="AwsCredentialsProvider" class="software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider" factory-method="create" />
+    <bean id="config" class="com.danielgmyers.flux.clients.swf.FluxCapacitorConfig" />
+
+    <bean id="fluxFactory" class="com.danielgmyers.flux.clients.swf.spring.FluxSpringCreator" factory-method="createWithConfig">
+        <constructor-arg ref="MetricRecorderFactory" />
+        <constructor-arg ref="AwsCredentialsProvider" />
+        <constructor-arg ref="config" />
+    </bean>
+
+    <!-- Flux won't initialize if there are no Workflow objects -->
+    <bean id="TestWorkflow" class="com.danielgmyers.flux.clients.swf.spring.TestWorkflow" />
+
+    <bean id="fluxCapacitor" class="com.danielgmyers.flux.testutil.StubFluxCapacitor" />
+    <bean id="fluxInitializer" class="com.danielgmyers.flux.clients.swf.spring.FluxSpringInitializer" />
+</beans>
