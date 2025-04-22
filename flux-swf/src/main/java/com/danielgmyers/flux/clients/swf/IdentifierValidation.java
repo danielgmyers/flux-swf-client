@@ -31,7 +31,7 @@ import com.danielgmyers.flux.wf.Workflow;
  * 3) ActivityTypes, which we generate by appending the WorkflowStep class names to their corresponding Workflow class names,
  *    separated by a period. (This way, if a step is reused across workflows, it gets a different ActivityType for each workflow.)
  *
- * When polling for work, we use the current host's hostname as part of the poller's identity, along with an Flux-specified
+ * When polling for work, we use the current host's hostname as part of the poller's identity, along with a Flux-specified
  * poller type, a small integer (between 0 and the thread pool size), and the user-specified task list being polled.
  *
  * When polling for work and when starting a new workflow execution, we give SWF a user-specified task list name.
