@@ -19,11 +19,14 @@ package com.danielgmyers.flux.clients.sfn;
 import java.time.Clock;
 
 import com.danielgmyers.flux.WorkflowStatusChecker;
+import com.danielgmyers.flux.util.ArnUtils;
 import com.danielgmyers.flux.wf.WorkflowInfo;
+import com.danielgmyers.flux.wf.WorkflowStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import software.amazon.awssdk.services.sfn.SfnClient;
+import software.amazon.awssdk.services.sfn.model.DescribeExecutionRequest;
 
 /**
  * Implements the WorkflowStatusChecker interface.
@@ -34,22 +37,30 @@ public class WorkflowStatusCheckerImpl implements WorkflowStatusChecker {
 
     private final Clock clock;
     private final SfnClient sfn;
-    private final String workflowId;
-    private final String runId;
+    private final String executionArn;
 
     /**
      * Constructs a WorkflowStatusCheckerImpl object. Package-private since it should only be created
      * by internal Flux code.
      */
-    WorkflowStatusCheckerImpl(Clock clock, SfnClient sfn, String workflowId, String runId) {
+    WorkflowStatusCheckerImpl(Clock clock, SfnClient sfn, String executionArn) {
         this.clock = clock;
         this.sfn = sfn;
-        this.workflowId = workflowId;
-        this.runId = runId;
+        this.executionArn = executionArn;
     }
 
     @Override
     public WorkflowInfo getWorkflowInfo() {
-        return null;
+        DescribeExecutionRequest request = DescribeExecutionRequest.builder()
+                .executionArn(executionArn).build();
+
+        try {
+            return new SfnWorkflowInfo(clock.instant(), sfn.describeExecution(request));
+        } catch (Exception e) {
+            log.info("Error retrieving workflow status", e);
+        }
+
+        log.info("Unable to determine workflow status for remote workflow {}", executionArn);
+        return new SfnWorkflowInfo(clock.instant(), ArnUtils.extractQualifier(executionArn), executionArn, WorkflowStatus.UNKNOWN);
     }
 }
