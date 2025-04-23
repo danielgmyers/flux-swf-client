@@ -19,9 +19,12 @@ package com.danielgmyers.flux.clients.sfn;
 import java.time.Instant;
 
 import com.danielgmyers.flux.WorkflowStatusChecker;
+import com.danielgmyers.flux.clients.sfn.util.SfnArnFormatter;
 import com.danielgmyers.flux.testutil.ManualClock;
+import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.flux.wf.WorkflowInfo;
 import com.danielgmyers.flux.wf.WorkflowStatus;
+import com.danielgmyers.flux.wf.graph.WorkflowGraph;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
 import org.junit.jupiter.api.Assertions;
@@ -35,12 +38,20 @@ import software.amazon.awssdk.services.sfn.model.ExecutionDoesNotExistException;
 import software.amazon.awssdk.services.sfn.model.ExecutionStatus;
 
 public class WorkflowStatusCheckerTest {
+    private static class TestWorkflow implements Workflow {
+        @Override
+        public WorkflowGraph getGraph() {
+            return null; // the contents of this class don't matter for these tests
+        }
+    }
 
     private ManualClock clock;
 
-    private static final String MACHINE_ARN = "arn:aws:states:us-west-2:123456789012:stateMachine:TestWorkflow";
+    private static final String REGION = "us-west-2";
+    private static final String ACCOUNT_ID = "123456789012";
+    private static final String MACHINE_ARN = SfnArnFormatter.workflowArn(REGION, ACCOUNT_ID, TestWorkflow.class);
     private static final String EXECUTION_ID = "abcdefg";
-    private static final String EXECUTION_ARN = "arn:aws:states:us-west-2:123456789012:execution:TestWorkflow:" + EXECUTION_ID;
+    private static final String EXECUTION_ARN = SfnArnFormatter.executionArn(REGION, ACCOUNT_ID, TestWorkflow.class, EXECUTION_ID);
 
     private IMocksControl mockery;
     private SfnClient sfn;

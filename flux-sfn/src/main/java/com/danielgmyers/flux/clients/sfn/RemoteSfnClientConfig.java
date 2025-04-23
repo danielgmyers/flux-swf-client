@@ -24,9 +24,11 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
  * Note that at a minimum, the AWS region must not be null.
  * If credentials is null, DefaultCredentialsProvider will be used.
  * If sfnEndpoint and clientOverrideConfiguration are null they will be ignored.
+ * If awsAccountId is null, the account ID configured for FluxCapacitor will be used.
  */
 public class RemoteSfnClientConfig {
     private String awsRegion;
+    private String awsAccountId;
     private String sfnEndpoint;
     private AwsCredentialsProvider credentials;
     private ClientOverrideConfiguration clientOverrideConfiguration;
@@ -37,6 +39,14 @@ public class RemoteSfnClientConfig {
 
     public void setAwsRegion(String awsRegion) {
         this.awsRegion = awsRegion;
+    }
+
+    public String getAwsAccountId() {
+        return awsAccountId;
+    }
+
+    public void setAwsAccountId(String awsAccountId) {
+        this.awsAccountId = awsAccountId;
     }
 
     public String getSfnEndpoint() {

@@ -29,6 +29,13 @@ public class FluxCapacitorConfigTest {
     }
 
     @Test
+    public void disallowNullAwsAccountId() {
+        FluxCapacitorConfig config = new FluxCapacitorConfig();
+        Assertions.assertThrows(IllegalArgumentException.class,
+                () -> config.setAwsAccountId(null));
+    }
+
+    @Test
     public void disallowNullExponentialBackoffBase() {
         FluxCapacitorConfig config = new FluxCapacitorConfig();
         Assertions.assertThrows(IllegalArgumentException.class,

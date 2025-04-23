@@ -26,6 +26,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 public class FluxCapacitorConfig {
 
     private String awsRegion;
+    private String awsAccountId;
     private Double exponentialBackoffBase;
     private Function<String, String> hostnameTransformerForPollerIdentity = (hostname) -> hostname;
     private String sfnEndpoint;
@@ -46,6 +47,24 @@ public class FluxCapacitorConfig {
             throw new IllegalArgumentException("awsRegion may not be null.");
         }
         this.awsRegion = awsRegion;
+    }
+
+    public String getAwsAccountId() {
+        return awsAccountId;
+    }
+
+    /**
+     * Configures the AWS Account ID that flux should use when constructing resource identifiers for
+     * Step Functions resources. This is _assumed_ to be the account matching the credentials
+     * provided to Flux for making Step Functions API calls.
+     *
+     * This value is required.
+     */
+    public void setAwsAccountId(String awsAccountId) {
+        if (awsAccountId == null) {
+            throw new IllegalArgumentException("awsAccountId may not be null.");
+        }
+        this.awsAccountId = awsAccountId;
     }
 
     public Double getExponentialBackoffBase() {
