@@ -89,8 +89,8 @@ public class ActivityTaskPoller implements Runnable {
         this.metricsFactory = metricsFactory;
         this.sfn = sfnClient;
 
-        if (identity == null || identity.isEmpty() || identity.length() > 256) {
-            throw new IllegalArgumentException("Invalid identity for task poller, must be 1-256 characters: " + identity);
+        if (identity == null || identity.isEmpty() || identity.length() > 80) {
+            throw new IllegalArgumentException("Invalid identity for task poller, must be 1-80 characters: " + identity);
         }
         this.identity = identity;
 

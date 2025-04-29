@@ -16,6 +16,8 @@
 
 package com.danielgmyers.flux.clients.sfn;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
@@ -31,6 +33,7 @@ public class FluxCapacitorConfig {
     private Function<String, String> hostnameTransformerForPollerIdentity = (hostname) -> hostname;
     private String sfnEndpoint;
     private ClientOverrideConfiguration clientOverrideConfiguration;
+    private final Map<String, TaskListConfig> taskListConfigs = new HashMap<>();
     private Function<String, RemoteSfnClientConfig> remoteSfnClientConfigProvider;
 
     public String getAwsRegion() {
@@ -134,6 +137,26 @@ public class FluxCapacitorConfig {
      */
     public void setClientOverrideConfiguration(ClientOverrideConfiguration clientOverrideConfiguration) {
         this.clientOverrideConfiguration = clientOverrideConfiguration;
+    }
+
+    /**
+     * Stores the provided task list configuration for the specified task list name.
+     *
+     * Task lists that are not explicitly configured will get the default task list configuration;
+     * see TaskListConfig for more information on the default values.
+     */
+    public void putTaskListConfig(String taskListName, TaskListConfig config) {
+        if (taskListName == null) {
+            throw new IllegalArgumentException("taskListName may not be null.");
+        }
+        if (config == null) {
+            throw new IllegalArgumentException("config may not be null.");
+        }
+        this.taskListConfigs.put(taskListName, config);
+    }
+
+    public TaskListConfig getTaskListConfig(String taskList) {
+        return taskListConfigs.computeIfAbsent(taskList, name -> new TaskListConfig());
     }
 
     /**
