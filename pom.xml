@@ -75,8 +75,8 @@
         <mavenplugin.surefire.version>2.22.2</mavenplugin.surefire.version>
         <mavenplugin.source.version>3.2.1</mavenplugin.source.version>
         <mavenplugin.javadoc.version>3.4.1</mavenplugin.javadoc.version>
-        <mavenplugin.gpg.version>3.0.1</mavenplugin.gpg.version>
-        <mavenplugin.nexusstaging.version>1.6.13</mavenplugin.nexusstaging.version>
+        <mavenplugin.gpg.version>3.2.7</mavenplugin.gpg.version>
+        <mavenplugin.centralpublishing.version>0.7.0</mavenplugin.centralpublishing.version>
 
         <checkstyle.version>10.3.4</checkstyle.version>
 
@@ -191,7 +191,7 @@
             <id>release</id>
             <properties>
                 <!-- Used here to allow overriding from the command line -->
-                <publishing.autoReleaseAfterClose>false</publishing.autoReleaseAfterClose>
+                <publishing.publishAfterStaging>false</publishing.publishAfterStaging>
             </properties>
             <build>
                 <plugins>
@@ -241,25 +241,23 @@
                         </executions>
                         <configuration>
                             <skip>${skip.deploy}</skip>
-                            <keyname>${env.GPG_KEY_ID}</keyname>
-                            <passphrase>${env.GPG_PASSPHRASE}</passphrase>
-                            <gpgArguments>
-                                <arg>--batch</arg>
-                                <arg>--pinentry</arg>
-                                <arg>loopback</arg>
-                            </gpgArguments>
+                            <signer>bc</signer>
+                            <keyFingerprintEnvName>GPG_KEY_ID</keyFingerprintEnvName>
+                            <keyEnvName>GPG_PRIVATE_KEY</keyEnvName>
+                            <passphraseEnvName>GPG_PASSPHRASE</passphraseEnvName>
+                            <useAgent>false</useAgent>
+                            <bestPractices>true</bestPractices>
                         </configuration>
                     </plugin>
                     <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>${mavenplugin.nexusstaging.version}</version>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${mavenplugin.centralpublishing.version}</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <serverId>sonatype-nexus-staging</serverId>
-                            <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-                            <autoReleaseAfterClose>${publishing.autoReleaseAfterClose}</autoReleaseAfterClose>
-                            <skipNexusStagingDeployMojo>${skip.deploy}</skipNexusStagingDeployMojo>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>${publishing.publishAfterStaging}</autoPublish>
+                            <skipPublishing>${skip.deploy}</skipPublishing>
                         </configuration>
                     </plugin>
                 </plugins>
