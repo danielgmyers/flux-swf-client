@@ -14,11 +14,9 @@ phases:
   pre_build:
     commands:
       - mkdir -p ~/.m2/
-      - echo "<settings><servers><server><id>sonatype-nexus-staging</id>" > ~/.m2/settings.xml
+      - echo "<settings><servers><server><id>central</id>" > ~/.m2/settings.xml
       - echo "<username>${MAVEN_CENTRAL_USERNAME}</username><password>${MAVEN_CENTRAL_PASSWORD}</password>" >> ~/.m2/settings.xml
       - echo "</server></servers></settings>" >> ~/.m2/settings.xml
-      - echo "$GPG_PRIVATE_KEY" > flux-signing-key-private.gpg
-      - gpg --import --passphrase $GPG_PASSPHRASE --batch flux-signing-key-private.gpg
   build:
     commands:
-      - mvn -Dpublishing.autoReleaseAfterClose=true deploy -P release
+      - mvn -Dpublishing.publishAfterStaging=true deploy -P release
