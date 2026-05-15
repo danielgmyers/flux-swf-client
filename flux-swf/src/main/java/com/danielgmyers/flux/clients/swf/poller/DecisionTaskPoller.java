@@ -475,7 +475,7 @@ public class DecisionTaskPoller implements Runnable {
             // response, which may reduce the number of partitions we could schedule.
             PartitionIdGeneratorResult result
                     = WorkflowStepUtil.getPartitionIdsForPartitionedStep((PartitionedWorkflowStep)nextStep, nextStepInput,
-                                                                         workflowName, workflowId, metricsFactory);
+                                                                         workflowName, workflowId, metricsFactory, workflow);
             PartitionMetadata metadata = PartitionMetadata.fromPartitionIdGeneratorResult(result);
 
             for (String partitionId : metadata.getPartitionIds()) {
