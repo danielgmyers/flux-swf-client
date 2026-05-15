@@ -407,7 +407,7 @@ public class WorkflowHistoryBuilder {
                     }
                 };
 
-                PartitionIdGeneratorResult result = WorkflowStepUtil.getPartitionIdsForPartitionedStep(partitionedStep, stepInput, workflowName, WORKFLOW_ID, new NoopMetricRecorderFactory());
+                PartitionIdGeneratorResult result = WorkflowStepUtil.getPartitionIdsForPartitionedStep(partitionedStep, stepInput, workflowName, WORKFLOW_ID, new NoopMetricRecorderFactory(), workflow);
                 if (result.getPartitionIds().isEmpty() || result.getPartitionIds().contains(null)) {
                     throw new IllegalArgumentException();
                 }

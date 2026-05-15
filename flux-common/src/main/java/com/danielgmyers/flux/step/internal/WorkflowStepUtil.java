@@ -35,7 +35,9 @@ import com.danielgmyers.flux.step.PartitionedWorkflowStep;
 import com.danielgmyers.flux.step.StepHook;
 import com.danielgmyers.flux.step.StepInputAccessor;
 import com.danielgmyers.flux.step.StepResult;
+import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.step.WorkflowStepHook;
+import com.danielgmyers.flux.wf.Workflow;
 import com.danielgmyers.metrics.MetricRecorder;
 import com.danielgmyers.metrics.MetricRecorderFactory;
 import org.slf4j.Logger;
@@ -104,7 +106,8 @@ public final class WorkflowStepUtil {
     public static PartitionIdGeneratorResult getPartitionIdsForPartitionedStep(PartitionedWorkflowStep step,
                                                                                StepInputAccessor stepInput,
                                                                                String workflowName, String workflowId,
-                                                                               MetricRecorderFactory metricsFactory) {
+                                                                               MetricRecorderFactory metricsFactory,
+                                                                               Workflow workflow) {
         String activityName = TaskNaming.activityName(workflowName, step);
         Method partitionIdMethod = WorkflowStepUtil.getUniqueAnnotatedMethod(step.getClass(), PartitionIdGenerator.class);
         try (MetricRecorder stepMetrics = metricsFactory.newMetricRecorder(activityName + "." + partitionIdMethod.getName())) {
@@ -114,7 +117,7 @@ public final class WorkflowStepUtil {
                                                          step.getClass().getSimpleName(), partitionIdMethod.getName()));
             }
 
-            Object[] arguments = WorkflowStepUtil.generateArguments(step.getClass(), partitionIdMethod, stepMetrics,
+            Object[] arguments = WorkflowStepUtil.generateArguments(step.getClass(), workflow, step, partitionIdMethod, stepMetrics,
                                                                     stepInput, Collections.emptyMap());
             return (PartitionIdGeneratorResult)(partitionIdMethod.invoke(step, arguments));
         } catch (IllegalAccessException | InvocationTargetException e) {
@@ -132,13 +135,20 @@ public final class WorkflowStepUtil {
      *
      * Attributes from additionalInputs take precedence over attributes from stepInput if present in both.
      */
-    public static Object[] generateArguments(Class<?> clazz, Method method, MetricRecorder metrics,
+    public static Object[] generateArguments(Class<?> clazz, Workflow workflow, WorkflowStep step,
+                                             Method method, MetricRecorder metrics,
                                              StepInputAccessor stepInput, Map<String, Object> additionalInputs) {
         Object[] args = new Object[method.getParameterCount()];
 
+        boolean isStepHook = WorkflowStepHook.class.isAssignableFrom(clazz);
+
         int arg = 0;
         for (Parameter param : method.getParameters()) {
-            if (param.getType().isAssignableFrom(MetricRecorder.class)) {
+            if (isStepHook && param.getType().equals(Workflow.class)) {
+                args[arg] = workflow;
+            } else if (isStepHook && param.getType().equals(WorkflowStep.class)) {
+                args[arg] = step;
+            } else if (param.getType().isAssignableFrom(MetricRecorder.class)) {
                 args[arg] = metrics;
             } else {
                 Attribute attr = param.getAnnotation(Attribute.class);
@@ -173,7 +183,8 @@ public final class WorkflowStepUtil {
      */
     public static StepResult executeHooks(List<WorkflowStepHook> hooks, StepInputAccessor stepInput,
                                           Map<String, Object> specialHookInputs, StepHook.HookType hookType,
-                                          String activityName, MetricRecorder fluxMetrics, MetricRecorder hookMetrics) {
+                                          String activityName, MetricRecorder fluxMetrics, MetricRecorder hookMetrics,
+                                          Workflow workflow, WorkflowStep step) {
         for (WorkflowStepHook hook : hooks) {
             Map<Method, StepHook> methods = WorkflowStepUtil.getAllMethodsWithAnnotation(hook.getClass(), StepHook.class);
             for (Map.Entry<Method, StepHook> method : methods.entrySet()) {
@@ -185,6 +196,8 @@ public final class WorkflowStepUtil {
                 fluxMetrics.startDuration(hookExecutionTimeMetricName);
                 try {
                     Object result = method.getKey().invoke(hook, WorkflowStepUtil.generateArguments(hook.getClass(),
+                                                                                                    workflow,
+                                                                                                    step,
                                                                                                     method.getKey(),
                                                                                                     hookMetrics,
                                                                                                     stepInput,

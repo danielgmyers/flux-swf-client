@@ -79,7 +79,7 @@ public class ActivityExecutionUtilTest {
         StepResult expectedResult = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
 
         String activityName = TaskNaming.activityName(workflow, step);
-        StepResult actualResult = ActivityExecutionUtil.executeActivity(step, activityName, fluxMetrics, stepMetrics, emptyInput);
+        StepResult actualResult = ActivityExecutionUtil.executeActivity(step, activityName, fluxMetrics, stepMetrics, emptyInput, workflow);
         Assertions.assertTrue(step.didThing());
 
         // fluxMetrics needs to be closed by the caller to executeActivity.
@@ -103,7 +103,7 @@ public class ActivityExecutionUtilTest {
         step.setStepResult(expectedResult);
 
         String activityName = TaskNaming.activityName(workflow, step);
-        StepResult actualResult = ActivityExecutionUtil.executeActivity(step, activityName, fluxMetrics, stepMetrics, emptyInput);
+        StepResult actualResult = ActivityExecutionUtil.executeActivity(step, activityName, fluxMetrics, stepMetrics, emptyInput, workflow);
         Assertions.assertTrue(step.didThing()); // true because the step did a thing before specifically deciding to return retry
 
         // fluxMetrics needs to be closed by the caller to executeActivity.
@@ -129,7 +129,7 @@ public class ActivityExecutionUtilTest {
         StepResult expectedResult = StepResult.retry(e);
 
         String activityName = TaskNaming.activityName(workflow, step);
-        StepResult actualResult = ActivityExecutionUtil.executeActivity(step, activityName, fluxMetrics, stepMetrics, emptyInput);
+        StepResult actualResult = ActivityExecutionUtil.executeActivity(step, activityName, fluxMetrics, stepMetrics, emptyInput, workflow);
         Assertions.assertFalse(step.didThing()); // false because the step threw an exception in the middle of doing the thing
 
         // fluxMetrics needs to be closed by the caller to executeActivity.
@@ -176,7 +176,7 @@ public class ActivityExecutionUtilTest {
         };
 
         String activityName = TaskNaming.activityName(workflow, stepWithSeveralInputs);
-        StepResult actualResult = ActivityExecutionUtil.executeActivity(stepWithSeveralInputs, activityName, fluxMetrics, stepMetrics, inputAccessor);
+        StepResult actualResult = ActivityExecutionUtil.executeActivity(stepWithSeveralInputs, activityName, fluxMetrics, stepMetrics, inputAccessor, workflow);
 
         // The stub step has a return type of void, so it should always just be a plain success result.
         Assertions.assertEquals(StepResult.success(), actualResult);
@@ -213,7 +213,7 @@ public class ActivityExecutionUtilTest {
         Workflow workflow = new TestWorkflow(graph.build());
 
         String activityName = TaskNaming.activityName(workflow, stepWithMetrics);
-        StepResult actualResult = ActivityExecutionUtil.executeActivity(stepWithMetrics, activityName, fluxMetrics, stepMetrics, emptyInput);
+        StepResult actualResult = ActivityExecutionUtil.executeActivity(stepWithMetrics, activityName, fluxMetrics, stepMetrics, emptyInput, workflow);
 
         // The stub step has a return type of void, so it should always just be a plain success result.
         Assertions.assertEquals(StepResult.success(), actualResult);
@@ -311,6 +311,23 @@ public class ActivityExecutionUtilTest {
 
         Assertions.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(TaskNaming.activityName(workflow, step),
                 expectedResult.getResultCode())).intValue());
+    }
+
+    @Test
+    public void testStepHooksIntrospectObjects() {
+        WorkflowStepHook hook = new TestHookWithIntrospection(TestWorkflow.class, DummyStep.class);
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(step);
+        builder.alwaysClose(step);
+        builder.addStepHook(step, hook);
+
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        Map<String, Object> output = Collections.emptyMap();
+        StepResult expectedResult = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
+        step.setStepResult(expectedResult);
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+        Assertions.assertTrue(step.didThing());
     }
 
     @Test
@@ -693,6 +710,34 @@ public class ActivityExecutionUtilTest {
             metrics.addCount(POST_HOOK_METRIC_NAME, 1.0);
         }
 
+    }
+
+    public static class TestHookWithIntrospection implements WorkflowStepHook {
+        private final Class<? extends Workflow> expectedWorkflowClass;
+        private final Class<? extends WorkflowStep> expectedStepClass;
+
+        TestHookWithIntrospection(Class<? extends Workflow> expectedWorkflowClass, Class<? extends WorkflowStep> expectedStepClass) {
+            this.expectedWorkflowClass = expectedWorkflowClass;
+            this.expectedStepClass = expectedStepClass;
+        }
+
+        @StepHook(hookType = StepHook.HookType.PRE)
+        public void preStepHook(Workflow workflow, WorkflowStep step) {
+            Assertions.assertNotNull(workflow);
+            Assertions.assertNotNull(step);
+
+            Assertions.assertInstanceOf(expectedWorkflowClass, workflow);
+            Assertions.assertInstanceOf(expectedStepClass, step);
+        }
+
+        @StepHook(hookType = StepHook.HookType.POST)
+        public void postStepHook(Workflow workflow, WorkflowStep step) {
+            Assertions.assertNotNull(workflow);
+            Assertions.assertNotNull(step);
+
+            Assertions.assertInstanceOf(expectedWorkflowClass, workflow);
+            Assertions.assertInstanceOf(expectedStepClass, step);
+        }
     }
 
     public static class TestPreHookThrowsExceptionNoRetryOnFailure implements WorkflowStepHook {

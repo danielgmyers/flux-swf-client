@@ -90,9 +90,10 @@ public final class StepValidator {
             }
         };
 
+        // It is alright to pass null as the workflow here as this method doesn't invoke step hooks
         StepResult actual = ActivityExecutionUtil.executeActivity(step, step.getClass().getSimpleName(),
                                                                   METRICS_FACTORY.newMetricRecorder(""), stepMetrics,
-                                                                  stepInput);
+                                                                  stepInput, null);
         if (actual.getAction() != expectedResult) {
             throw new RuntimeException(String.format("Expected result action %s but was %s: %s",
                                                      expectedResult, actual.getAction(), actual.getMessage()),

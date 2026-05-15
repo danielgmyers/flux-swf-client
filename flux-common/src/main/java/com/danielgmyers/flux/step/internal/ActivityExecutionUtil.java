@@ -41,12 +41,13 @@ public final class ActivityExecutionUtil {
      * @return The result of the step execution.
      */
     public static StepResult executeActivity(WorkflowStep step, String activityName, MetricRecorder fluxMetrics,
-                                             MetricRecorder stepMetrics, StepInputAccessor input) {
+                                             MetricRecorder stepMetrics, StepInputAccessor input, Workflow workflow) {
         StepResult result;
         String retryExceptionCauseName = null;
         try {
             Method applyMethod = WorkflowStepUtil.getUniqueAnnotatedMethod(step.getClass(), StepApply.class);
-            Object returnObject = applyMethod.invoke(step, WorkflowStepUtil.generateArguments(step.getClass(), applyMethod,
+            Object returnObject = applyMethod.invoke(step, WorkflowStepUtil.generateArguments(step.getClass(), workflow,
+                                                                                              step, applyMethod,
                                                                                               stepMetrics, input,
                                                                                               Collections.emptyMap()));
             // if apply didn't throw an exception, then we can assume success.
@@ -95,11 +96,11 @@ public final class ActivityExecutionUtil {
             StepResult result = null;
             if (hooks != null && step.getClass() != PostWorkflowHookAnchor.class) {
                 result = WorkflowStepUtil.executeHooks(hooks, stepInput, hookInput, StepHook.HookType.PRE, activityName,
-                        fluxMetrics, stepMetrics);
+                        fluxMetrics, stepMetrics, workflow, step);
             }
 
             if (result == null) {
-                result = executeActivity(step, activityName, fluxMetrics, stepMetrics, stepInput);
+                result = executeActivity(step, activityName, fluxMetrics, stepMetrics, stepInput, workflow);
 
                 hookInput.putAll(result.getAttributes());
 
@@ -113,7 +114,7 @@ public final class ActivityExecutionUtil {
 
                 if (hooks != null && step.getClass() != PreWorkflowHookAnchor.class) {
                     StepResult hookResult = WorkflowStepUtil.executeHooks(hooks, stepInput, hookInput, StepHook.HookType.POST,
-                            activityName, fluxMetrics, stepMetrics);
+                            activityName, fluxMetrics, stepMetrics, workflow, step);
                     if (hookResult != null) {
                         log.info("Activity {} returned result {} ({}) but a post-step hook requires a retry ({}).",
                                 activityName, result.getResultCode(), result.getMessage(),
