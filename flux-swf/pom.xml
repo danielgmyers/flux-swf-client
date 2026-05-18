@@ -67,13 +67,13 @@
         <dependency>
             <artifactId>flux-common</artifactId>
             <groupId>com.danielgmyers.flux</groupId>
-            <version>${flux.base.version}</version>
+            <version>${flux.swf.depver.flux-common}</version>
             <optional>false</optional>
         </dependency>
         <dependency>
             <artifactId>flux-common-aws</artifactId>
             <groupId>com.danielgmyers.flux</groupId>
-            <version>${flux.awscommon.version}</version>
+            <version>${flux.swf.depver.flux-awscommon}</version>
             <optional>false</optional>
         </dependency>
 
@@ -105,7 +105,7 @@
         <dependency>
             <artifactId>flux-testutils</artifactId>
             <groupId>com.danielgmyers.flux</groupId>
-            <version>${flux.base.version}</version>
+            <version>${flux.swf.depver.flux-testutils}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
