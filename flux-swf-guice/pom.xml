@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.danielgmyers.flux.clients.swf</groupId>
     <artifactId>flux-swf-guice</artifactId>
-    <version>${flux.swf.version}</version>
+    <version>${flux.swf-guice.version}</version>
     <name>Flux SWF Client Guice Helper</name>
     <description>Flux SWF Client Guice Helper makes Flux initialization easier when using Guice.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>
@@ -42,7 +42,7 @@
         <dependency>
             <artifactId>flux-swf</artifactId>
             <groupId>com.danielgmyers.flux.clients.swf</groupId>
-            <version>${flux.swf.version}</version>
+            <version>${flux.swf-guice.depver.flux-swf}</version>
             <optional>false</optional>
         </dependency>
 

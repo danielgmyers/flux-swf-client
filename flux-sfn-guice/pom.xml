@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.danielgmyers.flux.clients.sfn</groupId>
     <artifactId>flux-sfn-guice</artifactId>
-    <version>${flux.sfn.version}</version>
+    <version>${flux.sfn-guice.version}</version>
     <name>Flux Step Functions Client Guice Helper</name>
     <description>Flux Step Functions Client Guice Helper makes Flux initialization easier when using Guice.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>
@@ -43,7 +43,7 @@
         <dependency>
             <artifactId>flux-sfn</artifactId>
             <groupId>com.danielgmyers.flux.clients.sfn</groupId>
-            <version>${flux.sfn.version}</version>
+            <version>${flux.sfn-guice.depver.flux-sfn}</version>
             <optional>false</optional>
         </dependency>
 

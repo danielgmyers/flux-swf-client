@@ -56,7 +56,7 @@
         <dependency>
             <groupId>com.danielgmyers.flux</groupId>
             <artifactId>flux-common</artifactId>
-            <version>${flux.base.version}</version>
+            <version>${flux.awscommon.depver.flux-common}</version>
         </dependency>
 
         <!-- test dependencies -->

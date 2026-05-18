@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.danielgmyers.flux</groupId>
     <artifactId>flux-common</artifactId>
-    <version>${flux.base.version}</version>
+    <version>${flux.common.version}</version>
     <name>Flux Workflow Client Common</name>
     <description>Flux is a workflow client library to simplify writing asynchronous workflows.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>

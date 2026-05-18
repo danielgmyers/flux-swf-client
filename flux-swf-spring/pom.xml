@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.danielgmyers.flux.clients.swf</groupId>
     <artifactId>flux-swf-spring</artifactId>
-    <version>${flux.swf.version}</version>
+    <version>${flux.swf-spring.version}</version>
     <name>Flux SWF Client Spring Helper</name>
     <description>Flux SWF Client Spring Helper makes Flux initialization easier when using Spring.</description>
     <url>https://github.com/danielgmyers/flux-swf-client</url>
@@ -39,7 +39,7 @@
         <dependency>
             <artifactId>flux-swf</artifactId>
             <groupId>com.danielgmyers.flux.clients.swf</groupId>
-            <version>${flux.swf.version}</version>
+            <version>${flux.swf-spring.depver.flux-swf}</version>
             <optional>false</optional>
         </dependency>
 
@@ -47,7 +47,7 @@
         <dependency>
             <groupId>com.danielgmyers.flux</groupId>
             <artifactId>flux-testutils</artifactId>
-            <version>${flux.base.version}</version>
+            <version>${flux.swf-spring.depver.flux-testutils}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
