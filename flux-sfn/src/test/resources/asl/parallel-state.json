@@ -1,0 +1,49 @@
+{
+  "Type": "Parallel",
+  "Comment": "Look up customer info in parallel",
+  "InputPath": "$.customer",
+  "ResultPath": "$.lookupResults",
+  "Parameters": {
+    "customerId.$": "$.id"
+  },
+  "ResultSelector": {
+    "combined.$": "$"
+  },
+  "OutputPath": "$.lookupResults",
+  "Branches": [
+    {
+      "StartAt": "LookupAddress",
+      "States": {
+        "LookupAddress": {
+          "Type": "Task",
+          "Resource": "arn:aws:lambda:us-east-1:123456789012:function:AddressFinder",
+          "End": true
+        }
+      }
+    },
+    {
+      "StartAt": "LookupPhone",
+      "States": {
+        "LookupPhone": {
+          "Type": "Task",
+          "Resource": "arn:aws:lambda:us-east-1:123456789012:function:PhoneFinder",
+          "End": true
+        }
+      }
+    }
+  ],
+  "Retry": [
+    {
+      "ErrorEquals": ["States.ALL"],
+      "IntervalSeconds": 1,
+      "MaxAttempts": 3
+    }
+  ],
+  "Catch": [
+    {
+      "ErrorEquals": ["States.ALL"],
+      "Next": "HandleError"
+    }
+  ],
+  "Next": "FormatResults"
+}

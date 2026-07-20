@@ -1,0 +1,6 @@
+{
+  "Type": "Fail",
+  "Comment": "Dynamic error info",
+  "ErrorPath": "$.errorCode",
+  "CausePath": "$.errorMessage"
+}

@@ -1,0 +1,6 @@
+{
+  "Type": "Succeed",
+  "Comment": "Workflow completed successfully",
+  "InputPath": "$.final",
+  "OutputPath": "$.summary"
+}

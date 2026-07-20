@@ -1,0 +1,48 @@
+{
+  "Type": "Map",
+  "Comment": "Validate all shipped items",
+  "InputPath": "$.detail",
+  "ItemsPath": "$.shipped",
+  "MaxConcurrency": 10,
+  "ToleratedFailurePercentage": 5,
+  "ToleratedFailureCount": 3,
+  "ItemSelector": {
+    "parcel.$": "$$.Map.Item.Value",
+    "courier.$": "$.delivery-partner"
+  },
+  "ItemProcessor": {
+    "StartAt": "Validate",
+    "ProcessorConfig": {
+      "Mode": "DISTRIBUTED",
+      "ExecutionType": "STANDARD"
+    },
+    "States": {
+      "Validate": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:us-east-1:123456789012:function:ship-val",
+        "End": true
+      }
+    }
+  },
+  "ResultPath": "$.detail.shipped",
+  "ResultSelector": {
+    "validated.$": "$"
+  },
+  "OutputPath": "$.detail",
+  "Retry": [
+    {
+      "ErrorEquals": ["States.TaskFailed"],
+      "IntervalSeconds": 2,
+      "MaxAttempts": 3,
+      "BackoffRate": 2.0
+    }
+  ],
+  "Catch": [
+    {
+      "ErrorEquals": ["States.ALL"],
+      "ResultPath": "$.mapError",
+      "Next": "HandleMapError"
+    }
+  ],
+  "Next": "Summarize"
+}

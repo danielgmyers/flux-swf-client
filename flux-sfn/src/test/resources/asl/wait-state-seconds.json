@@ -1,0 +1,6 @@
+{
+  "Type": "Wait",
+  "Comment": "Wait for expiry",
+  "Seconds": 10,
+  "Next": "NextState"
+}

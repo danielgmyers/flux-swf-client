@@ -1,0 +1,70 @@
+{
+  "Type": "Choice",
+  "Comment": "Route based on type and value",
+  "InputPath": "$.request",
+  "OutputPath": "$.response",
+  "Choices": [
+    {
+      "Not": {
+        "Variable": "$.type",
+        "StringEquals": "Private"
+      },
+      "Next": "Public"
+    },
+    {
+      "And": [
+        {
+          "Variable": "$.value",
+          "IsPresent": true
+        },
+        {
+          "Variable": "$.value",
+          "IsNumeric": true
+        },
+        {
+          "Variable": "$.value",
+          "NumericGreaterThanEquals": 20
+        },
+        {
+          "Variable": "$.value",
+          "NumericLessThan": 30
+        }
+      ],
+      "Next": "ValueInTwenties"
+    },
+    {
+      "Variable": "$.rating",
+      "NumericGreaterThanPath": "$.auditThreshold",
+      "Next": "StartAudit"
+    },
+    {
+      "Or": [
+        {
+          "Variable": "$.status",
+          "StringEquals": "ACTIVE"
+        },
+        {
+          "Variable": "$.status",
+          "StringEquals": "PENDING"
+        }
+      ],
+      "Next": "ProcessActive"
+    },
+    {
+      "Variable": "$.timestamp",
+      "TimestampGreaterThan": "2024-01-01T00:00:00Z",
+      "Next": "RecentEvent"
+    },
+    {
+      "Variable": "$.enabled",
+      "BooleanEquals": true,
+      "Next": "EnabledPath"
+    },
+    {
+      "Variable": "$.name",
+      "StringMatches": "prod-*",
+      "Next": "ProductionPath"
+    }
+  ],
+  "Default": "DefaultState"
+}

@@ -1,0 +1,18 @@
+{
+  "Comment": "A simple Hello World workflow",
+  "StartAt": "HelloWorld",
+  "Version": "1.0",
+  "TimeoutSeconds": 3600,
+  "States": {
+    "HelloWorld": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:123456789012:function:HelloWorld",
+      "Next": "Goodbye"
+    },
+    "Goodbye": {
+      "Type": "Pass",
+      "Result": "Done!",
+      "End": true
+    }
+  }
+}

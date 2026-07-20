@@ -1,0 +1,46 @@
+{
+  "Type": "Task",
+  "Comment": "Task State example",
+  "Resource": "arn:aws:states:us-east-1:123456789012:activity:HelloWorld",
+  "InputPath": "$.input",
+  "OutputPath": "$.output",
+  "ResultPath": "$.taskResult",
+  "TimeoutSeconds": 300,
+  "HeartbeatSeconds": 60,
+  "Parameters": {
+    "payload.$": "$.data",
+    "staticValue": "hello"
+  },
+  "ResultSelector": {
+    "status.$": "$.statusCode"
+  },
+  "Credentials": {
+    "RoleArn": "arn:aws:iam::123456789012:role/MyRole"
+  },
+  "Retry": [
+    {
+      "ErrorEquals": ["States.Timeout"],
+      "IntervalSeconds": 3,
+      "MaxAttempts": 2,
+      "BackoffRate": 2.0,
+      "MaxDelaySeconds": 10,
+      "JitterStrategy": "FULL"
+    },
+    {
+      "ErrorEquals": ["States.ALL"],
+      "MaxAttempts": 5
+    }
+  ],
+  "Catch": [
+    {
+      "ErrorEquals": ["java.lang.Exception"],
+      "ResultPath": "$.error-info",
+      "Next": "RecoveryState"
+    },
+    {
+      "ErrorEquals": ["States.ALL"],
+      "Next": "FailState"
+    }
+  ],
+  "Next": "NextState"
+}

@@ -1,0 +1,6 @@
+{
+  "Type": "Fail",
+  "Comment": "Something went wrong",
+  "Error": "CustomError",
+  "Cause": "The operation failed due to invalid input"
+}

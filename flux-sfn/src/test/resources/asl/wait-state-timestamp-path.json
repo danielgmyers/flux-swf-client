@@ -1,0 +1,6 @@
+{
+  "Type": "Wait",
+  "Comment": "Wait until timestamp from input",
+  "TimestampPath": "$.expirydate",
+  "Next": "NextState"
+}
