@@ -61,7 +61,7 @@ public class IdentifierValidationTest {
         doCommonTests(IdentifierValidation::validatePartitionId, IdentifierValidation.MAX_PARTITION_ID_LENGTH, true);
     }
 
-    public static class TestWorkflowWithValidClassName implements Workflow {
+    public static class ValidWorkflowName implements Workflow {
         // implementation doesn't need to be valid for this test
         @Override
         public WorkflowGraph getGraph() {
@@ -69,7 +69,7 @@ public class IdentifierValidationTest {
         }
     }
 
-    public static class TestWorkflowWithLongestAllowedClassName implements Workflow {
+    public static class TestWorkflowWithLongestAllowedName implements Workflow {
         // implementation doesn't need to be valid for this test
         @Override
         public WorkflowGraph getGraph() {
@@ -88,20 +88,20 @@ public class IdentifierValidationTest {
     @Test
     public void testWorkflowClassName() {
         // these two checks just ensure the test will break if the max name length constant or the class names get changed.
-        Assertions.assertEquals(IdentifierValidation.MAX_WORKFLOW_CLASS_NAME_LENGTH, TestWorkflowWithLongestAllowedClassName.class.getSimpleName().length());
+        Assertions.assertEquals(IdentifierValidation.MAX_WORKFLOW_CLASS_NAME_LENGTH, TestWorkflowWithLongestAllowedName.class.getSimpleName().length());
         Assertions.assertTrue(IdentifierValidation.MAX_WORKFLOW_CLASS_NAME_LENGTH < TestWorkflowWithOverlyLongClassNameThisClassNameIsMuchTooLongAndShouldNeverBeAllowedByTheValidationLogicEvenIfAskedExtremelyNicely.class.getSimpleName().length());
 
-        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateWorkflowName(TestWorkflowWithValidClassName.class));
-        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateWorkflowName(TestWorkflowWithLongestAllowedClassName.class));
+        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateWorkflowName(ValidWorkflowName.class));
+        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateWorkflowName(TestWorkflowWithLongestAllowedName.class));
         Assertions.assertThrows(IllegalArgumentException.class,
                                 () -> IdentifierValidation.validateWorkflowName(TestWorkflowWithOverlyLongClassNameThisClassNameIsMuchTooLongAndShouldNeverBeAllowedByTheValidationLogicEvenIfAskedExtremelyNicely.class));
     }
 
-    public static class TestWorkflowStepWithValidClassName implements WorkflowStep {
+    public static class ValidWorkflowStepName implements WorkflowStep {
         // implementation doesn't need to be valid for this test
     }
 
-    public static class WorkflowStepWithLongestAllowedClassName implements WorkflowStep {
+    public static class WorkflowStepWithLongestAllowedName implements WorkflowStep {
         // implementation doesn't need to be valid for this test
     }
 
@@ -112,11 +112,11 @@ public class IdentifierValidationTest {
     @Test
     public void testWorkflowStepClassName() {
         // these two checks just ensure the test will break if the max name length constant or the class names get changed.
-        Assertions.assertEquals(IdentifierValidation.MAX_WORKFLOW_STEP_CLASS_NAME_LENGTH, WorkflowStepWithLongestAllowedClassName.class.getSimpleName().length());
+        Assertions.assertEquals(IdentifierValidation.MAX_WORKFLOW_STEP_CLASS_NAME_LENGTH, WorkflowStepWithLongestAllowedName.class.getSimpleName().length());
         Assertions.assertTrue(IdentifierValidation.MAX_WORKFLOW_STEP_CLASS_NAME_LENGTH < TestWorkflowStepWithOverlyLongClassNameThisClassNameIsMuchTooLongAndShouldNeverBeAllowedByTheValidationLogicEvenIfAskedExtremelyNicely.class.getSimpleName().length());
 
-        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateStepName(TestWorkflowStepWithValidClassName.class));
-        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateStepName(WorkflowStepWithLongestAllowedClassName.class));
+        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateStepName(ValidWorkflowStepName.class));
+        Assertions.assertDoesNotThrow(() -> IdentifierValidation.validateStepName(WorkflowStepWithLongestAllowedName.class));
         Assertions.assertThrows(IllegalArgumentException.class,
                                 () -> IdentifierValidation.validateStepName(TestWorkflowStepWithOverlyLongClassNameThisClassNameIsMuchTooLongAndShouldNeverBeAllowedByTheValidationLogicEvenIfAskedExtremelyNicely.class));
     }

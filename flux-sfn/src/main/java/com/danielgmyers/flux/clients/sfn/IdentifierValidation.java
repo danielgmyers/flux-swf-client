@@ -34,8 +34,11 @@ import com.danielgmyers.flux.wf.Workflow;
  * as part of their name, so we need to limit workflow names by how long they can be when part of activity names.
  *
  * Activity names are limited to 80 characters, and that space is split between the Workflow and WorkflowStep class name,
- * with a dash character between them. If we split the remaining 79 characters evenly between Workflow and WorkflowStep names,
- * that allows the Workflow and WorkflowStep implementation class names to be 39 characters long.
+ * with a dot character between them. Additionally, we may generate multiple underlying States (or even full Activities)
+ * depending on the structure of the workflow; as such we also need to reserve a few characters to differentiate these sub-States.
+ * To reserve a little space for the future, we'll save 10 characters for this internal use.
+ * If we split the remaining 69 characters evenly between Workflow and WorkflowStep names,
+ * that allows the Workflow and WorkflowStep implementation class names to be 34 characters long.
  *
  * When polling for work, we use the current host's hostname as part of the poller's identity, along with a Flux-specified
  * small integer (between 0 and the poller thread pool size). While we could include the activity name in the poller identity,
@@ -57,8 +60,8 @@ import com.danielgmyers.flux.wf.Workflow;
  * identifiers, we need to concern ourselves here only with values that Step Functions will reject or that will interfere with Flux.
  *
  * In summary, we will enforce these length limits:
- * * Workflow class implementation name: 39
- * * WorkflowStep class implementation name: 39
+ * * Workflow class implementation name: 34
+ * * WorkflowStep class implementation name: 34
  * * Hostname: 77
  * * Workflow execution ID: 80
  * * Partition ID: 256
@@ -74,8 +77,8 @@ import com.danielgmyers.flux.wf.Workflow;
  */
 public final class IdentifierValidation {
 
-    static final int MAX_WORKFLOW_CLASS_NAME_LENGTH = 39;
-    static final int MAX_WORKFLOW_STEP_CLASS_NAME_LENGTH = 39;
+    static final int MAX_WORKFLOW_CLASS_NAME_LENGTH = 34;
+    static final int MAX_WORKFLOW_STEP_CLASS_NAME_LENGTH = 34;
     static final int MAX_HOSTNAME_LENGTH = 77;
     static final int MAX_WORKFLOW_EXECUTION_ID_LENGTH = 80;
     static final int MAX_PARTITION_ID_LENGTH = 256;
