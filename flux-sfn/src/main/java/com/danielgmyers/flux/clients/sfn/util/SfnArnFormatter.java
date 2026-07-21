@@ -44,4 +44,10 @@ public final class SfnArnFormatter {
         String resourceId = String.format("%s-%s", workflowClass.getSimpleName(), stepClass.getSimpleName());
         return sfnArn(region, accountId, "activity", resourceId);
     }
+
+    public static String activityArn(String region, String accountId, Class<? extends Workflow> workflowClass,
+                                     Class<? extends WorkflowStep> stepClass, String subStepName) {
+        String resourceId = String.format("%s-%s.%s", workflowClass.getSimpleName(), stepClass.getSimpleName(), subStepName);
+        return sfnArn(region, accountId, "activity", resourceId);
+    }
 }
