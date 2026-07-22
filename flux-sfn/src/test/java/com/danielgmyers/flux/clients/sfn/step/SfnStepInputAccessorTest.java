@@ -251,4 +251,89 @@ public class SfnStepInputAccessorTest {
 
         Assertions.assertEquals("{\"a\":\"b\",\"c\":\"d\"}", accessor.toJson());
     }
+
+    @Test
+    public void testWrappedInputExtractsAttrsAndMergesContextValues() throws JsonProcessingException {
+        // Simulates the input shape produced by the Task state's Parameters field
+        String wrappedInput = "{\"_attrs\":{\"name\":\"John\",\"age\":42},"
+                + "\"_retry_attempt\":3,"
+                + "\"_execution_id\":\"arn:aws:states:us-west-2:123456789012:execution:MyWorkflow:run-1\","
+                + "\"_workflow_start_time\":\"2026-07-21T10:00:00Z\"}";
+
+        SfnStepInputAccessor accessor = new SfnStepInputAccessor(wrappedInput);
+
+        // Attributes from _attrs should be accessible
+        Assertions.assertEquals("John", accessor.getAttribute(String.class, "name"));
+        Assertions.assertEquals(42L, accessor.getAttribute(Long.class, "age"));
+
+        // Injected context values should be merged in
+        Assertions.assertEquals(3L, accessor.getAttribute(Long.class, "_retry_attempt"));
+        Assertions.assertEquals("arn:aws:states:us-west-2:123456789012:execution:MyWorkflow:run-1",
+                accessor.getAttribute(String.class, "_execution_id"));
+        Assertions.assertEquals("2026-07-21T10:00:00Z",
+                accessor.getAttribute(String.class, "_workflow_start_time"));
+    }
+
+    @Test
+    public void testWrappedInputOutputIsFlatMap() throws JsonProcessingException {
+        // After the executor processes wrapped input and adds output attributes,
+        // toJson() should produce a flat map (not re-nested)
+        String wrappedInput = "{\"_attrs\":{\"name\":\"John\"},\"_retry_attempt\":3}";
+
+        SfnStepInputAccessor accessor = new SfnStepInputAccessor(wrappedInput);
+        accessor.addAttribute("result", "processed");
+
+        String output = accessor.toJson();
+        // Output should be flat — no _attrs wrapper
+        Assertions.assertFalse(output.contains("\"_attrs\""));
+        Assertions.assertTrue(output.contains("\"name\":\"John\""));
+        Assertions.assertTrue(output.contains("\"result\":\"processed\""));
+        Assertions.assertTrue(output.contains("\"_retry_attempt\":3"));
+    }
+
+    @Test
+    public void testFlatInputStillWorks() throws JsonProcessingException {
+        // Non-wrapped input (e.g. initial workflow input) should work as before
+        String flatInput = "{\"name\":\"John\",\"age\":42}";
+
+        SfnStepInputAccessor accessor = new SfnStepInputAccessor(flatInput);
+
+        Assertions.assertEquals("John", accessor.getAttribute(String.class, "name"));
+        Assertions.assertEquals(42L, accessor.getAttribute(Long.class, "age"));
+    }
+
+    @Test
+    public void testWrappedInputWithNonObjectAttrsThrows() {
+        String badInput = "{\"_attrs\":\"not an object\",\"_retry_attempt\":0}";
+        Assertions.assertThrows(FluxException.class, () -> new SfnStepInputAccessor(badInput));
+    }
+
+    @Test
+    public void testInstantFromIso8601String() throws JsonProcessingException {
+        // SFN context object provides $$.Execution.StartTime as an ISO 8601 string
+        String input = "{\"_workflow_start_time\":\"2026-07-21T10:04:42Z\"}";
+        SfnStepInputAccessor accessor = new SfnStepInputAccessor(input);
+
+        Instant result = accessor.getAttribute(Instant.class, "_workflow_start_time");
+        Assertions.assertEquals(Instant.parse("2026-07-21T10:04:42Z"), result);
+    }
+
+    @Test
+    public void testInstantFromEpochMillis() throws JsonProcessingException {
+        // Flux internally stores instants as epoch millis
+        String input = "{\"_workflow_start_time\":1753092282000}";
+        SfnStepInputAccessor accessor = new SfnStepInputAccessor(input);
+
+        Instant result = accessor.getAttribute(Instant.class, "_workflow_start_time");
+        Assertions.assertEquals(Instant.ofEpochMilli(1753092282000L), result);
+    }
+
+    @Test
+    public void testRetryCountAsLong() throws JsonProcessingException {
+        // SFN context object provides $$.State.RetryCount as a number
+        String input = "{\"_attrs\":{\"name\":\"test\"},\"_retry_attempt\":5}";
+        SfnStepInputAccessor accessor = new SfnStepInputAccessor(input);
+
+        Assertions.assertEquals(5L, accessor.getAttribute(Long.class, "_retry_attempt"));
+    }
 }

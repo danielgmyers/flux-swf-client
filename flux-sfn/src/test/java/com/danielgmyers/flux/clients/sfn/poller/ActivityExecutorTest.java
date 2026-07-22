@@ -105,6 +105,39 @@ public class ActivityExecutorTest {
     }
 
     @Test
+    public void perStateAttributesAreStrippedFromOutputOnCompletion() throws JsonProcessingException {
+        // Simulate wrapped input that includes per-state injected attributes
+        Map<String, Object> input = new HashMap<>();
+        input.put(StepAttributes.WORKFLOW_ID, WORKFLOW_NAME);
+        input.put(StepAttributes.WORKFLOW_EXECUTION_ID, SfnArnFormatter.executionArn("us-west-2", "123456789012", TestWorkflow.class, WORKFLOW_NAME));
+        input.put(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME, "2026-07-22T10:00:00Z");
+        input.put(StepAttributes.RETRY_ATTEMPT, 3L);
+        input.put("userAttribute", "shouldRemain");
+
+        SfnStepInputAccessor stepInput = makeStepInput(input);
+        ActivityExecutor executor = new ActivityExecutor(IDENTITY, stepInput, new TestWorkflow(), step, fluxMetrics, (o, c) -> stepMetrics);
+
+        StepResult result = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "done", Collections.emptyMap());
+        step.setStepResult(result);
+
+        executor.run();
+        Assertions.assertTrue(step.didThing());
+
+        String output = executor.getOutput();
+        SfnStepInputAccessor outputAccessor = new SfnStepInputAccessor(output);
+
+        // Per-state attributes should be stripped — they get re-injected by the next Task's Parameters
+        Assertions.assertNull(outputAccessor.getAttribute(String.class, StepAttributes.ACTIVITY_NAME));
+        Assertions.assertNull(outputAccessor.getAttribute(Long.class, StepAttributes.RETRY_ATTEMPT));
+        Assertions.assertNull(outputAccessor.getAttribute(String.class, StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME));
+
+        // User attributes and workflow-level attributes should remain
+        Assertions.assertEquals("shouldRemain", outputAccessor.getAttribute(String.class, "userAttribute"));
+        Assertions.assertEquals(WORKFLOW_NAME, outputAccessor.getAttribute(String.class, StepAttributes.WORKFLOW_ID));
+        Assertions.assertEquals(StepResult.SUCCEED_RESULT_CODE, outputAccessor.getAttribute(String.class, StepAttributes.RESULT_CODE));
+    }
+
+    @Test
     public void returnsRetryWhenApplyReturnsRetry() throws JsonProcessingException {
         Map<String, Object> input = new HashMap<>();
         input.put(StepAttributes.WORKFLOW_ID, WORKFLOW_NAME);

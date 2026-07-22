@@ -93,6 +93,10 @@ public class ActivityExecutor implements Runnable {
             stepMetrics.addProperty(WORKFLOW_RUN_ID_METRIC_NAME,
                                     stepInput.getAttribute(String.class, StepAttributes.WORKFLOW_EXECUTION_ID));
 
+            // Inject the activity name so hooks can access it via StepAttributes.ACTIVITY_NAME.
+            // This is known locally at runtime and not injected via ASL Parameters.
+            stepInput.addAttribute(StepAttributes.ACTIVITY_NAME, activityName);
+
             result = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, stepInput, fluxMetrics, stepMetrics);
 
             if (result.getAction() == StepResult.ResultAction.RETRY) {
@@ -111,6 +115,12 @@ public class ActivityExecutor implements Runnable {
                 if (result.getMessage() != null && !result.getMessage().isEmpty()) {
                     stepInput.addAttribute(StepAttributes.ACTIVITY_COMPLETION_MESSAGE, result.getMessage());
                 }
+
+                // Strip per-state attributes from the output — they are injected fresh
+                // by each Task state's Parameters and should not carry over to subsequent steps.
+                stepInput.removeAttribute(StepAttributes.ACTIVITY_NAME);
+                stepInput.removeAttribute(StepAttributes.ACTIVITY_INITIAL_ATTEMPT_TIME);
+                stepInput.removeAttribute(StepAttributes.RETRY_ATTEMPT);
 
                 // Step Functions doesn't have a way to auto-merge the output data with the input data,
                 // so we need to include both input and output attributes in the output field here.

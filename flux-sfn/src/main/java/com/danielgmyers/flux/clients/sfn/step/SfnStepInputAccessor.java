@@ -41,6 +41,12 @@ public class SfnStepInputAccessor implements StepInputAccessor {
     static final Set<Class<?>> SUPPORTED_ATTRIBUTE_TYPES
             = Set.of(Boolean.class, Long.class, String.class, Instant.class);
 
+    /**
+     * The key used in the Task state's Parameters field to wrap all step attributes.
+     * Must match the key used in {@code StepFragmentBuilder.PARAMETERS_ATTRS_KEY}.
+     */
+    public static final String ATTRS_KEY = "_attrs";
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final ObjectNode attributes;
@@ -50,6 +56,19 @@ public class SfnStepInputAccessor implements StepInputAccessor {
         return attributes;
     }
 
+    /**
+     * Parses raw activity task input.
+     *
+     * <p>The input may arrive in one of two forms:</p>
+     * <ul>
+     *   <li><b>Wrapped format</b> (from Parameters injection): A top-level object containing
+     *       {@code _attrs} (the step attributes map) plus injected context values like
+     *       {@code _retry_attempt}, {@code _execution_id}, {@code _workflow_start_time},
+     *       and {@code _h_activity_name}. The injected values are merged into the attributes.</li>
+     *   <li><b>Flat format</b> (legacy/initial workflow input): All attributes at the top level.
+     *       Used as-is.</li>
+     * </ul>
+     */
     public SfnStepInputAccessor(String rawInput) throws JsonProcessingException {
         if (rawInput == null || rawInput.isEmpty()) {
             attributes = MAPPER.createObjectNode();
@@ -58,7 +77,22 @@ public class SfnStepInputAccessor implements StepInputAccessor {
             if (!input.isObject()) {
                 throw new FluxException("Expected step input to be a json map, but it was not: " + rawInput);
             }
-            attributes = (ObjectNode) input;
+            ObjectNode inputNode = (ObjectNode) input;
+
+            if (inputNode.has(ATTRS_KEY)) {
+                // Wrapped format: extract attributes from _attrs and merge injected context values
+                JsonNode attrsNode = inputNode.remove(ATTRS_KEY);
+                if (!attrsNode.isObject()) {
+                    throw new FluxException("Expected _attrs to be a json map, but it was not: " + rawInput);
+                }
+                attributes = (ObjectNode) attrsNode;
+
+                // Merge injected context values into the attributes map
+                attributes.setAll(inputNode);
+            } else {
+                // Flat format (e.g. initial workflow input before first Task executes)
+                attributes = inputNode;
+            }
         }
     }
 
@@ -88,8 +122,20 @@ public class SfnStepInputAccessor implements StepInputAccessor {
             return (T)validateAttr(requestedType, attributeName, attr, attr::isTextual, attr::asText);
         }
         if (requestedType == Instant.class) {
-            Long epochMillis = validateAttr(Instant.class, attributeName, attr, attr::canConvertToLong, attr::asLong);
-            return (T)Instant.ofEpochMilli(epochMillis);
+            if (attr.canConvertToLong()) {
+                Long epochMillis = attr.asLong();
+                return (T) Instant.ofEpochMilli(epochMillis);
+            }
+            if (attr.isTextual()) {
+                // SFN context object provides timestamps as ISO 8601 strings
+                try {
+                    return (T) Instant.parse(attr.asText());
+                } catch (java.time.format.DateTimeParseException e) {
+                    throw new AttributeTypeMismatchException(requestedType, attributeName,
+                            attr.getNodeType().toString());
+                }
+            }
+            throw new AttributeTypeMismatchException(requestedType, attributeName, attr.getNodeType().toString());
         }
 
         // Only support Map<String, String>, not other map types
@@ -142,6 +188,10 @@ public class SfnStepInputAccessor implements StepInputAccessor {
         for (Map.Entry<String, Object> e : data.entrySet()) {
             addAttribute(e.getKey(), e.getValue());
         }
+    }
+
+    public void removeAttribute(String attributeName) {
+        attributes.remove(attributeName);
     }
 
     public String toJson() throws JsonProcessingException {

@@ -29,6 +29,7 @@ import com.danielgmyers.flux.clients.sfn.asl.state.FailState;
 import com.danielgmyers.flux.clients.sfn.asl.state.SucceedState;
 import com.danielgmyers.flux.clients.sfn.asl.state.TaskState;
 import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
 import com.danielgmyers.flux.wf.Workflow;
@@ -96,7 +97,7 @@ public class WorkflowGraphCompiler {
 
         FailState workflowFailedState = new FailState();
         workflowFailedState.setError("Flux.WorkflowFailed");
-        workflowFailedState.setCause("The workflow closed with a failure result code.");
+        workflowFailedState.setCausePath("$." + StepAttributes.ACTIVITY_COMPLETION_MESSAGE);
         allStates.put(failedStateName, workflowFailedState);
 
         // Determine the start state from the graph's first step

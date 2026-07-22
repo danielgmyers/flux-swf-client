@@ -72,6 +72,7 @@ public class MapState extends AslState {
     private Map<String, Object> resultSelector;
 
     @JsonProperty("ResultPath")
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     private String resultPath;
 
     @JsonProperty("Retry")
