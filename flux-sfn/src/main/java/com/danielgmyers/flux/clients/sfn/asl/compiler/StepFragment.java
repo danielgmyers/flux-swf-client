@@ -113,6 +113,13 @@ public class StepFragment {
      */
     public static final String SUFFIX_SUCCEED = "Succeed";
 
+    /**
+     * Suffix for the shared workflow-level terminal Fail state.
+     * Used as {@code WorkflowName.Failed} (no step name component).
+     * This state is used when a workflow closes with the {@code _fail} result code.
+     */
+    public static final String SUFFIX_FAILED = "Failed";
+
     private final String entryStateName;
     private final Map<String, AslState> states;
     private final Map<String, String> exitTransitionResultCodes;

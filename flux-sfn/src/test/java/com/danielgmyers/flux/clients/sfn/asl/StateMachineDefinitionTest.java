@@ -22,9 +22,22 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.danielgmyers.flux.clients.sfn.FluxCapacitorConfig;
+import com.danielgmyers.flux.clients.sfn.asl.compiler.WorkflowGraphCompiler;
 import com.danielgmyers.flux.clients.sfn.asl.state.AslState;
+import com.danielgmyers.flux.clients.sfn.asl.state.ChoiceRule;
+import com.danielgmyers.flux.clients.sfn.asl.state.ChoiceState;
+import com.danielgmyers.flux.clients.sfn.asl.state.FailState;
 import com.danielgmyers.flux.clients.sfn.asl.state.PassState;
+import com.danielgmyers.flux.clients.sfn.asl.state.SucceedState;
 import com.danielgmyers.flux.clients.sfn.asl.state.TaskState;
+import com.danielgmyers.flux.step.StepApply;
+import com.danielgmyers.flux.step.StepResult;
+import com.danielgmyers.flux.step.WorkflowStep;
+import com.danielgmyers.flux.wf.Workflow;
+import com.danielgmyers.flux.wf.graph.WorkflowGraph;
+import com.danielgmyers.flux.wf.graph.WorkflowGraphBuilder;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -120,5 +133,146 @@ public class StateMachineDefinitionTest {
         Assertions.assertFalse(json.contains("\"Version\""));
         Assertions.assertFalse(json.contains("\"TimeoutSeconds\""));
         Assertions.assertFalse(json.contains("\"QueryLanguage\""));
+    }
+
+    /**
+     * Compiles a nontrivial workflow (branching with three steps) through the full pipeline
+     * and validates that the serialized JSON is structurally correct ASL.
+     */
+    @Test
+    public void testCompiledWorkflowProducesValidAsl() throws IOException {
+        FluxCapacitorConfig config = new FluxCapacitorConfig();
+        config.setAwsRegion("us-east-1");
+        config.setAwsAccountId("111222333444");
+
+        WorkflowGraphCompiler compiler = new WorkflowGraphCompiler(config);
+        StateMachineDefinition def = compiler.compile(new OrderProcessingWorkflow());
+
+        String json = MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(def);
+        JsonNode root = MAPPER.readTree(json);
+
+        // Top-level structure
+        Assertions.assertEquals("OrderProcessingWorkflow", root.get("StartAt").asText().split("\\.")[0]);
+        Assertions.assertTrue(root.has("States"));
+        Assertions.assertTrue(root.has("Comment"));
+
+        JsonNode states = root.get("States");
+
+        // Validate step: Task state with correct resource ARN pattern
+        JsonNode validateTask = states.get("OrderProcessingWorkflow.ValidateOrder");
+        Assertions.assertNotNull(validateTask, "ValidateOrder Task state should exist");
+        Assertions.assertEquals("Task", validateTask.get("Type").asText());
+        Assertions.assertTrue(validateTask.get("Resource").asText().contains("activity:"));
+        Assertions.assertTrue(validateTask.get("Resource").asText().contains("OrderProcessingWorkflow"));
+        Assertions.assertTrue(validateTask.get("Resource").asText().contains("ValidateOrder"));
+        Assertions.assertEquals("OrderProcessingWorkflow.ValidateOrder.Route",
+                                validateTask.get("Next").asText());
+
+        // Verify Retry is present on the Task
+        Assertions.assertTrue(validateTask.has("Retry"));
+        JsonNode retryArray = validateTask.get("Retry");
+        Assertions.assertTrue(retryArray.isArray());
+        Assertions.assertTrue(retryArray.size() >= 1);
+        Assertions.assertEquals("States.TaskFailed",
+                                retryArray.get(0).get("ErrorEquals").get(0).asText());
+
+        // Choice state routes correctly
+        JsonNode choiceState = states.get("OrderProcessingWorkflow.ValidateOrder.Route");
+        Assertions.assertNotNull(choiceState, "Route Choice state should exist");
+        Assertions.assertEquals("Choice", choiceState.get("Type").asText());
+        Assertions.assertTrue(choiceState.has("Choices"));
+        Assertions.assertTrue(choiceState.has("Default"));
+        Assertions.assertEquals("OrderProcessingWorkflow.ValidateOrder.BadResult",
+                                choiceState.get("Default").asText());
+
+        // Choice rules reference the result code path and target correct states
+        JsonNode choices = choiceState.get("Choices");
+        boolean foundSucceed = false;
+        boolean foundFail = false;
+        for (JsonNode rule : choices) {
+            Assertions.assertEquals("$._flux_resultCode", rule.get("Variable").asText());
+            String target = rule.get("Next").asText();
+            if ("_succeed".equals(rule.get("StringEquals").asText())) {
+                Assertions.assertEquals("OrderProcessingWorkflow.FulfillOrder", target);
+                foundSucceed = true;
+            } else if ("_fail".equals(rule.get("StringEquals").asText())) {
+                Assertions.assertEquals("OrderProcessingWorkflow.RejectOrder", target);
+                foundFail = true;
+            }
+        }
+        Assertions.assertTrue(foundSucceed, "Should have a _succeed choice rule");
+        Assertions.assertTrue(foundFail, "Should have a _fail choice rule");
+
+        // Fail state for unrecognized result codes
+        JsonNode badResult = states.get("OrderProcessingWorkflow.ValidateOrder.BadResult");
+        Assertions.assertNotNull(badResult);
+        Assertions.assertEquals("Fail", badResult.get("Type").asText());
+        Assertions.assertEquals("Flux.UnrecognizedResultCode", badResult.get("Error").asText());
+
+        // FulfillOrder and RejectOrder both transition to Succeed
+        JsonNode fulfillTask = states.get("OrderProcessingWorkflow.FulfillOrder");
+        Assertions.assertNotNull(fulfillTask);
+        Assertions.assertEquals("Task", fulfillTask.get("Type").asText());
+        Assertions.assertEquals("OrderProcessingWorkflow.Succeed", fulfillTask.get("Next").asText());
+
+        JsonNode rejectTask = states.get("OrderProcessingWorkflow.RejectOrder");
+        Assertions.assertNotNull(rejectTask);
+        Assertions.assertEquals("Task", rejectTask.get("Type").asText());
+        Assertions.assertEquals("OrderProcessingWorkflow.Succeed", rejectTask.get("Next").asText());
+
+        // Terminal Succeed state
+        JsonNode succeed = states.get("OrderProcessingWorkflow.Succeed");
+        Assertions.assertNotNull(succeed);
+        Assertions.assertEquals("Succeed", succeed.get("Type").asText());
+
+        // Verify the JSON can be deserialized back into a valid StateMachineDefinition
+        StateMachineDefinition roundTripped = MAPPER.readValue(json, StateMachineDefinition.class);
+        Assertions.assertEquals(def.getStartAt(), roundTripped.getStartAt());
+        Assertions.assertEquals(def.getStates().size(), roundTripped.getStates().size());
+        Assertions.assertInstanceOf(TaskState.class,
+                roundTripped.getStates().get("OrderProcessingWorkflow.ValidateOrder"));
+        Assertions.assertInstanceOf(ChoiceState.class,
+                roundTripped.getStates().get("OrderProcessingWorkflow.ValidateOrder.Route"));
+        Assertions.assertInstanceOf(FailState.class,
+                roundTripped.getStates().get("OrderProcessingWorkflow.ValidateOrder.BadResult"));
+        Assertions.assertInstanceOf(SucceedState.class,
+                roundTripped.getStates().get("OrderProcessingWorkflow.Succeed"));
+    }
+
+    // --- Test workflow for the compiled ASL test ---
+
+    public static class ValidateOrder implements WorkflowStep {
+        @StepApply
+        public StepResult validate() {
+            return StepResult.success();
+        }
+    }
+
+    public static class FulfillOrder implements WorkflowStep {
+        @StepApply
+        public void fulfill() {
+        }
+    }
+
+    public static class RejectOrder implements WorkflowStep {
+        @StepApply
+        public void reject() {
+        }
+    }
+
+    public static class OrderProcessingWorkflow implements Workflow {
+        @Override
+        public WorkflowGraph getGraph() {
+            ValidateOrder validate = new ValidateOrder();
+            FulfillOrder fulfill = new FulfillOrder();
+            RejectOrder reject = new RejectOrder();
+            WorkflowGraphBuilder builder = new WorkflowGraphBuilder(validate);
+            builder.commonTransitions(validate, fulfill, reject);
+            builder.addStep(fulfill);
+            builder.alwaysClose(fulfill);
+            builder.addStep(reject);
+            builder.alwaysClose(reject);
+            return builder.build();
+        }
     }
 }
