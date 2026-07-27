@@ -22,10 +22,6 @@
         </license>
     </licenses>
 
-    <properties>
-        <skip.deploy>false</skip.deploy>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>com.google.inject</groupId>

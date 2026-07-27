@@ -19,4 +19,4 @@ phases:
       - echo "</server></servers></settings>" >> ~/.m2/settings.xml
   build:
     commands:
-      - mvn -Dpublishing.publishAfterStaging=true deploy -P release
+      - scripts/mvn-for-unpublished-versions.sh -Dpublishing.publishAfterStaging=true deploy -P release

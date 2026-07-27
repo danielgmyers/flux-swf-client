@@ -23,8 +23,6 @@
     </licenses>
 
     <properties>
-        <skip.deploy>false</skip.deploy>
-
         <spring.version>6.2.7</spring.version>
     </properties>
 
