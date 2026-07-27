@@ -22,11 +22,6 @@
         </license>
     </licenses>
 
-    <properties>
-        <!-- Explicitly don't deploy, until we're ready to release -->
-        <skip.deploy>true</skip.deploy>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.springframework</groupId>

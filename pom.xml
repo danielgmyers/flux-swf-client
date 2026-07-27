@@ -107,10 +107,6 @@
         <checkstyle.version>10.3.4</checkstyle.version>
 
         <jre.version>11</jre.version>
-
-        <!-- Modules (including this parent pom) won't get deployed by default,
-             they'll need to override this to get deployed. -->
-        <skip.deploy>true</skip.deploy>
     </properties>
     <build>
         <plugins>
@@ -233,9 +229,6 @@
                                 </goals>
                             </execution>
                         </executions>
-                        <configuration>
-                            <skipSource>${skip.deploy}</skipSource>
-                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -249,9 +242,6 @@
                                 </goals>
                             </execution>
                         </executions>
-                        <configuration>
-                            <skip>${skip.deploy}</skip>
-                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -266,7 +256,6 @@
                             </execution>
                         </executions>
                         <configuration>
-                            <skip>${skip.deploy}</skip>
                             <signer>bc</signer>
                             <keyFingerprintEnvName>GPG_KEY_ID</keyFingerprintEnvName>
                             <keyEnvName>GPG_PRIVATE_KEY</keyEnvName>
@@ -283,7 +272,6 @@
                         <configuration>
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>${publishing.publishAfterStaging}</autoPublish>
-                            <skipPublishing>${skip.deploy}</skipPublishing>
                         </configuration>
                     </plugin>
                 </plugins>
