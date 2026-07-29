@@ -36,7 +36,8 @@ import java.lang.annotation.Target;
  * Otherwise, Flux handles the exception the same way it would handle it if it had been thrown by the @StepApply method;
  * specifically, it causes the entire step to retry. The subsequent attempt will execute all hooks again, as normal.
  *
- * The return value of the method is logged but otherwise ignored, so the return type does not matter.
+ * If the return type of the method is {@link HookResult} then the result can be used to either fast-fail a step when
+ * used with a PRE hook, or to cause a step to retry when used with a POST hook.
  */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
