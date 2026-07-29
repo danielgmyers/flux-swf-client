@@ -25,6 +25,7 @@ import com.danielgmyers.flux.step.Attribute;
 import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepHook;
+import com.danielgmyers.flux.step.HookResult;
 import com.danielgmyers.flux.step.StepInputAccessor;
 import com.danielgmyers.flux.step.StepResult;
 import com.danielgmyers.flux.step.WorkflowStep;
@@ -536,6 +537,43 @@ public class ActivityExecutionUtilTest {
                 result.getResultCode())).intValue());
     }
 
+    @Test
+    public void testExecuteHooksAndActivity_hooksCanAddExtraAttributesOnSuccess() {
+        var testStep = new TestInputStep();
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(testStep);
+        builder.alwaysClose(testStep);
+        builder.addStepHook(testStep, new TestHookAttachAttributes());
+
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        StepResult result = ActivityExecutionUtil.executeHooksAndActivity(workflow, testStep, emptyInput, fluxMetrics, stepMetrics);
+        Assertions.assertEquals(StepResult.ResultAction.COMPLETE, result.getAction());
+
+        fluxMetrics.close();
+
+        Assertions.assertEquals(TestHookAttachAttributes.TRACE_ID, result.getAttributes().get(StepWithSeveralInputs.STRING_PARAM));
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_attributesAddedByHooksAreDiscardedOnRetry() {
+        var testStep = new TestInputStep();
+        RuntimeException e = new RuntimeException("Wheeee!");
+        testStep.setExceptionToThrow(e);
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(testStep);
+        builder.alwaysClose(testStep);
+        builder.addStepHook(testStep, new TestHookAttachAttributes());
+
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        StepResult result = ActivityExecutionUtil.executeHooksAndActivity(workflow, testStep, emptyInput, fluxMetrics, stepMetrics);
+        Assertions.assertEquals(StepResult.ResultAction.RETRY, result.getAction());
+
+        fluxMetrics.close();
+
+        Assertions.assertFalse(result.getAttributes().containsKey(StepWithSeveralInputs.STRING_PARAM));
+    }
+
     private StepResult makeStepResult(StepResult.ResultAction resultAction, String stepResult, String message, Map<String, Object> output) {
         return new StepResult(resultAction, stepResult, message).withAttributes(output);
     }
@@ -740,6 +778,51 @@ public class ActivityExecutionUtilTest {
         }
     }
 
+    public static class TestHookAttachAttributes implements WorkflowStepHook {
+        public static final String TRACE_ID = "fuddle-abcd-1234-000";
+
+        TestHookAttachAttributes() {
+
+        }
+
+        @StepHook(hookType = StepHook.HookType.PRE)
+        public HookResult preStepHook(Workflow workflow, WorkflowStep step) {
+            return HookResult.proceed()
+                .withAttribute("MyWorkflowName", workflow.getClass().getSimpleName())
+                .withAttribute("MyStepName", step.getClass().getSimpleName())
+                .withAllAttributes(Map.of(StepWithSeveralInputs.STRING_PARAM, TestHookAttachAttributes.TRACE_ID));
+        }
+
+        @StepHook(hookType = StepHook.HookType.POST)
+        public void postStepHook(@Attribute("MyWorkflowName") String workflowName,
+                                 @Attribute("MyStepName") String stepName,
+                                 @Attribute(StepWithSeveralInputs.STRING_PARAM) String traceId,
+                                 Workflow workflow,
+                                 WorkflowStep step) {
+
+            Assertions.assertEquals(workflow.getClass().getSimpleName(), workflowName);
+            Assertions.assertEquals(step.getClass().getSimpleName(), stepName);
+            Assertions.assertEquals(TRACE_ID, traceId);
+        }
+    }
+
+    public static class TestInputStep implements WorkflowStep {
+        private RuntimeException exceptionToThrow = null;
+
+        public void setExceptionToThrow(RuntimeException exceptionToThrow) {
+            this.exceptionToThrow = exceptionToThrow;
+        }
+
+        @StepApply
+        public StepResult apply(@Attribute(StepWithSeveralInputs.STRING_PARAM) String traceId) {
+            Assertions.assertEquals(TestHookAttachAttributes.TRACE_ID, traceId);
+            if (exceptionToThrow != null) {
+                throw exceptionToThrow;
+            }
+            return StepResult.success();
+        }
+    }
+
     public static class TestPreHookThrowsExceptionNoRetryOnFailure implements WorkflowStepHook {
         private final Throwable ex;
 
@@ -790,5 +873,135 @@ public class ActivityExecutionUtilTest {
         public void postStepHook() throws Throwable {
             throw ex;
         }
+    }
+
+    @Test
+    public void testPreHookRetryWinsOverComplete() {
+        WorkflowStepHook retryHook = new WorkflowStepHook() {
+            @StepHook(hookType = StepHook.HookType.PRE)
+            public HookResult pre() {
+                return HookResult.retry("pre-retry");
+            }
+        };
+
+        WorkflowStepHook completeHook = new WorkflowStepHook() {
+            @StepHook(hookType = StepHook.HookType.PRE)
+            public HookResult pre() {
+                return HookResult.complete(StepResult.SUCCEED_RESULT_CODE, "pre-complete");
+            }
+        };
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(step);
+        builder.alwaysClose(step);
+        builder.addStepHook(step, retryHook);
+        builder.addStepHook(step, completeHook);
+
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        StepResult result = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+        Assertions.assertEquals(StepResult.ResultAction.RETRY, result.getAction());
+    }
+
+    @Test
+    public void testMultipleCompleteHooksContributeAttributes() {
+        // Hook execution order is indeterminate, but both hooks WILL execute
+        // Each hook adds a unique attribute key, so we can verify both contributed
+        WorkflowStepHook first = new WorkflowStepHook() {
+            @StepHook(hookType = StepHook.HookType.POST)
+            public HookResult post() {
+                return HookResult.complete(StepResult.SUCCEED_RESULT_CODE, "first").withAttribute("attr1", "value1");
+            }
+        };
+
+        WorkflowStepHook second = new WorkflowStepHook() {
+            @StepHook(hookType = StepHook.HookType.POST)
+            public HookResult post() {
+                return HookResult.complete(StepResult.SUCCEED_RESULT_CODE, "second").withAttribute("attr2", "value2");
+            }
+        };
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(step);
+        builder.alwaysClose(step);
+        builder.addStepHook(step, first);
+        builder.addStepHook(step, second);
+
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        Map<String, Object> output = Collections.emptyMap();
+        StepResult stepResult = makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", output);
+        step.setStepResult(stepResult);
+
+        StepResult result = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        // Both hooks execute in indeterminate order, so both attribute keys must be present
+        Assertions.assertEquals(StepResult.ResultAction.COMPLETE, result.getAction());
+        Assertions.assertTrue(result.getAttributes().containsKey("attr1"), "Hook 1 should have contributed attr1");
+        Assertions.assertTrue(result.getAttributes().containsKey("attr2"), "Hook 2 should have contributed attr2");
+    }
+
+    @Test
+    public void testPostHookCanOverrideRetryWithComplete() {
+        // step throws exception -> initial retry
+        RuntimeException e = new RuntimeException("boom");
+        step.setExceptionToThrow(e);
+
+        WorkflowStepHook postComplete = new WorkflowStepHook() {
+            @StepHook(hookType = StepHook.HookType.POST)
+            public HookResult post() {
+                return HookResult.complete(StepResult.SUCCEED_RESULT_CODE, "post-complete").withAttribute("x", "y");
+            }
+        };
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(step);
+        builder.alwaysClose(step);
+        builder.addStepHook(step, postComplete);
+
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        StepResult result = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+        Assertions.assertEquals(StepResult.ResultAction.COMPLETE, result.getAction());
+        Assertions.assertEquals("y", result.getAttributes().get("x"));
+    }
+
+    @Test
+    public void testMultiplePreHooksContributeAttributes() {
+        // Hook execution order is indeterminate, so use unique attribute keys to avoid conflicts
+        WorkflowStepHook first = new WorkflowStepHook() {
+            @StepHook(hookType = StepHook.HookType.PRE)
+            public HookResult pre() {
+                return HookResult.proceed().withAttribute("attr1", "value1");
+            }
+        };
+
+        WorkflowStepHook second = new WorkflowStepHook() {
+            @StepHook(hookType = StepHook.HookType.PRE)
+            public HookResult pre() {
+                return HookResult.proceed().withAttribute("attr2", "value2");
+            }
+        };
+
+        class MultiAttrStep implements WorkflowStep {
+            @StepApply
+            public StepResult apply(@Attribute("attr1") String attr1, @Attribute("attr2") String attr2) {
+                // Both PRE hooks should have executed and contributed their attributes
+                Assertions.assertNotNull(attr1);
+                Assertions.assertNotNull(attr2);
+                return StepResult.success();
+            }
+        }
+
+        MultiAttrStep testStep = new MultiAttrStep();
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(testStep);
+        builder.alwaysClose(testStep);
+        builder.addStepHook(testStep, first);
+        builder.addStepHook(testStep, second);
+
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        StepResult result = ActivityExecutionUtil.executeHooksAndActivity(workflow, testStep, emptyInput, fluxMetrics, stepMetrics);
+        Assertions.assertEquals(StepResult.ResultAction.COMPLETE, result.getAction());
+        // Both hooks execute in indeterminate order, so both attribute keys must be present
+        Assertions.assertTrue(result.getAttributes().containsKey("attr1"));
+        Assertions.assertTrue(result.getAttributes().containsKey("attr2"));
     }
 }
