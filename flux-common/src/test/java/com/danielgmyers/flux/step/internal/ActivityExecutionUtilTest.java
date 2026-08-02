@@ -22,6 +22,7 @@ import java.util.Map;
 
 import com.danielgmyers.flux.poller.TaskNaming;
 import com.danielgmyers.flux.step.Attribute;
+import com.danielgmyers.flux.step.HookResult;
 import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepHook;
@@ -536,6 +537,385 @@ public class ActivityExecutionUtilTest {
                 result.getResultCode())).intValue());
     }
 
+    @Test
+    public void testExecuteHooksAndActivity_preHookProceed_doesNotAlterStepResult() {
+        TestPreHookReturningHookResult preHook = new TestPreHookReturningHookResult(HookResult.proceed());
+        Workflow workflow = workflowWithStepHooks(preHook);
+
+        StepResult expectedResult = successfulStepResult();
+        step.setStepResult(expectedResult);
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertEquals(1, preHook.getInvocationCount());
+        Assertions.assertEquals(expectedResult, actualResult);
+
+        fluxMetrics.close();
+        Assertions.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(TaskNaming.activityName(workflow, step),
+                StepResult.SUCCEED_RESULT_CODE)).intValue());
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_preHookRetry_skipsStepBody_runsPostHooks_returnsRetry() {
+        TestPreHookReturningHookResult preHook = new TestPreHookReturningHookResult(HookResult.retryStep("pre says retry"));
+        TestPostStepHook postHook = new TestPostStepHook();
+        Workflow workflow = workflowWithStepHooks(preHook, postHook);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertFalse(step.didThing(), "step body must be skipped when pre-hook returns a non-proceed HookResult");
+        Assertions.assertEquals(1, preHook.getInvocationCount());
+        Assertions.assertEquals(1, postHook.getPostStepHookCallCount(), "post hooks must still run when a pre-hook overrides the result");
+        assertRetryResult(actualResult, "pre says retry");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_preHookForceResult_skipsStepBody_runsPostHooks_returnsForcedResult() {
+        TestPreHookReturningHookResult preHook = new TestPreHookReturningHookResult(HookResult.overrideStepResult("FORCED", "forced from pre"));
+        TestPostStepHook postHook = new TestPostStepHook();
+        Workflow workflow = workflowWithStepHooks(preHook, postHook);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertFalse(step.didThing(), "step body must be skipped when pre-hook forces a result");
+        Assertions.assertEquals(1, preHook.getInvocationCount());
+        Assertions.assertEquals(1, postHook.getPostStepHookCallCount());
+        assertCompleteResult(actualResult, "FORCED", "forced from pre");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_postHookRetry_overridesSuccessfulStepResult() {
+        TestPostHookReturningHookResult postHook = new TestPostHookReturningHookResult(HookResult.retryStep("post says retry"));
+        Workflow workflow = workflowWithStepHooks(postHook);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertEquals(1, postHook.getInvocationCount());
+        assertRetryResult(actualResult, "post says retry");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_postHookForceResult_overridesSuccessfulStepResult() {
+        TestPostHookReturningHookResult postHook = new TestPostHookReturningHookResult(HookResult.overrideStepResult("FORCED", "forced from post"));
+        Workflow workflow = workflowWithStepHooks(postHook);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertEquals(1, postHook.getInvocationCount());
+        assertCompleteResult(actualResult, "FORCED", "forced from post");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_postHookProceed_doesNotAlterStepResult() {
+        TestPostHookReturningHookResult postHook = new TestPostHookReturningHookResult(HookResult.proceed());
+        Workflow workflow = workflowWithStepHooks(postHook);
+
+        StepResult expected = successfulStepResult();
+        step.setStepResult(expected);
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertEquals(expected, actualResult);
+        Assertions.assertEquals(1, postHook.getInvocationCount());
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_preHookForceResult_winsOverPostHookForceResult() {
+        TestPreHookReturningHookResult preHook = new TestPreHookReturningHookResult(HookResult.overrideStepResult("PRE_FORCED", "pre forced"));
+        TestPostHookReturningHookResult postHook = new TestPostHookReturningHookResult(HookResult.overrideStepResult("POST_FORCED", "post forced"));
+        Workflow workflow = workflowWithStepHooks(preHook, postHook);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertFalse(step.didThing(), "step body must be skipped when pre-hook forces a result");
+        Assertions.assertEquals(1, preHook.getInvocationCount());
+        Assertions.assertEquals(1, postHook.getInvocationCount(), "post hook must still run after a pre-hook override");
+        assertCompleteResult(actualResult, "PRE_FORCED", "pre forced");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_preHookRetry_winsOverPostHookForceResult() {
+        TestPreHookReturningHookResult preHook = new TestPreHookReturningHookResult(HookResult.retryStep("pre retry"));
+        TestPostHookReturningHookResult postHook = new TestPostHookReturningHookResult(HookResult.overrideStepResult("POST_FORCED", "post forced"));
+        Workflow workflow = workflowWithStepHooks(preHook, postHook);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertFalse(step.didThing());
+        Assertions.assertEquals(1, postHook.getInvocationCount());
+        assertRetryResult(actualResult, "pre retry");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_preHookProceedThenForceResult_secondPreHookWins() {
+        TestPreHookReturningHookResult firstPre = new TestPreHookReturningHookResult(HookResult.proceed());
+        TestPreHookReturningHookResult secondPre = new TestPreHookReturningHookResult(HookResult.overrideStepResult("FORCED", "from second pre"));
+        TestPostStepHook postHook = new TestPostStepHook();
+        Workflow workflow = workflowWithStepHooks(firstPre, secondPre, postHook);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertFalse(step.didThing(), "step body must be skipped when any pre-hook overrides the result");
+        Assertions.assertEquals(1, firstPre.getInvocationCount());
+        Assertions.assertEquals(1, secondPre.getInvocationCount(), "later pre-hooks must still run after an earlier non-proceed result");
+        Assertions.assertEquals(1, postHook.getPostStepHookCallCount());
+        assertCompleteResult(actualResult, "FORCED", "from second pre");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_firstPreHookRetry_subsequentPreHookForceResult_firstWins() {
+        TestPreHookReturningHookResult firstPre = new TestPreHookReturningHookResult(HookResult.retryStep("first retry"));
+        TestPreHookReturningHookResult secondPre = new TestPreHookReturningHookResult(HookResult.overrideStepResult("FORCED", "second"));
+        Workflow workflow = workflowWithStepHooks(firstPre, secondPre);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertFalse(step.didThing());
+        Assertions.assertEquals(1, firstPre.getInvocationCount());
+        Assertions.assertEquals(1, secondPre.getInvocationCount(), "later pre-hooks must still run after an earlier non-proceed result");
+        assertRetryResult(actualResult, "first retry");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_firstPostHookForceResult_secondPostHookRetry_firstWins() {
+        TestPostHookReturningHookResult firstPost = new TestPostHookReturningHookResult(HookResult.overrideStepResult("FORCED", "first"));
+        TestPostHookReturningHookResult secondPost = new TestPostHookReturningHookResult(HookResult.retryStep("second retry"));
+        Workflow workflow = workflowWithStepHooks(firstPost, secondPost);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertEquals(1, firstPost.getInvocationCount());
+        Assertions.assertEquals(1, secondPost.getInvocationCount(), "later post-hooks must still run after an earlier non-proceed result");
+        assertCompleteResult(actualResult, "FORCED", "first");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_postHookForceResultOverridesStepRetry() {
+        TestPostHookReturningHookResult postHook = new TestPostHookReturningHookResult(HookResult.overrideStepResult("RECOVERED", "recovered"));
+        Workflow workflow = workflowWithStepHooks(postHook);
+        step.setStepResult(makeStepResult(StepResult.ResultAction.RETRY, null, "step asked for retry", Collections.emptyMap()));
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertEquals(1, postHook.getInvocationCount());
+        assertCompleteResult(actualResult, "RECOVERED", "recovered");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_postHookExceptionRetry_doesNotOverrideEarlierPostHookForceResult() {
+        TestPostHookReturningHookResult firstPost = new TestPostHookReturningHookResult(HookResult.overrideStepResult("FORCED", "first"));
+        WorkflowStepHook throwingPost = new TestPostHookThrowsExceptionRetryOnFailure(new RuntimeException("boom"));
+        Workflow workflow = workflowWithStepHooks(firstPost, throwingPost);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertEquals(1, firstPost.getInvocationCount());
+        // first non-proceed result wins, even when a later hook throws and is configured to retry
+        assertCompleteResult(actualResult, "FORCED", "first");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_postHookExceptionRetry_thenPostHookForceResult_exceptionRetryWins() {
+        WorkflowStepHook throwingPost = new TestPostHookThrowsExceptionRetryOnFailure(new RuntimeException("boom"));
+        TestPostHookReturningHookResult laterPost = new TestPostHookReturningHookResult(HookResult.overrideStepResult("FORCED", "second"));
+        Workflow workflow = workflowWithStepHooks(throwingPost, laterPost);
+        step.setStepResult(successfulStepResult());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertTrue(step.didThing());
+        Assertions.assertEquals(1, laterPost.getInvocationCount(), "later post-hooks must still run after an earlier hook failed with retry");
+
+        // the first non-proceed result wins; the throwing hook produced a retry result.
+        Assertions.assertEquals(StepResult.ResultAction.RETRY, actualResult.getAction());
+        Assertions.assertNull(actualResult.getResultCode());
+        Assertions.assertNotNull(actualResult.getMessage());
+        Assertions.assertTrue(actualResult.getMessage().contains("boom"));
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_postHookReturnsNonHookResultObject_isIgnored() {
+        // a non-null, non-HookResult return value must not change the step result
+        TestPostHookReturningArbitraryObject postHook = new TestPostHookReturningArbitraryObject("some string");
+        Workflow workflow = workflowWithStepHooks(postHook);
+
+        StepResult expected = successfulStepResult();
+        step.setStepResult(expected);
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertEquals(expected, actualResult);
+        Assertions.assertEquals(1, postHook.getInvocationCount());
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_preHookForceResult_postHookCanReadForcedResultAttributes() {
+        TestPreHookReturningHookResult preHook = new TestPreHookReturningHookResult(HookResult.overrideStepResult("FORCED", "msg from pre"));
+        CapturingPostStepHook postHook = new CapturingPostStepHook();
+        Workflow workflow = workflowWithStepHooks(preHook, postHook);
+        step.setStepResult(makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "ignored", Collections.emptyMap()));
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, step, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertFalse(step.didThing());
+
+        // post hook should observe the forced result code/message because hookInput is populated from result before post hooks run
+        Assertions.assertEquals("FORCED", postHook.getCapturedResultCode());
+        Assertions.assertEquals("msg from pre", postHook.getCapturedCompletionMessage());
+        assertCompleteResult(actualResult, "FORCED", "msg from pre");
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_workflowHookOnPreAnchor_cannotOverrideAnchorResult() {
+        TestPreHookReturningHookResult preHook = new TestPreHookReturningHookResult(HookResult.retryStep("hold up"));
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(step);
+        builder.alwaysClose(step);
+        builder.addWorkflowHook(preHook);
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        WorkflowStep anchorStep = workflow.getGraph().getFirstStep();
+        Assertions.assertEquals(PreWorkflowHookAnchor.class, anchorStep.getClass());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, anchorStep, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertEquals(1, preHook.getInvocationCount());
+        // hook return values are ignored on workflow hook anchors; the anchor returns its natural success result
+        Assertions.assertEquals(StepResult.ResultAction.COMPLETE, actualResult.getAction());
+        Assertions.assertEquals(StepResult.SUCCEED_RESULT_CODE, actualResult.getResultCode());
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_workflowHookOnPostAnchor_cannotOverrideAnchorResult() {
+        TestPostHookReturningHookResult postHook = new TestPostHookReturningHookResult(HookResult.overrideStepResult("FORCED", "from workflow hook"));
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(step);
+        builder.alwaysClose(step);
+        builder.addWorkflowHook(postHook);
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        WorkflowStep anchorStep = workflow.getGraph().getNodes().get(PostWorkflowHookAnchor.class).getStep();
+        Assertions.assertNotNull(anchorStep);
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, anchorStep, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertEquals(1, postHook.getInvocationCount());
+        // hook return values are ignored on workflow hook anchors; the anchor returns its natural success result
+        Assertions.assertEquals(StepResult.ResultAction.COMPLETE, actualResult.getAction());
+        Assertions.assertEquals(StepResult.SUCCEED_RESULT_CODE, actualResult.getResultCode());
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_preHookOverrideOnPreAnchor_isIgnored() {
+        TestPreHookReturningHookResult preHook = new TestPreHookReturningHookResult(HookResult.overrideStepResult("FORCED", "from pre"));
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(step);
+        builder.alwaysClose(step);
+        builder.addWorkflowHook(preHook);
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        WorkflowStep anchorStep = workflow.getGraph().getFirstStep();
+        Assertions.assertEquals(PreWorkflowHookAnchor.class, anchorStep.getClass());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, anchorStep, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertEquals(1, preHook.getInvocationCount());
+        // pre-hook override return value must be discarded; the anchor's apply() still runs and returns success
+        Assertions.assertEquals(StepResult.ResultAction.COMPLETE, actualResult.getAction());
+        Assertions.assertEquals(StepResult.SUCCEED_RESULT_CODE, actualResult.getResultCode());
+        Assertions.assertNotEquals("FORCED", actualResult.getResultCode());
+
+        fluxMetrics.close();
+
+        // metric should reflect the anchor's natural success, not the suppressed override
+        Assertions.assertEquals(1, fluxMetrics.getCounts().get(ActivityExecutionUtil.formatCompletionResultMetricName(
+                TaskNaming.activityName(workflow, anchorStep), StepResult.SUCCEED_RESULT_CODE)).intValue());
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_postHookRetryOnPostAnchor_isIgnored() {
+        TestPostHookReturningHookResult postHook = new TestPostHookReturningHookResult(HookResult.retryStep("post says retry"));
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(step);
+        builder.alwaysClose(step);
+        builder.addWorkflowHook(postHook);
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        WorkflowStep anchorStep = workflow.getGraph().getNodes().get(PostWorkflowHookAnchor.class).getStep();
+        Assertions.assertNotNull(anchorStep);
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, anchorStep, emptyInput, fluxMetrics, stepMetrics);
+
+        Assertions.assertEquals(1, postHook.getInvocationCount());
+        // post-hook retry return value must be discarded for the post anchor; we keep the anchor's natural success
+        Assertions.assertEquals(StepResult.ResultAction.COMPLETE, actualResult.getAction());
+        Assertions.assertEquals(StepResult.SUCCEED_RESULT_CODE, actualResult.getResultCode());
+    }
+
+    @Test
+    public void testExecuteHooksAndActivity_preHookOverrideOnPreAnchor_runsLaterPreHooksAndIgnoresAllOverrides() {
+        TestPreHookReturningHookResult firstPre = new TestPreHookReturningHookResult(HookResult.retryStep("first"));
+        TestPreHookReturningHookResult secondPre = new TestPreHookReturningHookResult(HookResult.overrideStepResult("FORCED", "second"));
+
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(step);
+        builder.alwaysClose(step);
+        builder.addWorkflowHook(firstPre);
+        builder.addWorkflowHook(secondPre);
+        Workflow workflow = new TestWorkflow(builder.build());
+
+        WorkflowStep anchorStep = workflow.getGraph().getFirstStep();
+        Assertions.assertEquals(PreWorkflowHookAnchor.class, anchorStep.getClass());
+
+        StepResult actualResult = ActivityExecutionUtil.executeHooksAndActivity(workflow, anchorStep, emptyInput, fluxMetrics, stepMetrics);
+
+        // both pre hooks must still run even though overrides are ignored on the anchor
+        Assertions.assertEquals(1, firstPre.getInvocationCount());
+        Assertions.assertEquals(1, secondPre.getInvocationCount());
+        Assertions.assertEquals(StepResult.ResultAction.COMPLETE, actualResult.getAction());
+        Assertions.assertEquals(StepResult.SUCCEED_RESULT_CODE, actualResult.getResultCode());
+    }
+
+    private Workflow workflowWithStepHooks(WorkflowStepHook... hooks) {
+        WorkflowGraphBuilder builder = new WorkflowGraphBuilder(step);
+        builder.alwaysClose(step);
+        for (WorkflowStepHook hook : hooks) {
+            builder.addStepHook(step, hook);
+        }
+        return new TestWorkflow(builder.build());
+    }
+
+    private StepResult successfulStepResult() {
+        return makeStepResult(StepResult.ResultAction.COMPLETE, StepResult.SUCCEED_RESULT_CODE, "yay", Collections.emptyMap());
+    }
+
+    private static void assertCompleteResult(StepResult actual, String expectedResultCode, String expectedMessage) {
+        Assertions.assertEquals(StepResult.ResultAction.COMPLETE, actual.getAction());
+        Assertions.assertEquals(expectedResultCode, actual.getResultCode());
+        Assertions.assertEquals(expectedMessage, actual.getMessage());
+    }
+
+    private static void assertRetryResult(StepResult actual, String expectedMessage) {
+        Assertions.assertEquals(StepResult.ResultAction.RETRY, actual.getAction());
+        Assertions.assertNull(actual.getResultCode());
+        Assertions.assertEquals(expectedMessage, actual.getMessage());
+    }
+
     private StepResult makeStepResult(StepResult.ResultAction resultAction, String stepResult, String message, Map<String, Object> output) {
         return new StepResult(resultAction, stepResult, message).withAttributes(output);
     }
@@ -789,6 +1169,87 @@ public class ActivityExecutionUtilTest {
         @StepHook(hookType = StepHook.HookType.POST, retryOnFailure = true)
         public void postStepHook() throws Throwable {
             throw ex;
+        }
+    }
+
+    public static class TestPreHookReturningHookResult implements WorkflowStepHook {
+
+        private final HookResult hookResult;
+        private int invocationCount = 0;
+
+        public TestPreHookReturningHookResult(HookResult hookResult) {
+            this.hookResult = hookResult;
+        }
+
+        @StepHook(hookType = StepHook.HookType.PRE)
+        public HookResult preStepHook() {
+            invocationCount += 1;
+            return hookResult;
+        }
+
+        public int getInvocationCount() {
+            return invocationCount;
+        }
+    }
+
+    public static class TestPostHookReturningHookResult implements WorkflowStepHook {
+
+        private final HookResult hookResult;
+        private int invocationCount = 0;
+
+        public TestPostHookReturningHookResult(HookResult hookResult) {
+            this.hookResult = hookResult;
+        }
+
+        @StepHook(hookType = StepHook.HookType.POST)
+        public HookResult postStepHook() {
+            invocationCount += 1;
+            return hookResult;
+        }
+
+        public int getInvocationCount() {
+            return invocationCount;
+        }
+    }
+
+    public static class TestPostHookReturningArbitraryObject implements WorkflowStepHook {
+
+        private final Object returnValue;
+        private int invocationCount = 0;
+
+        public TestPostHookReturningArbitraryObject(Object returnValue) {
+            this.returnValue = returnValue;
+        }
+
+        @StepHook(hookType = StepHook.HookType.POST)
+        public Object postStepHook() {
+            invocationCount += 1;
+            return returnValue;
+        }
+
+        public int getInvocationCount() {
+            return invocationCount;
+        }
+    }
+
+    public static class CapturingPostStepHook implements WorkflowStepHook {
+
+        private String capturedResultCode;
+        private String capturedCompletionMessage;
+
+        @StepHook(hookType = StepHook.HookType.POST)
+        public void postStepHook(@Attribute(StepAttributes.RESULT_CODE) String resultCode,
+                                 @Attribute(StepAttributes.ACTIVITY_COMPLETION_MESSAGE) String completionMessage) {
+            this.capturedResultCode = resultCode;
+            this.capturedCompletionMessage = completionMessage;
+        }
+
+        public String getCapturedResultCode() {
+            return capturedResultCode;
+        }
+
+        public String getCapturedCompletionMessage() {
+            return capturedCompletionMessage;
         }
     }
 }

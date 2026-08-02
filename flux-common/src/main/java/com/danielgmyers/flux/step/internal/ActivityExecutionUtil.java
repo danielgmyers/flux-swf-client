@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.danielgmyers.flux.poller.TaskNaming;
+import com.danielgmyers.flux.step.HookResult;
 import com.danielgmyers.flux.step.StepApply;
 import com.danielgmyers.flux.step.StepAttributes;
 import com.danielgmyers.flux.step.StepHook;
@@ -93,33 +94,58 @@ public final class ActivityExecutionUtil {
             Map<String, Object> hookInput = new HashMap<>();
             hookInput.put(StepAttributes.ACTIVITY_NAME, StepAttributes.encode(activityName));
 
+            // Hooks on the workflow hook anchor steps run for their side effects only;
+            // they cannot override the anchor's result, so we discard any HookResult they return.
+            boolean isWorkflowHookAnchor = (step.getClass() == PreWorkflowHookAnchor.class
+                                            || step.getClass() == PostWorkflowHookAnchor.class);
+
             StepResult result = null;
             if (hooks != null && step.getClass() != PostWorkflowHookAnchor.class) {
-                result = WorkflowStepUtil.executeHooks(hooks, stepInput, hookInput, StepHook.HookType.PRE, activityName,
-                        fluxMetrics, stepMetrics, workflow, step);
+                HookResult hookResult = WorkflowStepUtil.executeHooks(hooks, stepInput, hookInput, StepHook.HookType.PRE,
+                        activityName, fluxMetrics, stepMetrics, workflow, step);
+                if (hookResult != null) {
+                    if (isWorkflowHookAnchor) {
+                        log.warn("Cannot override the result of a workflow hook ({})",
+                                hookResult.getMessage());
+                    } else {
+                        result = hookResultToStepResult(hookResult);
+                    }
+                }
             }
+
+            // Did the pre-step hooks override the result of the step
+            boolean preHookOverride = result != null;
 
             if (result == null) {
                 result = executeActivity(step, activityName, fluxMetrics, stepMetrics, stepInput, workflow);
 
                 hookInput.putAll(result.getAttributes());
+            }
 
-                // retries put their reason message in the special ActivityTaskFailed reason field.
-                if (result.getAction() != StepResult.ResultAction.RETRY && result.getMessage() != null) {
-                    hookInput.put(StepAttributes.ACTIVITY_COMPLETION_MESSAGE, result.getMessage());
-                }
-                if (result.getResultCode() != null) {
-                    hookInput.put(StepAttributes.RESULT_CODE, result.getResultCode());
-                }
+            // retries put their reason message in the special ActivityTaskFailed reason field.
+            if (result.getAction() != StepResult.ResultAction.RETRY && result.getMessage() != null) {
+                hookInput.put(StepAttributes.ACTIVITY_COMPLETION_MESSAGE, result.getMessage());
+            }
+            if (result.getResultCode() != null) {
+                hookInput.put(StepAttributes.RESULT_CODE, result.getResultCode());
+            }
 
-                if (hooks != null && step.getClass() != PreWorkflowHookAnchor.class) {
-                    StepResult hookResult = WorkflowStepUtil.executeHooks(hooks, stepInput, hookInput, StepHook.HookType.POST,
-                            activityName, fluxMetrics, stepMetrics, workflow, step);
-                    if (hookResult != null) {
-                        log.info("Activity {} returned result {} ({}) but a post-step hook requires a retry ({}).",
-                                activityName, result.getResultCode(), result.getMessage(),
+            if (hooks != null && step.getClass() != PreWorkflowHookAnchor.class) {
+                HookResult hookResult = WorkflowStepUtil.executeHooks(hooks, stepInput, hookInput, StepHook.HookType.POST,
+                        activityName, fluxMetrics, stepMetrics, workflow, step);
+
+                if (hookResult != null) {
+                    if (isWorkflowHookAnchor) {
+                        log.warn("Cannot override the result of a workflow hook {} ({})",
+                                 hookResult.getResultCode(), hookResult.getMessage());
+                    } else {
+                        log.info("Activity {} returned result {} ({}) but a post-step hook replaced the result with {} ({}).",
+                                activityName, result.getResultCode(), result.getMessage(), hookResult.getResultCode(),
                                 hookResult.getMessage());
-                        return hookResult;
+
+                        if (!preHookOverride) {
+                            result = hookResultToStepResult(hookResult);
+                        }
                     }
                 }
             }
@@ -130,6 +156,14 @@ public final class ActivityExecutionUtil {
             log.error("Caught an exception while executing activity task", e);
             throw e;
         }
+    }
+
+    private static StepResult hookResultToStepResult(HookResult hookResult) {
+        if (hookResult.isRetry()) {
+            return StepResult.retry(hookResult.getMessage());
+        }
+
+        return StepResult.complete(hookResult.getResultCode(), hookResult.getMessage());
     }
 
     // public for test visibility
