@@ -308,15 +308,8 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
 
     @Override
     public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        // First we wait for task workers to finish and report results to SWF
         long timeoutMillis = TimeUnit.MILLISECONDS.convert(timeout, unit);
-        timeoutMillis = awaitTerminationAndReturnRemainingMillis(timeoutMillis, decisionTaskPollerThreadsPerTaskList.values());
-        if (timeoutMillis < 0) {
-            return false;
-        }
-        timeoutMillis = awaitTerminationAndReturnRemainingMillis(timeoutMillis, activityTaskPollerThreadsPerTaskList.values());
-        if (timeoutMillis < 0) {
-            return false;
-        }
         timeoutMillis = awaitTerminationAndReturnRemainingMillis(timeoutMillis, deciderThreadsPerTaskList.values());
         if (timeoutMillis < 0) {
             return false;
@@ -326,6 +319,19 @@ public final class FluxCapacitorImpl implements FluxCapacitor {
             return false;
         }
         timeoutMillis = awaitTerminationAndReturnRemainingMillis(timeoutMillis, periodicThreadsPerTaskList.values());
+        if (timeoutMillis < 0) {
+            return false;
+        }
+
+        // Next we shut down the SWF client, which will interrupt long polls.
+        swf.close();
+
+        // Finally we wait for the pollers to shut down. This should be quick since we just interrupted the poll connections.
+        timeoutMillis = awaitTerminationAndReturnRemainingMillis(timeoutMillis, decisionTaskPollerThreadsPerTaskList.values());
+        if (timeoutMillis < 0) {
+            return false;
+        }
+        timeoutMillis = awaitTerminationAndReturnRemainingMillis(timeoutMillis, activityTaskPollerThreadsPerTaskList.values());
         return timeoutMillis >= 0;
     }
 
