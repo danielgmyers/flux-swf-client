@@ -117,6 +117,14 @@ public abstract class WorkflowTestBase {
         capacitor.shutdown();
 
         terminateOpenWorkflowExecutions(swfClient);
+ 
+        getLogger().info("Awaiting shutdown for domain " + getWorkflowDomain() + "...");
+
+        if (capacitor.awaitTermination(60, TimeUnit.SECONDS)) {
+            getLogger().info("Shutdown complete for domain " + getWorkflowDomain() + ".");
+        } else {
+            getLogger().info("Ran out of time waiting for shutdown for domain " + getWorkflowDomain() + ".");
+        }
     }
 
     protected void terminateOpenWorkflowExecutions(SwfClient swf) {
